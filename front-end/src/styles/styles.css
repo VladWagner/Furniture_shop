@@ -1,0 +1,220 @@
+﻿
+body{
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-family: Arial, serif;
+}
+
+.text-Big {
+    font-size: 1.2rem;
+}
+
+/*Главный блок*/
+main {
+    min-height: 90vh;
+}
+.min-vh-90 {
+    min-height: 90vh;
+}
+
+.main-section{
+    flex-grow: 1;
+}
+
+/*Подвал*/
+footer {
+    flex-shrink: 0;
+    padding: 1.2%;
+    padding-right: 0;
+    margin-top: 10vh;
+    color: rgb(149, 151, 152);
+}
+
+/*Общая настройка для абзацев*/
+p.paragraph-settings {
+    margin-left: 5%;
+    font-size: 1.04rem;
+}
+
+summary::marker {
+    color: rgb(113, 119, 152);
+}
+
+summary {
+    cursor: pointer;
+}
+
+details.task-details {
+    margin-bottom: 0.5rem;
+    background: rgba(240,240,240,1);
+    border-radius: 18px;
+    padding-left: 0.8rem;
+    padding-bottom: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.task-details div {
+    padding: 1rem;
+    padding-top: 0.8rem;
+    margin-left: 3rem;
+}
+/*endregion*/
+
+/*region Высоты и ширины*/
+.w-10{
+    width: 10%;
+}
+.w-15{
+    width: 15%;
+}
+.w-38{
+    width: 38%;
+}
+.w-45{
+    width: 45%;
+}
+.w-95{
+    width: 95%!important;
+}
+
+.h-8-rem{
+    height: 8rem;
+}
+.h-5-rem{
+    height: 5rem;
+}
+.h-4-rem{
+    height: 4rem;
+}
+.h-10-rem{
+    height: 10rem;
+}
+
+/*endregion*/
+
+.list-group img {
+    width: 10rem;
+}
+
+.alignment-center {
+    text-align: center
+}
+
+.min-vh-90{
+    min-height: 70vh;
+}
+
+.mt-10-percent{
+    margin-top: 10%;
+}
+
+.mx-8-rem{
+    margin-left: 8rem;
+    margin-right: 8rem;
+}
+
+
+.white-shadow{
+    box-shadow: 0 0 9px 0 white;
+}
+
+.mt-25-percent{
+    margin-top: 25%;
+}
+
+.soft-shadow{
+    box-shadow: 0 0 9px 0 rgb(207, 207, 207,0.70);
+}
+
+.navbar-brand:hover{
+    transform: scale(1.03);
+}
+
+.error-message{
+    color: rgb(227, 46, 46);
+    font-weight: bold;
+}
+
+
+/*region Toast сообщение*/
+.toast-container-my{
+    position: fixed;
+    top: 5rem;
+    right: 1.5rem;
+}
+
+.toast-my{
+    width: 400px;
+    position: relative;
+    overflow: hidden;
+    list-style: none;
+
+    border-radius: 4px;
+    padding: 1rem 1.5rem;
+
+    margin-bottom: 0.8rem;
+
+    background: rgb(157, 157, 157);
+    justify-content: space-between;
+
+    animation: show-toast 0.6s ease forwards;
+    /*animation: show-toast-2 1.5s ease forwards;*/
+}
+
+.toast-message{
+    color: white;
+}
+
+/*Анимация появления - */
+@keyframes show-toast {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+/*Анимация появления*/
+@keyframes show-toast-2 {
+  0% {
+      opacity: 0;
+  }
+  60% {
+      opacity: 1.5;
+  }
+  100% {
+    opacity: 2.5;
+  }
+}
+
+.btn-close:hover{
+    opacity: 2;
+}
+
+.hide-toast {
+  animation: fade-toast 1.5s ease forwards;
+}
+
+/*Анимация закрытия - затухание*/
+@keyframes fade-toast {
+  0% {
+    opacity: 2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/*endregion*/
+
+td.align-vertical, th.align-vertical{
+    vertical-align: middle;
+}
+
+/*Цвет фона*/
+.bg-light-blue{
+    background-color: #0d6efc42;
+}
