@@ -2,7 +2,8 @@ package gp.wagner.backend.services.interfaces;
 
 
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
-import gp.wagner.backend.domain.dto.request.filters.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import org.springframework.data.domain.Page;
@@ -35,11 +36,12 @@ public interface ProductsService {
     Page<Product> getAll(int pageNum, int dataOnPage);
 
     //Выборка всех записей с фильтрацией
-    /*Page<Product>*/SimpleTuple<List<Product>, Integer> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange, int pageNum, int dataOnPage);
+    SimpleTuple<List<Product>, Integer> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange, int pageNum, int dataOnPage);
 
+    // Метод для подсчёта кол-ва данных по определённому фильтру - для фронта
+    long countData(ProductFilterDtoContainer container, Long categoryId, String priceRange);
 
-    //Выборка записи под id
-
+    // Выборка записи под id
     Product getById(Long id);
 
     //Выборка по категории
@@ -48,4 +50,12 @@ public interface ProductsService {
     //Подсчет количества товаров по категории
     int countByCategory(long categoryId);
 
+    //Получить диапазон цен у товаров в заданной категории
+    FilterValueDto<Integer> getPricesRangeInCategory(long categoryId);
+
+    //Получить диапазон цен у товаров в нескольких категориях
+    FilterValueDto<Integer> getPricesRangeInCategories(List<Long> categoriesIds);
+
+    // Получить диапазон цен по ключевому слову (при поиске)
+    FilterValueDto<Integer> getPricesRangeByKeyword(String keyword);
 }

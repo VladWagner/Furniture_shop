@@ -28,17 +28,23 @@ public class ControllerUtils {
             return null;
 
         //Выборки всех вариантов
-        List<ProductVariant> productVariants = Services.productVariantsService.getAll();
+        //List<ProductVariant> productVariants = Services.productVariantsService.getAll();
 
         //Выбор всех атрибутов в RAM
-        List<AttributeValue> attributeValues = Services.attributeValuesService.getAll();
+        //List<AttributeValue> attributeValues = Services.attributeValuesService.getAll();
 
         return products.stream().map(p -> {
-            //Получить стоимость перового, базового варианта товара//ProductVariant baseVariant = Services.productVariantsService.getByProductId(p.getId()).stream().min(Comparator.comparing(ProductVariant::getId)).get();
-            ProductVariant baseVariant = productVariants.stream().filter(pv -> Objects.equals(pv.getProduct().getId(), p.getId())).min(Comparator.comparing(ProductVariant::getId)).get();
+            //Получить стоимость перового, базового варианта товара
+            // ProductVariant baseVariant = Services.productVariantsService.getByProductId(p.getId()).stream().min(Comparator.comparing(ProductVariant::getId)).get();
+            /*ProductVariant baseVariant = productVariants.stream()
+                    .filter(pv -> Objects.equals(pv.getProduct().getId(), p.getId()))
+                    .min(Comparator.comparing(ProductVariant::getId))
+                    .get();*/
+            ProductVariant baseVariant = p.getProductVariants().get(0);
 
-            return new ProductPreviewRespDto(p, baseVariant.getPrice(), baseVariant.getPreviewImg(), attributeValues.stream().
-                    filter(av -> av.getProduct().getId().equals(p.getId())).toList());
+
+            return new ProductPreviewRespDto(p, baseVariant.getPrice(), baseVariant.getPreviewImg(), p.getAttributeValues() /*attributeValues.stream().
+                    filter(av -> av.getProduct().getId().equals(p.getId())).toList()*/);
         }).toList();
     }//getProductsPreviewsList
 
@@ -193,8 +199,11 @@ public class ControllerUtils {
         List<Long> childCategories = Services.categoriesService.getChildCategories((int) categoryId);
 
         //Для каждого дочернего элемента, найти его дочерние элементы, пока не дойдём до последней
-        for (Long id : childCategories)
-            categoriesViewsDto.childCategories.add(findSubCategoryViews(id));
+        //for (Long id : childCategories)
+        //    categoriesViewsDto.childCategories.add(findSubCategoryViews(id));
+
+        if(!childCategories.isEmpty())
+            categoriesViewsDto.childCategories.add(findSubCategoryViews(childCategories.get(0)));
 
         return categoriesViewsDto;
     }

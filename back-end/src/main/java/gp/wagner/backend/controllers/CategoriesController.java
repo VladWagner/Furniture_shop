@@ -79,7 +79,7 @@ public class CategoriesController {
     @GetMapping(value = "/category_views/all", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<CategoriesViewsWithChildrenDto>/*List<CategoryViews>*/ getAllCategoryViews(){
 
-        //Получить все категории, где не указана родительская категория
+        //Получить все категории, где не указана родительская категория. То есть выборка родительских категорий.
         List<Category> parentCategories = Services.categoriesService.getAll()
                 .stream()
                 .filter(c -> c.getParentCategory() == null)
@@ -95,11 +95,11 @@ public class CategoriesController {
         for (Category c: parentCategories) {
             childCategories = Services.categoriesService.getChildCategories(c.getId().intValue());
 
-            //Создать dto с подсчётом просмотров текущей и дочерних категорий на всех уронях
+            //Создать dto с подсчётом просмотров текущей и дочерних категорий на всех уровнях
             CategoriesViewsWithChildrenDto categoriesViewsDto = new CategoriesViewsWithChildrenDto(
                     Services.categoryViewsService.getSimpleCVByCategoryId(c.getId()));
 
-            //Вложенный список, понятно, что не самое эффективное решение, но пока не понятно, как по-другому можно пройтти по дочерним элеентам
+            //Вложенный список, понятно, что не самое эффективное решение, но пока не понятно, как по-другому можно пройти по дочерним элементам
             for (long id: childCategories) {
                 categoriesViewsDto.childCategories.add(ControllerUtils.findSubCategoryViews(id));
             }

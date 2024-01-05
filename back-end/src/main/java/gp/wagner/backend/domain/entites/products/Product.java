@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 //import org.hibernate.search.mapper.pojo.mapping.definition.annotation.*;
 
 import java.util.ArrayList;
@@ -37,12 +38,12 @@ public class Product {
 
     //Связующие свойство категории товара (Многие товары к 1 категории)
     @JoinColumn(name = "category_id")
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     private Category category;
 
     //Связующие свойство производителя товара (Многие товаров к 1 производителю)
     @JoinColumn(name = "producer_id")
-    @ManyToOne()
+    @ManyToOne(fetch = FetchType.LAZY)
     private Producer producer;
 
     //Наличие товара
@@ -54,11 +55,13 @@ public class Product {
     private Boolean showProduct;
 
     //Характеристики товара (Многие характеристики к 1 товару)
-    @OneToMany(mappedBy = "product")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
+    @BatchSize(size = 256)
     private List<AttributeValue> attributeValues = new ArrayList<>();
 
     //Варианты исполнения товара
 
-    @OneToMany(mappedBy = "product")
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
+    @BatchSize(size = 256)
     private List<ProductVariant> productVariants = new ArrayList<>();
 }

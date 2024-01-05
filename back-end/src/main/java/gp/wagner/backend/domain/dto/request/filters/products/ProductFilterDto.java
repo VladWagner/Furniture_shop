@@ -1,4 +1,4 @@
-package gp.wagner.backend.domain.dto.request.filters;
+package gp.wagner.backend.domain.dto.request.filters.products;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.annotation.Nullable;
@@ -11,6 +11,8 @@ import org.springframework.core.SpringVersion;
 @Data
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class ProductFilterDto {
 
     @NotNull

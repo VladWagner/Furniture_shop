@@ -76,7 +76,7 @@ public class CategoriesServiceImpl implements CategoriesService {
 
         }
 
-        //Если повторяющуюся категорию найти не удалось, или повторяющиеся категории принадлежат к разным
+        //Если повторяющуюся категорию найти не удалось, или категории принадлежат к разным родительским категориям
         return categoriesRepository.saveAndFlush(
                 new Category(null, categoryName, null,
                         parentCategory)

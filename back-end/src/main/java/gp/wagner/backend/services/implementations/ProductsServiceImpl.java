@@ -1,7 +1,8 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
-import gp.wagner.backend.domain.dto.request.filters.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
@@ -21,11 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
-//Сервис для таблицы товаров
+// Сервис для таблицы товаров
 @Service
 public class ProductsServiceImpl implements ProductsService {
 
-    //Репозиторий
+    // Репозиторий
     private ProductsRepository productsRepository;
 
     @PersistenceContext
@@ -38,7 +39,7 @@ public class ProductsServiceImpl implements ProductsService {
 
     //region Добавление
     @Override
-    //Добавление записи
+    // Добавление записи
     public void create(Product product){
         if(product == null)
             return;
@@ -46,7 +47,7 @@ public class ProductsServiceImpl implements ProductsService {
         productsRepository.saveAndFlush(product);
     }
 
-    //Добавление товара из DTO
+    // Добавление товара из DTO
     @Override
     public long create(ProductDto dto) {
       if (dto == null)
@@ -71,7 +72,7 @@ public class ProductsServiceImpl implements ProductsService {
 
     }
 
-    //Из DTO
+    // Из DTO
     @Override
     public void update(ProductDto dto) {
         if (dto == null)
@@ -84,8 +85,7 @@ public class ProductsServiceImpl implements ProductsService {
     //endregion
 
     @Override
-    //Выборка всех записей
-    @Transactional(readOnly = true)
+    // Выборка всех записей
     public List<Product> getAll(){return productsRepository.findAll();}
 
     @Override
@@ -93,7 +93,7 @@ public class ProductsServiceImpl implements ProductsService {
         return productsRepository.getMaxId();
     }
 
-    //Выборка с пагинацией
+    // Выборка с пагинацией
     @Override
     @Transactional()
     public Page<Product> getAll(int pageNum, int dataOnPage) {
@@ -101,51 +101,41 @@ public class ProductsServiceImpl implements ProductsService {
         return productsRepository.findAll(PageRequest.of(pageNum, dataOnPage));
     }
 
-    //Фильтрация и пагинация
+    // Фильтрация и пагинация
     @Override
-    public SimpleTuple<List<Product>, Integer> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange, int pageNum, int dataOnPage) {
+    public SimpleTuple<List<Product>, Integer> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange,
+                                                      int pageNum, int dataOnPage) {
 
         //Сформировать набор спецификаций для выборки из набора фильтров (фильтр = атрибут (характеристика) + операция)
-        List<Specification<Product>> specifications = ProductSpecifications.createNestedProductSpecifications(container);
+        //List<Specification<Product>> specifications = ProductSpecifications.createNestedProductSpecifications(container);
+        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
 
         //Объект для формирования запросов - построитель запроса
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         //Рассчитать общее кол-во данных с такими фильтрами
-        int totalCount = countData(cb, specifications, categoryId, priceRange);
+        //int totalCount = countData(cb, specifications, categoryId, priceRange);
 
         CriteriaQuery<Product> query = cb.createQuery(Product.class);
 
         //Получить таблицу товаров для запросов
         Root<Product> root = query.from(Product.class);
 
-        List<Predicate> predicates = new ArrayList<>();
-
-        //Доп.фильтрация по категории
-        if (categoryId != null) {
-            //Присоединить сущность категорий
-            Join<Product, Category> categoryJoin = root.join("category");
-
-            //Задать доп.условие выборки - по категориям
-            predicates.add(cb.equal(categoryJoin.get("id"), categoryId));
-        }
-
-        //Доп.фильтрация по ценам
-        if (priceRange != null)
-            predicates.add(ServicesUtils.getPricePredicate(priceRange, root, query, cb));
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange);
 
         //Получить предикат для выборки по заданным фильтрам (контейнер фильтров, который был передан из контроллера)
         //При помощи данного предиката запросы будут строится со стороны Spring data & Hibernate
-        //Метод toPredicate - по-идее использует то анонимное создание спецификации, которое  задал в ProductSpecifications.java
+        //Метод toPredicate - по-идее использует то анонимное создание спецификации, которое задано в ProductSpecifications.java
         Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
 
         //Сформировать запрос
         if (predicates.size() > 0)
-            //Доп.фильтра + фильтра по характеристикам
+            //Доп.фильтра по категории и ценам + фильтра по характеристикам
             query.where(cb.and(
                     cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
         else
             query.where(filterPredicate);
+
 
         if (pageNum > 0)
             pageNum -= 1;
@@ -172,51 +162,48 @@ public class ProductsServiceImpl implements ProductsService {
         //Конец списка (offset + dataOnMage) - вычисляем мин.значения из двух во избежание выхода за пределы списка
         int endIdx = Math.min(startIdx + dataOnPage, listLength);
 
-        return new SimpleTuple<>(products.subList(startIdx, endIdx), totalCount);
+        return new SimpleTuple<>(products.subList(startIdx, endIdx), listLength);
         //return new SimpleTuple<>(products, totalCount);
     }
 
+    @Override
+    // Метод для подсчёта кол-ва данных полученных после выборки по определённым фильтрам.
+    // То есть здесь мы по сути производим повторный запрос с теми же фильтрами и считаем кол-во данных полученных с него
+    public long countData(ProductFilterDtoContainer container, Long categoryId, String priceRange){
 
-    //Метод для подсчёта кол-ва данных полученных после выборки по определённым фильтрам.
-    //То есть здесь мы по сути производим повторный запрос с теми же фильтрами и считаем кол-во данных полученных с нег
-    private int countData(CriteriaBuilder cb, List<Specification<Product>> specifications, Long categoryId, String priceRange){
+        //Объект для формирования запросов - построитель запроса
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Long> query = cb.createQuery(Long.class);
 
         //Получить таблицу для запросов
         Root<Product> root = query.from(Product.class);
 
-        Predicate filter = Specification.allOf(specifications).toPredicate(root, query, cb);
+        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
 
-        List<Predicate> predicates = new ArrayList<>();
-        if (categoryId != null) {
-            //Присоединить сущность категорий
-            Join<Product, Category> categoryJoin = root.join("category");
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange);
 
-            //Задать доп.условие выборки - по категориям
-            predicates.add(cb.equal(categoryJoin.get("id"), categoryId));
-        }
+        // Получить предикат для выборки по заданным фильтрам
+        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
 
-        //Доп.фильтрация по ценам
-        if (priceRange != null)
-            predicates.add(ServicesUtils.getPricePredicate(priceRange, root, query, cb));
-
-        //Сформировать запрос с подсчётом кол-ва записей
+        //Сформировать запрос
         if (predicates.size() > 0)
-            query.select(cb.countDistinct(root)).where(cb.and(predicates.toArray(new Predicate[0])), filter);
+            //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
+            query.where(cb.and(
+                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
         else
-            query.select(cb.countDistinct(root)).where(filter);
+            query.where(filterPredicate);
+
+        query.select(cb.count(root.get("id")));
 
         TypedQuery<Long> typedQuery = entityManager.createQuery(query);
 
-        Long result = typedQuery.getSingleResult();
-
         //Интересно, на этом моменте происходит этот огромный запрос к БД или всё же он как-то это оптимизирует
-        return result.intValue();
+        return typedQuery.getResultList().get(0);
     }
 
     @Override
-    //Выборка записи по id
+    // Выборка записи по id
     public Product getById(Long id){
         if (id != null) {
             Optional<Product> productOptional = productsRepository.findById(id);
@@ -235,7 +222,7 @@ public class ProductsServiceImpl implements ProductsService {
         return productsRepository.findProductsByCategoryId(categoryId, PageRequest.of(pageNum, dataOnPage));
     }
 
-    //Посчитать, сколько записей в каждой категории
+    // Посчитать, сколько записей в каждой категории
     @Override
     public int countByCategory(long categoryId) {
 
@@ -253,6 +240,36 @@ public class ProductsServiceImpl implements ProductsService {
         query.select(cb.count(root)).where(cb.equal(categoryJoin.get("id"), categoryId));
 
         return entityManager.createQuery(query).getSingleResult().intValue();
+    }
+
+    // Сформировать объект для выборки пограничных значений цены за товар (для фильтра)
+    private FilterValueDto<Integer> getFilterValueDto(Object rawResult){
+        Object[] range = (Object[]) rawResult;
+
+        if (range == null || range.length == 0 || range[0] == null)
+            return null;
+
+        return new FilterValueDto<>(0, "Prices", null,
+                ((Number) range[0]).intValue(), ((Number) range[1]).intValue());
+    }
+
+    // Получить диапазон цен на товары в определённой категории
+    @Override
+    public FilterValueDto<Integer> getPricesRangeInCategory(long categoryId) {
+
+        return getFilterValueDto(productsRepository.getMinMaxPriceInCategory(categoryId));
+    }
+
+    // Получить диапазон цен на товары в нескольких категориях
+    @Override
+    public FilterValueDto<Integer> getPricesRangeInCategories(List<Long> categoriesIds) {
+        return getFilterValueDto(productsRepository.getMinMaxPriceInCategories(categoriesIds));
+    }
+
+    // Получить диапазон цен по ключевому слову (при поиске)
+    @Override
+    public FilterValueDto<Integer> getPricesRangeByKeyword(String keyword) {
+        return getFilterValueDto(productsRepository.getMinMaxPriceByKeyword(keyword));
     }
 
 }

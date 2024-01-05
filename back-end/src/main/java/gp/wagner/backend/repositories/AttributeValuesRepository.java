@@ -1,5 +1,6 @@
 package gp.wagner.backend.repositories;
 
+import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.domain.entites.products.Product;
 import jakarta.annotation.Nullable;
@@ -66,6 +67,97 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
     @Transactional
     @Modifying
     void deleteByIdIn(List<Long> ids);
+
+    //Получить значения атрибутов и их диапазоны для фильтрации
+    @Query(nativeQuery = true,value = """
+        with products_in_category as(
+            select
+                p.id
+            from
+                products p
+            where
+                (:categoryId > 0 and p.category_id = :categoryId) or :categoryId <= 0)
+        
+        select
+            av.attribute_id as attributeId,
+            prod_attr.attr_name as attributeName,
+        
+            MIN(av.int_value) as 'min',
+            MAX(av.int_value) as 'max',
+        
+            av.txt_values as 'value'
+        
+        from
+            attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+        where
+             av.product_id in (select pic.id from products_in_category pic) and
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+        group by
+            prod_attr.attr_name, av.attribute_id, av.txt_values;
+    """)
+    List<Object[]> getAttributeValuesByCategory(@Param("categoryId") long categoryId);
+
+    //Получить значения атрибутов и их диапазоны для фильтрации
+    @Query(nativeQuery = true,value = """
+        with products_in_category as(
+            select
+                p.id
+            from
+                products p
+            where
+                p.category_id in :category_id_list)
+        
+        select
+            av.attribute_id as attributeId,
+            prod_attr.attr_name as attributeName,
+        
+            MIN(av.int_value) as 'min',
+            MAX(av.int_value) as 'max',
+        
+            av.txt_values as 'value'
+        
+        from
+            attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+        where
+             av.product_id in (select pic.id from products_in_category pic) and
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+        group by
+            prod_attr.attr_name, av.attribute_id, av.txt_values;
+    """)
+    List<Object[]> getAttributeValuesByCategories(@Param("category_id_list") List<Long> categoryId);
+
+    //Получить значения атрибутов и их диапазоны для фильтрации
+    @Query(nativeQuery = true,value = """
+        with products_in_category as(
+            select
+                p.id
+            from
+                products p join variants_product pv on p.id = pv.product_id
+                           join producers producer on p.producer_id = producer.id
+            where
+                p.product_name like concat('%',:keyword,'%') or
+                p.description like concat('%',:keyword,'%') or
+                pv.title like concat('%',:keyword,'%') or
+                producer.producer_name like concat('%',:keyword,'%'))
+        
+        select
+            av.attribute_id as attributeId,
+            prod_attr.attr_name as attributeName,
+        
+            MIN(av.int_value) as 'min',
+            MAX(av.int_value) as 'max',
+        
+            av.txt_values as 'value'
+        
+        from
+            attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+        where
+             av.product_id in (select pic.id from products_in_category pic) and
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+        group by
+            prod_attr.attr_name, av.attribute_id, av.txt_values;
+    """)
+    List<Object[]> getAttributeValuesByKeyword(@Param("keyword") String key);
 
 }
 

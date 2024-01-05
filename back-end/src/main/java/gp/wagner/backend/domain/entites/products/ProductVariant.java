@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,8 +46,9 @@ public class ProductVariant {
     private Boolean showVariant;
 
     //Изображения данного варианта (Один вариант к многим товарам)
-    //@OneToMany
-    //private List<ProductImage> productImages = new ArrayList<>();
+    @OneToMany(fetch = FetchType.LAZY)
+    @BatchSize(size = 256)
+    private List<ProductImage> productImages = new ArrayList<>();
 
     public ProductVariant(String title, Product product, int price, String previewImg, boolean showVariant) {
         this.previewImg = previewImg;
@@ -55,3 +58,5 @@ public class ProductVariant {
         this.showVariant = showVariant;
     }
 }
+
+

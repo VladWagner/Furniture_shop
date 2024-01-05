@@ -70,7 +70,7 @@ from attributes_categories join products_attributes prod_attr on attributes_cate
                            join (categories left join subcategories s on categories.subcategory_id = s.id)
                                on attributes_categories.category_id = categories.id
 where
-    -- Ввыборка атрибутов по заданной основной категории
+    -- Выборка атрибутов по заданной основной категории
     attributes_categories.category_id  = (select categories.id from categories join products p on categories.id = p.category_id where p.id = @product_id)
     or
     -- Если категория задана в таблице повторяющихся категорий, тогда нужно вытаскивать id записей в таблице subcategory_id
@@ -83,6 +83,7 @@ select
     products.id,
     product_name,
     p_attr.attr_name,
+    p_attr.id as attr_id,
     av.txt_values,
     av.int_value
 from
@@ -102,12 +103,14 @@ select
     attributes_values.txt_values,
     attributes_values.int_value,
     attributes_values.float_value,
+    -- count(case when (txt_values is not null or int_value is not null or float_value is not null) then 1 else null end) as count,
     count(*)
 from
     attributes_values join view_products vp on attributes_values.product_id = vp.id
                       join products_attributes pa on attributes_values.attribute_id = pa.id
 where
-    vp.category like CONCAT('%', @category,'%') and pa.attr_name like 'материалы'
+    (vp.category like CONCAT('%', @category,'%') and pa.attr_name like 'материалы') and
+    (txt_values is not null or int_value is not null or float_value is not null)
 group by txt_values, int_value, float_value;
 
 -- Выборка конкретных товаров и их характеристик
@@ -195,8 +198,8 @@ select distinct
     variants.price
 from
     view_products as vp
-join (products_attributes pa left join attributes_values av on av.attribute_id = pa.id) on av.product_id = vp.id
-join variants_product variants on variants.product_id = vp.id
+    join (products_attributes pa left join attributes_values av on av.attribute_id = pa.id) on av.product_id = vp.id
+    join variants_product variants on variants.product_id = vp.id
 where (pa.attr_name like 'Высота' and av.int_value between 700 and 2200 or
       pa.attr_name like 'Ширина' and av.int_value between 700 and 2300 or
       pa.attr_name like 'Глубина' and av.int_value between 300 and 1500) and
@@ -290,7 +293,7 @@ select
 from category_tree;
 
 -- Подсчёт кол-ва просмотров во всех дочерних категориях
-set @categoryId = 4;
+set @categoryId = 2;
 with recursive category_tree as (
                 -- Выборка просмотров родительской категории (базовый узел) НА КАЖДОМ УРОВНЕ РЕКУРСИИ
                 select
@@ -323,6 +326,142 @@ from
 where
     c.parent_id = :id;
 
+-- Выборка атрибутов под конкретные категории и их максимальных значений
+set @categoryId = 8;
+with products_in_category as(
+    select
+        p.id
+    from
+        products p
+    where
+        -- (@categoryId > 0 and p.category_id = @categoryId) or @categoryId <= 0)
+        p.category_id in (10,11,15))
+
+select
+    av.attribute_id as attributeId,
+    prod_attr.attr_name as attributeName,
+
+    MIN(av.int_value) as min,
+    MAX(av.int_value) as max,
+
+    av.txt_values as value
+
+from
+    attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+where
+     av.product_id in (select pic.id from products_in_category pic) and
+     (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+group by
+    prod_attr.attr_name, av.attribute_id, av.txt_values;
 
 
+-- Выборка значений атрибутов по конкретному названию
+select
+    av.attribute_id as attributeId,
+    prod_attr.attr_name as attributeName,
+    av.int_value,
+    av.txt_values
 
+from
+    attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+where
+        prod_attr.attr_name like 'Страна-производитель';
+
+-- Тестовая выборка товаров по значениям орпделённых атрибутов
+select
+    p.id,
+    p.category_id,
+    p.producer_id,
+    producer_name,
+    attrVal.attribute_id,
+    attrVal.int_value,
+    attrVal.txt_values
+from
+    products as p join attributes_values attrVal on attrVal.product_id = p.id
+                 join producers on p.producer_id = producers.id
+                 join variants_product pv on pv.product_id = p.id
+where
+    producers.producer_name like 'BTS' and
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 1 and av.int_value between 500 and 1200) and
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 2 and av.int_value between 200 and 600)
+  and
+    (p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 5 and av.txt_values = 'МДФ') or
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 5 and av.txt_values = 'ЛДСП') or
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 5 and av.txt_values = 'Велюр'))
+  and
+    (p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 24 and av.txt_values = 'Классическая') or
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 24 and av.txt_values = 'Прямоугольные') or
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 24 and av.txt_values = 'Круглый') or
+    p.id in (select av.product_id from attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id where prod_attr.id = 24 and av.txt_values = 'Круглые')
+        );
+
+-- Выбрать цены на товары в определённой категории
+set @categoryId = 10;
+set @categoryIdList = (10,11,15);
+select
+    MIN(vp.price) as min_set,
+    MAX(vp.price) as max_set
+from
+    products p join variants_product vp on  p.id = vp.product_id
+where
+    IF(@categoryIdList is not null, p.category_id in @categoryIdList, (@categoryId > 0 and p.category_id = 0) or @categoryId <= 0)
+   -- p.category_id in @categoryIdList
+   -- (0 > 0 and p.category_id = 0) or 0 <= 0
+
+-- Полнотекстовый поиск через индексы
+set @keyword = 'BTS';
+select
+    *
+from products p join producers producer on p.producer_id = producer.id
+                join variants_product vp on p.id = vp.product_id
+where
+    MATCH(p.product_name, p.description) AGAINST (@keyword) or
+    MATCH(vp.title) AGAINST (@keyword) or
+    MATCH(producer.producer_name) AGAINST (@keyword);
+
+set @keyword = 'диван';
+select distinct
+    p.id as product_id,
+    p.product_name,
+    p.description as product_description,
+    -- vp.id as variant_id,
+    -- vp.title as product_variant_name,
+    producer.producer_name
+
+from products p join producers producer on p.producer_id = producer.id
+                join variants_product vp on p.id = vp.product_id
+where
+    p.product_name like concat('%',@keyword,'%') or
+    p.description like concat('%',@keyword,'%') or
+    vp.title like concat('%',@keyword,'%') or
+    producer.producer_name like concat('%',@keyword,'%');
+
+-- Выборка заказов и их детальной информации
+select
+    orders.id as order_id,
+    CONCAT(customer.surname, '.', SUBSTR(customer.name, 1,1), '.', SUBSTR(customer.patronymic, 1,1)) as customer_snp,
+    p.id as product_id,
+    vp.title as variant_name,
+    p.description as product_description,
+    vp.price,
+    opv.products_count,
+    (vp.price * opv.products_count) as summ
+
+from orders join customers customer on customer.id = orders.customer_id
+            join order_states os on orders.order_state_id = os.id
+            left join (orders_products_variants opv join (variants_product vp join products p on vp.product_id = p.id)
+                        on opv.product_variant_id = vp.id)
+                on orders.id = opv.order_id;
+
+-- Тестовая выборка с проверкой на null
+set @order_state_id = 0, @code = 4237291951;
+select
+    orders.id,
+    orders.code,
+    CONCAT(c.surname, '.', SUBSTR(c.name, 1,1), '.', SUBSTR(c.patronymic, 1,1)) as customer_snp,
+    c.email
+from orders join customers c on orders.customer_id = c.id
+where
+    c.email = 'user4@gmail.com'
+    -- (@code <= 0 or @code is null and @code = orders.code) or orders.code > 0
+   -- if(@order_state_id is null or @order_state_id <= 0, (@code is not null and @code > 0 and @code = orders.code), orders.id = @order_state_id)

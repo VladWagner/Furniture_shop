@@ -1,13 +1,18 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
+import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.AttributeValuesRepository;
 import gp.wagner.backend.services.interfaces.AttributeValuesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 //Сервис для работы  с таблицей значений характеристик и её сущностью
 @Service
@@ -85,7 +90,7 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
     //Выборка записи по id
     public AttributeValue getById(Long id){
         if (id != null)
-            return attributeValuesRepository.findById(id).get();
+            return attributeValuesRepository.findById(id).orElse(null);
         return null;
     }
 
@@ -95,4 +100,114 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
         return attributeValuesRepository.findAttributeValuesByProductId(product_id);
     }
 
+    // Сформировать список объектов для формирования фильтра
+    private List<FilterValueDto<Integer>> createDtoList(List<Object[]> rawResult){
+        List<FilterValueDto<Integer>> dtoList = new LinkedList<>();
+
+        //Распарсить результирующий набор
+        for (Object[] result: rawResult) {
+
+            FilterValueDto<Integer> filterDto = new FilterValueDto<>();
+
+            filterDto.setAttributeId((int) result[0]);
+            filterDto.setAttributeName((String) result[1]);
+            filterDto.setMin((Integer) result[2]);
+            filterDto.setMax((Integer) result[3]);
+            filterDto.setValue((String) result[4]);
+            dtoList.add(filterDto);
+
+        }
+
+        return dtoList;
+    }
+
+    // Получить значения характеристик
+    @Override
+    public Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategory(long categoryId) {
+
+        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategory(categoryId);
+
+        // LinkedList, поскольку по коду имеется необходимость вставок в список, что в данной коллекции занимает меньше времени
+        /*List<FilterValueDto<Integer>> dtoList = new LinkedList<>();
+
+        //Распарсить результирующий набор
+        for (Object[] result: resultSet) {
+
+            FilterValueDto<Integer> filterDto = new FilterValueDto<>();
+
+            filterDto.setAttributeId((int) result[0]);
+            filterDto.setAttributeName((String) result[1]);
+            filterDto.setMin((Integer) result[2]);
+            filterDto.setMax((Integer) result[3]);
+            filterDto.setValue((String) result[4]);
+            dtoList.add(filterDto);
+
+        }*/
+
+        List<FilterValueDto<Integer>> dtoList = createDtoList(resultSet);
+
+        // Добавить список производителей
+        dtoList.addAll(Services.producersService.getProducersByCategory(categoryId)
+                .stream()
+                .map(element -> new FilterValueDto<Integer>(0,"Producers",element.getProducerName(), null, null))
+                .toList());
+
+        // Добавить диапазон цен
+        FilterValueDto<Integer> pricesRange = Services.productsService.getPricesRangeInCategory(categoryId);
+
+        if (pricesRange != null && pricesRange.getMin() != null)
+            dtoList.add(pricesRange);
+
+        // Группировка по названию характеристики
+        Map<String, List<FilterValueDto<Integer>>> groupedFilters = dtoList.stream()
+                                                                    .collect(Collectors.groupingBy(FilterValueDto::getAttributeName));
+
+        return groupedFilters;
+    }
+
+    // Получить те же значения для фильтрации из списка id категорий
+    @Override
+    public java.util.Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategories(List<Long> categoriesIds) {
+        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategories(categoriesIds);
+
+        List<FilterValueDto<Integer>> dtoList = createDtoList(resultSet);
+
+        // Добавить диапазон цен по конкретным категориям
+        FilterValueDto<Integer> pricesRange = Services.productsService.getPricesRangeInCategories(categoriesIds);
+
+        if (pricesRange != null && pricesRange.getMin() != null)
+            dtoList.add(pricesRange);
+
+        // Список производителей
+        dtoList.addAll(Services.producersService.getProducersInCategories(categoriesIds)
+                .stream()
+                .map(element -> new FilterValueDto<Integer>(0,"Producers",element.getProducerName(), null, null))
+                .toList());
+
+        return dtoList.stream()
+                .collect(Collectors.groupingBy(FilterValueDto::getAttributeName));
+    }
+
+    //Можно так же ещё сделать выборку значений фильтраци по ключевому слову.
+    // То есть искать во всех репозитория так же и по ключевому слову в товаре
+    @Override
+    public java.util.Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByKeyword(String keyword) {
+
+        List<FilterValueDto<Integer>> dtoList = createDtoList(attributeValuesRepository.getAttributeValuesByKeyword(keyword));
+
+        // Добавить диапазон цен по конкретным категориям
+        FilterValueDto<Integer> pricesRange = Services.productsService.getPricesRangeByKeyword(keyword);
+
+        if (pricesRange != null && pricesRange.getMin() != null)
+            dtoList.add(pricesRange);
+
+        // Список производителей
+        dtoList.addAll(Services.producersService.getProducersByProductKeyword(keyword)
+                .stream()
+                .map(element -> new FilterValueDto<Integer>(0,"Producers",element.getProducerName(), null, null))
+                .toList());
+
+        return dtoList.stream()
+                .collect(Collectors.groupingBy(FilterValueDto::getAttributeName));
+    }
 }

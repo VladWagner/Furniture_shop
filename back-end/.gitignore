@@ -4,6 +4,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+**/src/main/resources/db/changelog
+**/src/main/resources/db/temp
+**/src/main/resources/scripts_db/for_tests.json
+**/src/main/resources/scripts_db/postman_objects.json
+**/src/main/resources/WEB-INF
+
 ### STS ###
 .apt_generated
 .classpath

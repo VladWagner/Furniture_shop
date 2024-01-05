@@ -1,13 +1,16 @@
 package gp.wagner.backend.domain.entites.orders;
 
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
 import java.util.Date;
+import java.util.List;
 
 //Заказ
 //Выполняется по определённому варианту товара (Много заказов к 1 варианту товара)
@@ -23,17 +26,16 @@ public class Order {
     private Long id;
 
     //Количество заказываемых вариантов товара
-    @Column(name = "products_amount")
-    private int productsAmount;
+   /* @Column(name = "products_amount")
+    private int productsAmount;*/
 
     //Дата и время заказа
     @Column(name = "order_date")
     private Date orderDate;
 
-    //Связующее свойство варианта товара
-    @ManyToOne
-    @JoinColumn(name = "product_variant_id")
-    private ProductVariant productVariant;
+    //Код заказа
+    @Column(name = "code")
+    private long code;
 
     //Связующее свойство состояния заказа (Многие заказы к 1 статусу)
     @ManyToOne
@@ -44,4 +46,14 @@ public class Order {
     @ManyToOne
     @JoinColumn(name = "customer_id")
     private Customer customer;
+
+    //Варианты товаров для данного заказа
+    @OneToMany(mappedBy = "order")
+    @BatchSize(size = 256)
+    private List<OrderAndProductVariant> orderAndPVList;
+
+    // Итоговая сумма заказа
+    @Column(name = "sum")
+    private int sum;
+
 }

@@ -1,4 +1,4 @@
-package gp.wagner.backend.domain.dto.request.filters;
+package gp.wagner.backend.domain.dto.request.filters.products;
 
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
@@ -15,8 +15,8 @@ import java.util.List;
 public class ProductFilterBlock {
 
     //Внешнее условие - объедения с другими блоками (возможно излишнее, поскольку использовать практически нереально - )
-    //Например имеется блок с условиями или (Каркас деревянный или металлический) -> он соединяется с блоком и (есть раскладушка и уголок)
-    //Используется для задания связи между спецификациями (ПОКА НЕТ и вороятнее всего не будет)
+    //Например имеется блок с условиями или (Каркас деревянный или металлический) -> он соединяется с блоком "и" (есть раскладушка и уголок)
+    //Используется для задания связи между спецификациями (ПОКА НЕТ и вероятнее всего не будет)
     @Nullable
     private String outerCondition;
 

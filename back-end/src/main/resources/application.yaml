@@ -5,7 +5,7 @@ spring:
     password: A123456Qw1
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
-    open-in-view: false
+    open-in-view: true
     properties:
       hibernate:
         #search:
@@ -17,6 +17,7 @@ spring:
         hbm2ddl:
           auto: none
         dialect: org.hibernate.dialect.MySQLDialect
+        generate_statistics: true
   main:
     allow-bean-definition-overriding: true
   servlet:

@@ -59,22 +59,26 @@ public class ProductPreviewRespDto {
     //P.S. хотя возможно, что CU (create, update) построен так, что при любом изменении и добавлении товара,
     //будут сначала добавляться его габариты
     public ProductPreviewRespDto(Product product, int price, String previewImage, List<AttributeValue> attributeValues) {
+
+        Category category = product.getCategory();
+        Producer producer = product.getProducer();
+
         this.id = product.getId();
         this.name = product.getName();
-        this.categoryId = product.getCategory().getId();
-        this.categoryName = product.getCategory().getName();
-        this.producerId = product.getProducer().getId();
-        this.producerName = product.getProducer().getProducerName();
+        this.categoryId = category.getId();
+        this.categoryName = category.getName();
+        this.producerId = producer.getId();
+        this.producerName = producer.getProducerName()/*"Pivedenne"*/;
         this.isAvailable = product.getIsAvailable();
         this.showProduct = product.getShowProduct();
         this.price = price;
         this.previewImgLink = previewImage;
-        /*this.sizes = String.format("Размер см: Ш %d x В %d x Г %d", attributeValues.stream().filter(av -> av.getAttribute().getAttributeName().equalsIgnoreCase("ширина")).findFirst().get().getIntValue(),
+         /*this.sizes = String.format("Размер см: Ш %d x В %d x Г %d", attributeValues.stream().filter(av -> av.getAttribute().getAttributeName().equalsIgnoreCase("ширина")).findFirst().get().getIntValue(),
                                                                     attributeValues.stream().filter(av -> av.getAttribute().getAttributeName().equalsIgnoreCase("Высота")).findFirst().get().getIntValue(),
                                                                     attributeValues.stream().filter(av -> av.getAttribute().getAttributeName().equalsIgnoreCase("глубина")).findFirst().get().getIntValue());*/
-        this.sizes = String.format("Размер см: Ш %d x В %d x Г %d", attributeValues.get(0).getIntValue(),
+        this.sizes = attributeValues.size() > 0? String.format("Размер см: Ш %d x В %d x Г %d", attributeValues.get(0).getIntValue(),
                                                                     attributeValues.get(1).getIntValue(),
-                                                                    attributeValues.get(2).getIntValue());
+                                                                    attributeValues.get(2).getIntValue()) : "Размер неизвестен";
 
 
     }

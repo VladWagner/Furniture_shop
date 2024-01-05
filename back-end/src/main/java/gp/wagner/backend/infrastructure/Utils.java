@@ -38,6 +38,16 @@ public class Utils {
         }
         return result;
     }
+    public static Long TryParseLong(String str) {
+        long result;
+
+        try {
+            result = Long.parseLong(str);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return result;
+    }
 
     public Utils() {
     }
@@ -49,6 +59,9 @@ public class Utils {
 
     public static int getRandom(int lo, int hi) {
         return lo + rand.nextInt(hi - lo);
+    }
+    public static long getRandom(long lo, long hi) {
+        return lo + rand.nextLong(hi - lo);
     }
 
     //Найти индекс последнего символа из заданного в строке
@@ -86,6 +99,16 @@ public class Utils {
 
     //Record-класс для задания id Товара и категории
     public record CategoryAndProductIds(long categoryId, long productId) {
+    }
+
+    // Генерация кода заказа
+    public static long generateOrderCode(long customerId){
+
+        String formedNumber = String.format("%d%d",customerId , getRandom(10000L, 99_999L));
+
+        Long resultNumber = TryParseLong(formedNumber);
+
+        return resultNumber != null ? resultNumber : getRandom(10_000_000L, 99_999_999L);
     }
 
 }

@@ -1,13 +1,15 @@
 package gp.wagner.backend.domain.entites.categories;
 
 import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import gp.wagner.backend.domain.entites.products.Product;
+import jakarta.annotation.Nullable;
+import lombok.*;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 //Категории
@@ -28,7 +30,7 @@ public class Category {
 
     //Связующее свойство повторяющихся категорий - в основном для подкатегорий, которые для разных категорий могут быть одним и тем же.
     //Например, категория: спальни и в ней подкатегория шкафы или категория: гостиные и в ней так же категория шкафы.
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subcategory_id")
     private RepeatingCategory repeatingCategory;
 
@@ -37,17 +39,28 @@ public class Category {
     }
 
     //Связующие свойство родительской категории
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     private Category parentCategory;
 
+    //Товары, которые принадлежат данной категории
+    @OneToMany(mappedBy = "category")
+    @BatchSize(size = 20)
+    private List<Product> products;
+
     //Атрибуты под конкретную категорию - названия характеристик
     //Проблемы начинаются здесь - LazyInitializationException
-    /*@ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinTable(name = "attributes_categories",
             joinColumns = {@JoinColumn(name = "category_id")},
             inverseJoinColumns = {@JoinColumn(name = "attribute_id")})
-    private Set<ProductAttribute> productAttributes = new HashSet<>();*/
+    private Set<ProductAttribute> productAttributes = new HashSet<>();
 
+    public Category(Long id, @NonNull String name, RepeatingCategory repeatingCategory, Category parentCategory) {
+        this.id = id;
+        this.name = name;
+        this.repeatingCategory = repeatingCategory;
+        this.parentCategory = parentCategory;
+    }
 }
 

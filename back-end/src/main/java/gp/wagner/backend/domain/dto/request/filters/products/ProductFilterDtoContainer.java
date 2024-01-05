@@ -1,5 +1,6 @@
-package gp.wagner.backend.domain.dto.request.filters;
+package gp.wagner.backend.domain.dto.request.filters.products;
 
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
@@ -18,9 +19,9 @@ public class ProductFilterDtoContainer {
     //productFilterDtoListAnd и productFilterDtoListOr - запасной вариант и по сути рудименты, поскольку все фильтра объединяются внутри блока
     //и имеют заданный тип связи между собой (и/или) + тип связи между блоками фильтров
     //Это рудименты, пока их можно оставить, поскольку они используются в невызываемом методе в Specifications
-    @NotNull
+    @Nullable
     private List<ProductFilterDto> productFilterDtoListAnd;
-    @NotNull
+    @Nullable
     private List<ProductFilterDto> productFilterDtoListOr;
     //endregion
 
@@ -30,5 +31,9 @@ public class ProductFilterDtoContainer {
 
     @NotNull
     private List<ProductFilterBlock> productFilterBlockList;
+
+    //Список заданных производителей
+    @Nullable
+    private List<String> producersNames;
 
 }

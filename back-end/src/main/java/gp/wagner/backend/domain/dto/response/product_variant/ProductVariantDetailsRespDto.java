@@ -45,4 +45,14 @@ public class ProductVariantDetailsRespDto {
         this.productImages = images;
         this.price = variant.getPrice();
     }
+
+    public ProductVariantDetailsRespDto(ProductVariant variant) {
+        this.id = variant.getId();
+
+        this.previewImgLink = variant.getPreviewImg();
+        this.title = variant.getTitle();
+
+        this.productImages = variant.getProductImages().stream().map(ProductImageRespDto::new).toList();
+        this.price = variant.getPrice();
+    }
 }

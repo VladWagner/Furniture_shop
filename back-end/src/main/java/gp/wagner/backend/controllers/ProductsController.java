@@ -3,7 +3,7 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
-import gp.wagner.backend.domain.dto.request.filters.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
@@ -89,6 +89,11 @@ public class ProductsController {
     //Выборка с фильтрами + пагинация фильтрации
     //В DTO фильтра передаётся: значения и типы характеристик товара, заданные по модели EAV
     //Возвращается: количество данных + список товаров на странице в виде пары ключ + значение
+    /**
+     * Выборка с фильтрами + пагинация фильтрации
+     * В DTO фильтра передаётся: значения и типы характеристик товара, заданные по модели EAV
+     * Возвращается: количество данных + список товаров на странице в виде пары ключ + значение
+     * */
     @GetMapping(value = "/filter",produces = MediaType.APPLICATION_JSON_VALUE)
     public Map.Entry<Long, List<ProductPreviewRespDto>> getProductsPaged(
             @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
@@ -102,16 +107,11 @@ public class ProductsController {
                 priceRange.isEmpty() ? null : priceRange,
                 pageNum, limit);
 
-        //List<Product> products = Services.productsService.getAllList(container, categoryId);
-
-        //List<ProductPreviewRespDto> productsDto = ControllerUtils.getProductsPreviewsList(products);
-
         List<ProductPreviewRespDto> productsDto = ControllerUtils.getProductsPreviewsList(productsTuple.getValue1());
 
         //Фильтрация по диапазону стоимостей и категория производятся по данным, полученным в отдельных параметрах, не через DTO фильтра
 
         return new AbstractMap.SimpleEntry<>(productsTuple.getValue2().longValue(), productsDto);
-        //return new AbstractMap.SimpleEntry<>(productsPage.getTotalElements(), productsDto);
     }
 
     //Выборка атрибутов товаров по id
@@ -128,11 +128,12 @@ public class ProductsController {
     //Выборка товара по id
     //Produces - тип возвращаемого значения, в данном случае возвращаем продукт в виде JSON
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ProductDetailsRespDto getProductById(@PathVariable int id, @Nullable @RequestParam(value = "fingerprint", defaultValue = "") String fingerPrint){
+    public ProductDetailsRespDto getProductById(@PathVariable int id,
+                                                @Nullable @RequestParam(value = "fingerprint", defaultValue = "") String fingerPrint){
 
         Product product = Services.productsService.getById((long) id);
 
-        //Увеличить значение в счётчике
+        //Увеличить значение в счётчике просмотров каждого продукта
         if (product != null && fingerPrint != null)
             Services.productViewService.createOrUpdate(fingerPrint, product.getId());
         else if (product == null)
@@ -144,7 +145,7 @@ public class ProductsController {
     @PostMapping()
     public String createProduct(@Valid @RequestPart(value = "product") ProductDto productDto,
                                 @RequestPart(value = "files") List<MultipartFile> files){
-        long createdProductId = 0;
+        long createdProductId;
 
         try {
 
@@ -196,9 +197,9 @@ public class ProductsController {
     //Изменение товара и его базового варианта
     //В параметрах передаётся порядок изображений, которые либо заменяются, либо меняется порядок их вывода
     //Так же здесь передаётся dto-шка товара с измененным значениям характеристик, цен и т.д.
-    @PutMapping()
+    @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public String updateProduct(@Valid @RequestPart(value = "product") ProductDto productDto,
-                                @RequestPart(value = "files") List<MultipartFile> files,
+                                @RequestPart(value = "files") @Nullable List<MultipartFile> files,
                                 @RequestPart(value = "images_order") ProductImageDtoContainer container){
 
         try {
@@ -218,8 +219,7 @@ public class ProductsController {
                     productDto.getVariantTitle(),
                     productDto.getPrice());
 
-
-            List<ProductImage> productImages =  Services.productImagesService.getByProductVariantId(basicVariant.getId());
+            List<ProductImage> productImages = Services.productImagesService.getByProductVariantId(basicVariant.getId());
 
             //Id изображений, которые были заменены, чтобы избежать неправильного удаления по id
             List<Long> changedImages = new ArrayList<>();
@@ -235,8 +235,8 @@ public class ProductsController {
             for (ProductImageDto imageDto : container.productImageDtoList()) {
 
                 //Найти нужный файл по имени, заданном в dto изображений
-                MultipartFile file = files.stream()
-                        .filter(f -> f.getOriginalFilename().equals(imageDto.getFileName()))
+                MultipartFile file = files == null ? null : files.stream()
+                        .filter(f -> Objects.equals(f.getOriginalFilename(), imageDto.getFileName()))
                         .findFirst().orElse(null);
 
                 if (file == null)

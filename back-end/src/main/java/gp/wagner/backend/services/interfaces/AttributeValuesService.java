@@ -1,32 +1,44 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
+import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Map;
 
 
 public interface AttributeValuesService {
 
-    //Добавление записи
-    public void save(AttributeValue attributeValue);
-    public void save(long productId,AttributeValueDto dto);
+    // Добавление записи
+    void save(AttributeValue attributeValue);
+    void save(long productId,AttributeValueDto dto);
 
-    //Изменение записи
-    public void update(AttributeValue attributeValue);
-    public void update(AttributeValueDto dto);
+    // Изменение записи
+    void update(AttributeValue attributeValue);
+    void update(AttributeValueDto dto);
 
-    //Выборка всех записей
-    public List<AttributeValue> getAll();
+    // Выборка всех записей
+    List<AttributeValue> getAll();
 
-    //Удаление записей по списку идентификаторов
+    // Удаление записей по списку идентификаторов
     void deleteByIdList(List<Long> idList);
 
 
-    //Выборка записи под id
-    public AttributeValue getById(Long id);
+    // Выборка записи под id
+    AttributeValue getById(Long id);
 
-    //Получение значений атрибутов конкретного товара
-    public List<AttributeValue> getValuesByProductId(long product_id);
+    // Получение значений атрибутов конкретного товара
+    List<AttributeValue> getValuesByProductId(long product_id);
 
+    // Получить значений атрибутов по определённой категории - для фильтров
+    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategory(long categoryId);
+
+    // Получить значений атрибутов по массиву категорий
+    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategories(List<Long> categoriesIds);
+
+    //Можно так же ещё сделать выборку значений фильтраци по ключевому слову.
+    // То есть искать во всех репозитория так же и по ключевому слову в товаре
+    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByKeyword(String keyword);
 }

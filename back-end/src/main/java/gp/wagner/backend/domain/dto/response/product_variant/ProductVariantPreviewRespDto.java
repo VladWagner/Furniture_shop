@@ -19,6 +19,9 @@ public class ProductVariantPreviewRespDto {
     private Long productId;
 
     //Наименование товара
+    private String productName;
+
+    //Наименование варианта товара
     private String title;
 
     //Ссылка на превью - первое изображение варианта
@@ -33,6 +36,7 @@ public class ProductVariantPreviewRespDto {
     public ProductVariantPreviewRespDto(ProductVariant variant) {
         this.id = variant.getId();
         this.productId = variant.getProduct().getId();
+        this.productName = variant.getProduct().getName();
         this.title = variant.getTitle();
         this.previewImgLink = variant.getPreviewImg();
         this.price = variant.getPrice();

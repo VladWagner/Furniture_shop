@@ -28,6 +28,14 @@ public class Services {
         Services.categoriesService = categService;
     }
 
+    //Сервис для производителей
+    public static ProducersService producersService;
+
+    @Autowired
+    public void setProducersService(ProducersService prodService){
+        Services.producersService = prodService;
+    }
+
     //Сервис для значений атрибутов товара
     public static AttributeValuesService attributeValuesService;
 
@@ -84,6 +92,14 @@ public class Services {
         Services.basketsService = basketsService;
     }
 
+    //Сервис для заказов
+    public static OrdersService ordersService;
+
+    @Autowired
+    public void setOrdersService(OrdersService ordersService){
+        Services.ordersService = ordersService;
+    }
+
     //Сервис для подсчёта просмотров каждого товара
     public static CategoryViewsService categoryViewsService ;
 
@@ -92,11 +108,19 @@ public class Services {
         Services.categoryViewsService = categoryViewsService;
     }
 
+    //Сервис для полнотекстового поиска товаров
+    public static SearchService searchService ;
+
+    @Autowired
+    public void setProductViewService(SearchService searchService){
+        Services.searchService = searchService;
+    }
+
     //Сервис для инициализации hibernate search
     public static Indexer indexer;
 
     @Autowired
-    public void setProductViewService(Indexer indexer){
+    public void setIndexerService(Indexer indexer){
         Services.indexer = indexer;
     }
 

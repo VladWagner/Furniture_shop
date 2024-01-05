@@ -6,6 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
+import java.util.List;
 
 //Производители
 @Entity
@@ -22,4 +25,9 @@ public class Producer {
     //Наименование
     @Column(name = "producer_name")
     private String producerName;
+
+    //Товары, которые принадлежат данному производителю
+    @OneToMany(mappedBy = "producer")
+    @BatchSize(size = 20)
+    private List<Product> products;
 }
