@@ -4,11 +4,14 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
-import gp.wagner.backend.repositories.ProductsRepository;
+import gp.wagner.backend.middleware.Services;
+import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.ProductsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -82,6 +85,7 @@ public class ProductsServiceImpl implements ProductsService {
                 dto.getCategoryId(), dto.getProducerId(),
                 dto.getIsAvailable() ? 1 : 0, dto.getShowProduct() ? 1 : 0);
     }
+
     //endregion
 
     @Override
@@ -98,7 +102,7 @@ public class ProductsServiceImpl implements ProductsService {
     @Transactional()
     public Page<Product> getAll(int pageNum, int dataOnPage) {
 
-        return productsRepository.findAll(PageRequest.of(pageNum, dataOnPage));
+        return productsRepository.findAllNotDeleted(PageRequest.of(pageNum, dataOnPage));
     }
 
     // Фильтрация и пагинация
@@ -107,7 +111,6 @@ public class ProductsServiceImpl implements ProductsService {
                                                       int pageNum, int dataOnPage) {
 
         //Сформировать набор спецификаций для выборки из набора фильтров (фильтр = атрибут (характеристика) + операция)
-        //List<Specification<Product>> specifications = ProductSpecifications.createNestedProductSpecifications(container);
         List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
 
         //Объект для формирования запросов - построитель запроса
@@ -215,11 +218,23 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
+    public List<Product> getByIdList(List<Long> idsList) {
+
+        if (idsList == null || idsList.isEmpty())
+            throw new ApiException("В метод поиска товаров по списку id передан некорректный список!");
+
+        return productsRepository.findAllById(idsList);
+    }
+
+    @Override
     public Page<Product> getByCategory(long categoryId, int pageNum, int dataOnPage) {
 
-
-
         return productsRepository.findProductsByCategoryId(categoryId, PageRequest.of(pageNum, dataOnPage));
+    }
+
+    @Override
+    public Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage) {
+        return productsRepository.findProductsByProducerId(producerId, PageRequest.of(pageNum, dataOnPage));
     }
 
     // Посчитать, сколько записей в каждой категории
@@ -270,6 +285,139 @@ public class ProductsServiceImpl implements ProductsService {
     @Override
     public FilterValueDto<Integer> getPricesRangeByKeyword(String keyword) {
         return getFilterValueDto(productsRepository.getMinMaxPriceByKeyword(keyword));
+    }
+
+    @Override
+    public boolean deleteById(long id) {
+
+        Product foundProduct = productsRepository.findById(id)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти товар с id = %d!",id)));
+
+        if (foundProduct.getIsDeleted())
+            throw  new ApiException(String.format("Товар с id: %d уже удалён!", id));
+
+        foundProduct.setIsDeleted(true);
+
+        // Мягко удалить варианты товаров
+        Services.productVariantsService.deleteByProductId(id);
+
+        return productsRepository.saveAndFlush(foundProduct).getIsDeleted();
+    }
+
+    // Восстановить товар из удаления
+    @Override
+    public boolean recoverDeletedById(long id, boolean recoverHeirs) {
+
+        Product foundProduct = productsRepository.findById(id)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти товар с id = %d!",id)));
+
+        if (!foundProduct.getIsDeleted())
+            throw  new ApiException(String.format("Товар с id: %d не удалялся!", id));
+
+        foundProduct.setIsDeleted(false);
+
+        // Восстановить удалённые вместе товаром варианты
+        if (recoverHeirs)
+            Services.productVariantsService.recoverDeletedByProductId(id);
+
+        return productsRepository.saveAndFlush(foundProduct).getIsDeleted();
+    }
+
+    @Override
+    public void deleteByProducerId(long producerId) {
+
+        //Найти товары с определёнными производителем
+        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producerId, false, null);
+
+        products.forEach(p -> p.setIsDeleted(true));
+
+        // Мягко удалить все варианты товаров
+        Services.productVariantsService.deleteByProductIdList(products.stream().map(Product::getId).toList());
+
+        productsRepository.saveAllAndFlush(products);
+
+    }
+
+    @Override
+    public void recoverDeletedByProducerId(long producerId) {
+
+        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producerId, true, null);
+
+        products.forEach(p -> p.setIsDeleted(false));
+
+        // Восстановить варианты для всех товаров
+        Services.productVariantsService.recoverDeletedByProductIdList(products.stream().map(Product::getId).toList());
+
+        productsRepository.saveAllAndFlush(products);
+    }
+
+    @Override
+    public void hideByProducer(Producer producer) {
+
+        // если производитель не был скрыт
+        if (producer.getIsShown())
+            return;
+
+        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, true);
+
+        products.forEach(p -> p.setShowProduct(false));
+
+        Services.productVariantsService.hideByProductsList(products);
+
+        productsRepository.saveAllAndFlush(products);
+    }
+
+    @Override
+    public void recoverHiddenByProducer(Producer producer) {
+
+        if (!producer.getIsShown())
+            return;
+
+        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, false);
+
+        products.forEach(p -> p.setShowProduct(true));
+
+        Services.productVariantsService.recoverHidenByProductsList(products);
+
+    }
+
+
+    // Найти товары по производителю и флагу удаления
+    private List<Product> findProductsByProducerByIdAndIsDeletedFlag(long producerId, Boolean isDeleted, Boolean isShown){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Product> query = cb.createQuery(Product.class);
+
+        Root<Product> root = query.from(Product.class); 
+        
+        // Присоединить производителя
+        Path<Producer> producerPath = root.get("producer");
+
+        // Удалённые/Неудалённые товары с определённым производителем
+        Predicate predicate = isShown == null && isDeleted == null? cb.equal(producerPath.get("id"), producerId) : null ;
+
+        if (isDeleted != null && isShown != null)
+            predicate = cb.and(
+                    cb.equal(producerPath.get("id"), producerId),
+                    cb.equal(root.get("isDeleted"), isDeleted),
+                    cb.equal(root.get("showProduct"), isShown)
+            );
+        else if (isDeleted != null) {
+            predicate = cb.and(
+                    cb.equal(producerPath.get("id"), producerId),
+                    cb.equal(root.get("isDeleted"), isDeleted)
+            );
+        }else if (isShown != null) {
+            predicate = cb.and(
+                    cb.equal(producerPath.get("id"), producerId),
+                    cb.equal(root.get("showProduct"), isShown)
+            );
+        }
+
+        query.where(predicate);
+
+        return entityManager.createQuery(query).getResultList();
+        
     }
 
 }

@@ -1,14 +1,10 @@
 package gp.wagner.backend.domain.dto.request.filters;
 
-import gp.wagner.backend.domain.dto.request.crud.CustomerDto;
 import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.sql.Date;
-import java.util.Map;
 
 //Объект для добавления/редактирования заказа
 @Data

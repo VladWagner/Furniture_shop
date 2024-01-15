@@ -4,6 +4,7 @@ package gp.wagner.backend.services.interfaces;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
+import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ public interface ProductsService {
     //Изменение записи
     void update(ProductDto item);
 
+
     //Выборка всех записей
 
     List<Product> getAll();
@@ -43,9 +45,13 @@ public interface ProductsService {
 
     // Выборка записи под id
     Product getById(Long id);
+    List<Product> getByIdList(List<Long> id);
 
     //Выборка по категории
     Page<Product> getByCategory(long categoryId,int pageNum, int dataOnPage);
+
+    //Выборка по производителю
+    Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage);
 
     //Подсчет количества товаров по категории
     int countByCategory(long categoryId);
@@ -58,4 +64,22 @@ public interface ProductsService {
 
     // Получить диапазон цен по ключевому слову (при поиске)
     FilterValueDto<Integer> getPricesRangeByKeyword(String keyword);
+
+    // Удалить по id товара
+    boolean deleteById(long id);
+
+    // Восстановить из удаления по id товара. Параметры: id, флаг восстановления наследников
+    boolean recoverDeletedById(long id, boolean recoverHeirs);
+
+    // Удалить товары по id производителя
+    void deleteByProducerId(long producerId);
+
+    // Восстановить товары из удаления по id производителя
+    void recoverDeletedByProducerId(long producerId);
+
+    // Скрыть товары по скрытому производителю
+    void hideByProducer(Producer producer);
+
+    // Восстановить товары из скрытия по производителю
+    void recoverHiddenByProducer(Producer producer);
 }

@@ -1,18 +1,31 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.dto.response.VisitorRespDto;
+import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
+import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.infrastructure.AggregateOperationsEnum;
+import gp.wagner.backend.infrastructure.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.ServicesUtils;
+import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.CategoriesRepository;
-import gp.wagner.backend.repositories.ProductViewsRepository;
+import gp.wagner.backend.repositories.products.ProductViewsRepository;
 import gp.wagner.backend.services.interfaces.ProductViewsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
+import java.util.*;
 
 @Service
 public class ProductViewsServiceImpl implements ProductViewsService {
@@ -62,6 +75,9 @@ public class ProductViewsServiceImpl implements ProductViewsService {
             Services.visitorsService.create("", fingerPrint);
             createdVisitor = Services.visitorsService.getMaxId();
         }
+        // Если посетитель существует, тогда обновить дату последнего посещения
+        else
+            Services.visitorsService.updateLastVisitDate(visitor.getId(), new Date());
 
         //Проверить наличие записи просмотра товара для конкретного посетителя по конкретному товару
         ProductViews productView = getByVisitorAndProductId(visitor != null ? visitor.getId() : createdVisitor, productId);
@@ -106,7 +122,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
         if (id == null)
             return null;
 
-        return repository.findById(id).get();
+        return repository.findById(id).orElseThrow(() -> new ApiException("Не удалось "));
     }
 
     @Override
@@ -157,5 +173,161 @@ public class ProductViewsServiceImpl implements ProductViewsService {
             return productViews.get(0);
         else
             return null;
+    }
+
+    @Override
+    public Page<SimpleTuple<Long, Integer>> getAllProductsViews(int pageNum, int offset, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+
+        TypedQuery<Tuple> typedQuery = ServicesUtils.getTypedQueryProductsViews(AggregateOperationsEnum.SUM, entityManager, categoryId, priceRange, sortEnum);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        typedQuery.setFirstResult(pageNum*offset);
+        typedQuery.setMaxResults(offset);
+
+        List<SimpleTuple<Long, Integer>> rawResult = typedQuery.getResultList()
+                .stream()
+                .map(e -> new SimpleTuple<>(e.get(0, Long.class), e.get(1, Integer.class)))
+                .toList();
+
+        // Общее количество записей о просмотрах с такими параметрами
+        Long elementsCount = ServicesUtils.getTypedQueryCountProductsViews(entityManager, categoryId, priceRange);
+
+        return new PageImpl<>(rawResult, PageRequest.of(pageNum, offset), elementsCount);
+    }
+
+    @Override
+    public Page<SimpleTuple<Long, Double>>getAvgProductsViews(int pageNum, int offset,Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+
+        TypedQuery<Tuple> typedQuery = ServicesUtils.getTypedQueryProductsViews(AggregateOperationsEnum.AVG, entityManager, categoryId, priceRange, sortEnum);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        typedQuery.setFirstResult(pageNum*offset);
+        typedQuery.setMaxResults(offset);
+
+        List<SimpleTuple<Long, Double>> rawResult = typedQuery.getResultList()
+                .stream()
+                .map(e -> new SimpleTuple<>(e.get(0, Long.class), e.get(1, Double.class)))
+                .toList();
+
+        // Общее количество записей о просмотрах с такими параметрами
+        Long elementsCount = ServicesUtils.getTypedQueryCountProductsViews(entityManager, categoryId, priceRange);
+
+        return new PageImpl<>(rawResult, PageRequest.of(pageNum, offset), elementsCount);
+    }
+
+    // Сортировка здесь пока что отключена, для улучшения производительности
+    @Override
+    public Page<SimpleTuple<Long, Integer>> getProductsWithMaxViews(int pageNum, int offset, Long categoryId, String priceRange, float percentage, GeneralSortEnum sortEnum) {
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+        Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
+
+        CriteriaQuery<Long> sumsQuery = cb.createQuery(Long.class);
+        Root<ProductViews> sumsQueryRoot = sumsQuery.from(ProductViews.class);
+        Join<ProductViews, Product> sumsProductJoin = sumsQueryRoot.join("product", JoinType.LEFT);
+
+        // Добавить предикаты
+        List<Predicate> predicatesMainQuery = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicatesSumsQuery = ServicesUtils.collectProductsPredicates(cb, sumsProductJoin, sumsQuery, null, categoryId, priceRange);
+
+        //
+        if (predicatesSumsQuery != null && !predicatesSumsQuery.isEmpty())
+            sumsQuery.where(predicatesSumsQuery.toArray(new Predicate[0]));
+
+        // Рассчитать максимальное кол-во просмотров в найденных товарах
+        sumsQuery.select(cb.sum(sumsQueryRoot.get("count")).as(Long.class).alias("sums"))
+                .groupBy(sumsProductJoin.get("id"));
+
+        List<Long> sumsList = entityManager.createQuery(sumsQuery).getResultList();
+        long maxCount = Collections.max(sumsList);
+
+        maxCount = Math.round(maxCount*(1-percentage));
+
+        // Основной запрос
+        Expression<Integer> sumExpression = cb.sum(cb.coalesce(root.get("count"), 0));
+
+        if (predicatesMainQuery != null && !predicatesMainQuery.isEmpty())
+            query.where(predicatesMainQuery.toArray(new Predicate[0]));
+
+        query.multiselect(
+                productJoin.get("id"),
+                sumExpression
+        ).groupBy(productJoin.get("id"))
+         .having(cb.ge(sumExpression, maxCount));
+
+        //if (sortEnum != null)
+        //    query.orderBy(sortEnum == GeneralSortEnum.ASC ? cb.asc(sumExpression) : cb.desc(sumExpression));
+
+        TypedQuery<Tuple> typedQuery = entityManager.createQuery(query);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        typedQuery.setFirstResult(pageNum*offset);
+        typedQuery.setMaxResults(offset);
+
+        List<SimpleTuple<Long, Integer>> rawResult = typedQuery.getResultList()
+                .stream()
+                .map(e -> new SimpleTuple<>(e.get(0, Long.class), e.get(1, Integer.class)))
+                .toList();
+
+        // Общее количество записей о просмотрах с такими параметрами
+        int elementsCount = ServicesUtils.countMaxProductsViews(entityManager, maxCount, categoryId, priceRange);
+
+        return new PageImpl<>(rawResult, PageRequest.of(pageNum, offset), elementsCount);
+    }
+
+    @Override
+    public  Page<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>>getVisitorsAndProductsViews(int pageNum, int offset, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Visitor> query = cb.createQuery(Visitor.class);
+        Root<Visitor> root = query.from(Visitor.class);
+
+        Join<Visitor, ProductViews> productViewsJoin = root.join("productViewsList");
+        Join<ProductViews, Product> productJoin = productViewsJoin.join("product");
+
+        // Сформировать запрос
+
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+
+        if (predicates != null && !predicates.isEmpty())
+            query.where(predicates.toArray(new Predicate[0]));
+
+        //query.orderBy(sortEnum == GeneralSortEnum.ASC ? cb.asc(productViewsJoin.get("count")) : cb.desc(productViewsJoin.get("count")));
+
+        TypedQuery<Visitor> typedQuery = entityManager.createQuery(query);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        typedQuery.setFirstResult(pageNum*offset);
+        typedQuery.setMaxResults(offset);
+
+        List<Visitor> visitors = typedQuery.getResultList();
+
+        List<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>> resultList = new ArrayList<>();
+
+        //ProductViewRespDto viewRespDto;
+        // Формирование пар ключ-значение. Цикл в наихудшем случае будет иметь врмененную сложность O(N^2)
+        List<ProductViewRespDto> viewRespDtoList = new ArrayList<>();
+        for (Visitor visitor : visitors){
+
+            visitor.getProductViewsList().forEach(pview -> viewRespDtoList.add(new ProductViewRespDto(pview.getProduct(), pview.getCount())));
+
+            resultList.add(new SimpleTuple<>(new VisitorRespDto(visitor), new ArrayList<>(viewRespDtoList)));
+            viewRespDtoList.clear();
+        }
+
+        Long elementsCount = ServicesUtils.countVisitorsWithProductsViews(entityManager, categoryId, priceRange);
+
+        return new PageImpl<>(resultList, PageRequest.of(pageNum, offset), elementsCount);
+
     }
 }

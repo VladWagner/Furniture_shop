@@ -1,6 +1,6 @@
 package gp.wagner.backend.domain.entites.orders;
 
-import gp.wagner.backend.domain.dto.request.crud.CustomerDto;
+import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -46,7 +46,7 @@ public class Customer {
     @Column(name = "confirmed_email")
     private boolean confirmedEmail;
 
-    public Customer(CustomerDto dto) {
+    public Customer(CustomerRequestDto dto) {
         this.id = dto.getId();
         this.surname = dto.getSurname();
         this.name = dto.getName();

@@ -45,17 +45,23 @@ public class ProductVariant {
     @Column(name = "show_variant")
     private Boolean showVariant;
 
-    //Изображения данного варианта (Один вариант к многим товарам)
-    @OneToMany(fetch = FetchType.LAZY)
-    @BatchSize(size = 256)
-    private List<ProductImage> productImages = new ArrayList<>();
+    // Флаг удалён ли товар
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
 
-    public ProductVariant(String title, Product product, int price, String previewImg, boolean showVariant) {
+    //Изображения данного варианта (Один вариант к многим товарам)
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "productVariant")
+    @BatchSize(size = 256)
+    private List<ProductImage> productImages;
+
+    public ProductVariant(Long id, String title, Product product, int price, String previewImg, boolean showVariant, List<ProductImage> productImages) {
+        this.id = id;
         this.previewImg = previewImg;
         this.title = title;
         this.product = product;
         this.price = price;
         this.showVariant = showVariant;
+        this.productImages = productImages;
     }
 }
 

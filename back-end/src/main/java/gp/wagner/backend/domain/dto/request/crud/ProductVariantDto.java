@@ -21,8 +21,8 @@ public class ProductVariantDto {
     private long productId;
 
     //id категории товара
-    @Min(1)
-    private long categoryId;
+    /*@Min(1)
+    private long categoryId;*/
 
     //Название варианта товара
     @NotNull
@@ -34,5 +34,5 @@ public class ProductVariantDto {
 
     //Показывать ли товар - в большинстве случаев для редактирования
     @Nullable
-    private Boolean showProductVariant;
+    private Boolean showPv;
 }

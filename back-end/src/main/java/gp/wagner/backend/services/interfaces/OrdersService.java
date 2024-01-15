@@ -4,8 +4,10 @@ import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import org.springframework.data.domain.Page;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -24,12 +26,26 @@ public interface OrdersService {
     SimpleTuple<Long, Long> create(OrderRequestDto dto);
 
     // Задать заказываемые варианты товаров. Т.е. что именно будет заказывать пользователь
-    void insertProductVariants(long orderId, OrderRequestDto orderDto);
+    void insertProductVariants(OrderRequestDto orderDto);
 
     //Изменение записи
     void update(Order order);
     void update(long id ,int orderStateId, int customerId, Long orderCode, int sum);
 
+    // Изменить сумму при изменении стоимости варианта товара (только для заказов в статусе 1, т.е. начальном, поскольку все остальные нужны для ретроспективы)
+    void updateOrdersOnPvPriceChanged(ProductVariant changedPv);
+
+    // Изменить сумму при скрытии варианта товара (только для заказов в статусе 1, т.е. начальном, поскольку все остальные нужны для ретроспективы)
+    void updateOrdersOnPvHidden(ProductVariant pv, List<ProductVariant> changedPvList);
+
+    // Удалить вариант товара и изменить сумму, если товар был удалён (только для заказов в статусе 1 - в ожидании и 2 - связались)
+    void updateOrdersOnPvDelete(ProductVariant pv, List<ProductVariant> deletedPvList);
+
+    // Изменение заказов при восстановлении товаров из скрытия
+    void updateOrdersOnPvDisclosure(ProductVariant pv, List<ProductVariant> disclosedPvList);
+
+    // Изменить статус заказа
+    void updateStatus(long orderCode, int orderStateId);
 
     //Выборка записи под id
     Order getById(Long id);
@@ -43,7 +59,7 @@ public interface OrdersService {
     //Выборка записи по коду заказа
     List<Order> getByOrdersByCodes(List<Long> ordersCodes);
 
-    //Получить все корзины по email покупателя
+    //Получить все заказы по email покупателя
     List<Order> getOrdersByEmail(String email);
 
     //Получить заказы для определённого варианта товара по id
@@ -57,5 +73,11 @@ public interface OrdersService {
 
     //Удаление заказа
     long deleteOrder(Long id, Long code);
+
+    //Удалить вариант товара из заказа по коду заказа
+    boolean deletePVFromOrder(long code, long productVariantId);
+
+    //Получить все заказы по email покупателя
+    <T> List<T> getOrdersByIdOrCode (Long id, Long orderCode, Class<T> type);
 
 }

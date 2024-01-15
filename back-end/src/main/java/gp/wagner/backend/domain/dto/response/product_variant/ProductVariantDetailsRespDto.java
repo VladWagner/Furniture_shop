@@ -33,6 +33,10 @@ public class ProductVariantDetailsRespDto {
     //Ссылки на изображения для галереи
     private List<ProductImageRespDto> productImages;
 
+    private boolean showVariant;
+
+    private boolean isDeleted;
+
 
     public ProductVariantDetailsRespDto(ProductVariant variant, List<ProductImageRespDto> images) {
         this.id = variant.getId();
@@ -40,8 +44,6 @@ public class ProductVariantDetailsRespDto {
         this.previewImgLink = variant.getPreviewImg();
         this.title = variant.getTitle();
 
-        //TODO: изменить данное временное решение с передачей списка объектов, данный список должен быть агрегирован внутри variant
-        //То есть за счёт связи один ко многим объекты изображений брать из переданного ProductVariant
         this.productImages = images;
         this.price = variant.getPrice();
     }
@@ -54,5 +56,8 @@ public class ProductVariantDetailsRespDto {
 
         this.productImages = variant.getProductImages().stream().map(ProductImageRespDto::new).toList();
         this.price = variant.getPrice();
+
+        this.showVariant = variant.getShowVariant();
+        this.isDeleted = variant.getIsDeleted() != null && variant.getIsDeleted();
     }
 }

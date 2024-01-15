@@ -24,7 +24,7 @@ public class OrderRequestDto {
 
     // Объект покупателя (может создаваться либо уже существовать) - агрегация
     @NotNull
-    private CustomerDto customer;
+    private CustomerRequestDto customer;
 
     @Nullable
     private Long code;

@@ -40,8 +40,8 @@ delete from users_passwords where users_passwords.id > 0;
 ALTER TABLE users_passwords AUTO_INCREMENT = 1;
 
 
-delete from products_images where products_images.product_variant_id > 62;
-ALTER TABLE products_images AUTO_INCREMENT = 62;
+delete from products_images where products_images.id > 69;
+ALTER TABLE products_images AUTO_INCREMENT = 69;
 
 delete from variants_product where variants_product.id > 187;
 ALTER TABLE variants_product AUTO_INCREMENT = 187;
@@ -54,5 +54,14 @@ ALTER TABLE attributes_values AUTO_INCREMENT = 975;
 delete from products where products.id > 55;
 ALTER TABLE products AUTO_INCREMENT = 55;
 
+-- Очистка таблицы просмотров категорий
 delete from categories_views where categories_views.id > 0;
 ALTER TABLE categories_views AUTO_INCREMENT = 1;
+
+-- Очистка таблицы корзин
+delete from baskets where baskets.id > 0;
+ALTER TABLE baskets AUTO_INCREMENT = 1;
+
+-- Очистка таблицы с корзинами и вариантами товаров
+delete from baskets_products_variants where baskets_products_variants.id > 0;
+ALTER TABLE baskets_products_variants AUTO_INCREMENT = 1;

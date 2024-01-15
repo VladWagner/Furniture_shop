@@ -104,7 +104,7 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
     private List<FilterValueDto<Integer>> createDtoList(List<Object[]> rawResult){
         List<FilterValueDto<Integer>> dtoList = new LinkedList<>();
 
-        //Распарсить результирующий набор
+        // Распарсить результирующий набор
         for (Object[] result: rawResult) {
 
             FilterValueDto<Integer> filterDto = new FilterValueDto<>();
@@ -126,23 +126,6 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
     public Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategory(long categoryId) {
 
         List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategory(categoryId);
-
-        // LinkedList, поскольку по коду имеется необходимость вставок в список, что в данной коллекции занимает меньше времени
-        /*List<FilterValueDto<Integer>> dtoList = new LinkedList<>();
-
-        //Распарсить результирующий набор
-        for (Object[] result: resultSet) {
-
-            FilterValueDto<Integer> filterDto = new FilterValueDto<>();
-
-            filterDto.setAttributeId((int) result[0]);
-            filterDto.setAttributeName((String) result[1]);
-            filterDto.setMin((Integer) result[2]);
-            filterDto.setMax((Integer) result[3]);
-            filterDto.setValue((String) result[4]);
-            dtoList.add(filterDto);
-
-        }*/
 
         List<FilterValueDto<Integer>> dtoList = createDtoList(resultSet);
 

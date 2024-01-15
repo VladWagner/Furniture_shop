@@ -7,6 +7,7 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContaine
 import gp.wagner.backend.domain.dto.response.product.ProductImageRespDto;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
+import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.exception.ApiException;
@@ -18,7 +19,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,7 +35,7 @@ public class ProductVariantsController {
 
     //Выборка варианта для конкретного товара
     //Возвращаем список DTO вариантов товаров
-    @GetMapping(value = "/by_product/{product_id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/by_product/preview/{product_id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ProductVariantPreviewRespDto> getProductVariants(@PathVariable @Min(1) long product_id){
 
         if (product_id > Services.productsService.getMaxId())
@@ -55,18 +58,20 @@ public class ProductVariantsController {
         List<ProductVariant> productVariants = Services.productVariantsService.getByProductId(product_id);
 
         //Создаём из вариантов товаров список объектов DTO для вариантов товаров + формируем список изображений
-        return productVariants.stream()
+        /*return productVariants.stream()
                 .map(pv -> new ProductVariantDetailsRespDto(
                         pv,
                         Services.productImagesService.getByProductVariantId(pv.getId())
                                 .stream()
                                 .map(ProductImageRespDto::new).toList())
-                ).toList();
+                ).toList();*/
+        return productVariants.stream()
+                .map(ProductVariantDetailsRespDto::new).toList();
     }
 
     //Получить конкретный вариант
 
-    @GetMapping(value = "/variant/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/variant_by_id/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ProductVariantDetailsRespDto getProductVariant(@PathVariable @Min(1) long id){
 
         if (id > Services.productVariantsService.getMaxId())
@@ -77,12 +82,12 @@ public class ProductVariantsController {
         //Формируем DTO из самого конкретного варианта продукта и изображений под его id
         //При этом формируем ещё список DTO для изображений варианта товара,
         // поскольку там будут заданы ссылка на изображение + порядковый номер
-        return new ProductVariantDetailsRespDto(productVariant,
+        return new ProductVariantDetailsRespDto(productVariant/*,
                 Services.productImagesService
                         .getByProductVariantId(productVariant.getId())
                         .stream()
                         .map(ProductImageRespDto::new)
-                        .toList()
+                        .toList()*/
         );
     }
 
@@ -94,7 +99,9 @@ public class ProductVariantsController {
         long createdProductVariantId = 0;
         try {
 
-            if (files.size() == 0 || Services.productsService.getById(productVariantDto.getProductId()) == null)
+            Product product =  Services.productsService.getById(productVariantDto.getProductId());
+
+            if (files.size() == 0 || product == null)
                 throw new ApiException(String.format("Загрузить медиафайлы не удалось или товар с id: %d не существует!", productVariantDto.getProductId()));
 
             List<String> filesUris = new ArrayList<>();
@@ -108,13 +115,13 @@ public class ProductVariantsController {
                 //Добавить путь файла в список uri, который будет писаться в БД
                 filesUris.add(
                         Utils.cleanUrl(
-                                Services.fileManageService.saveFile(fileName, file, productVariantDto.getCategoryId(), productVariantDto.getProductId()).toString())
+                                Services.fileManageService.saveFile(fileName, file, product.getCategory().getId(), productVariantDto.getProductId()).toString())
                 );
             }
 
             //Добавление превью для варианта товара - первое заданное изображение
 
-            Resource thumbnailUri = Services.fileManageService.saveThumbnail(filesUris.get(0), productVariantDto.getCategoryId(), productVariantDto.getProductId());
+            Resource thumbnailUri = Services.fileManageService.saveThumbnail(filesUris.get(0), product.getCategory().getId(), productVariantDto.getProductId());
 
             //Добавление варианта товара
             createdProductVariantId = Services.productVariantsService.create(productVariantDto,
@@ -145,6 +152,12 @@ public class ProductVariantsController {
 
         try {
 
+            // Найти товар, для которого производится редактирование варианта
+            Product product = Services.productsService.getById(pvDto.getProductId());
+
+            if (product == null)
+                throw new ApiException(String.format("Для редактирования варианта не найден сам товар с id: %d", pvDto.getId()));
+
             //Если в процессе редактирования товара просто поменяли изображения местами
             if (files == null)
                 files = new ArrayList<>();
@@ -152,10 +165,10 @@ public class ProductVariantsController {
             //Редактирование товара
             ProductVariant changedVariant = Services.productVariantsService.update(pvDto, null);
 
-            //Общие для всех записей изображений id категории и изображения
-            Utils.CategoryAndProductIds categoryAndProductIds = new Utils.CategoryAndProductIds(pvDto.getCategoryId(), pvDto.getProductId());
+            //Общие для всех записей изображений id категории и товара - нужно при формировании каталогов
+            Utils.CategoryAndProductIds categoryAndProductIds = new Utils.CategoryAndProductIds(product.getCategory().getId(), pvDto.getProductId());
 
-            List<ProductImage> productImages =  Services.productImagesService.getByProductVariantId(pvDto.getId());
+            List<ProductImage> productImages = Services.productImagesService.getByProductVariantId(pvDto.getId());
 
             //Id изображений, которые были заменены, чтобы избежать неправильного удаления по id
             List<Long> changedImages = new ArrayList<>();
@@ -163,7 +176,7 @@ public class ProductVariantsController {
             //Найти минимальное значение порядка вывода изображения - первое изображение
             int minOrderValue = ControllerUtils.getMinImgOrderValue(productImages, container.productImageDtoList());
 
-            //Пройти по всем загруженным файлам
+            //Пройти по всем загруженным файлам собственно для загрузки на сервер
             for (ProductImageDto imageDto : container.productImageDtoList()) {
 
                 //Найти нужный файл по имени, заданном в dto изображений
@@ -171,7 +184,7 @@ public class ProductVariantsController {
                         .filter(f -> f.getOriginalFilename().equals(imageDto.getFileName()))
                         .findFirst().orElse(null);
 
-                //Если файл загружен не был и при этом его путь задан в dto
+                //Если файл загружен не был и при этом его путь задан в dto, то возможно это изменение порядка
                 if (file == null) {
                     if (!Services.fileManageService.isExists(new URI(imageDto.getFileName())))
                         continue;
@@ -183,31 +196,8 @@ public class ProductVariantsController {
                     if (productImage == null || productImage.getProductVariant().getId() != pvDto.getId())
                         continue;
 
-                    //Найти изображение с заданным в DTO порядковым номером
-                    ProductImage imageByOrder = Services.productImagesService.getByVariantIdAndByOrder(pvDto.getId(), imageDto.getImgOrder());
-
-                    //Если изображение с таким порядковым номером имеется и при этом не есть тем же изображением
-                    if (imageByOrder != null && !imageByOrder.getId().equals(productImage.getId())){
-                        //"Поменять изображения местами"
-                        imageByOrder.setImgOrder(productImage.getImgOrder());
-                        Services.productImagesService.update(imageByOrder);
-                    }
-
-                    productImage.setImgOrder(imageDto.getImgOrder());
-
-                    Services.productImagesService.update(productImage);
-
-                    //Если при замене порядкового номера изображение стало первым, тогда создать thumbnail
-                    if (productImage.getImgOrder() == minOrderValue) {
-
-                        //Удалить предыдущее thumbnail
-                        String oldPreview = Services.productVariantsService.getById(pvDto.getId()).getPreviewImg();
-                        Services.fileManageService.deleteFile(new URI(oldPreview));
-
-                        String thumbnailUri = Utils.cleanUrl(Services.fileManageService.saveThumbnail(productImage.getImgLink(),
-                                pvDto.getCategoryId(), pvDto.getProductId()).toString());
-                        Services.productVariantsService.updatePreview(pvDto.getId(), thumbnailUri);
-                    }
+                    // Выполнить логику замены изображений местами
+                    ControllerUtils.changeImagesOrder(imageDto, productImage, changedVariant, minOrderValue);
 
                     continue;
                 }
@@ -218,6 +208,7 @@ public class ProductVariantsController {
                 //Если файл первый по порядку, тогда нужно заменить само изображение и uri
                 if (imageDto.getImgOrder() <= minOrderValue){
                     ControllerUtils.loadNewImgWithThumb(productImages, fileName, file, changedVariant, categoryAndProductIds, imageDto, changedImages);
+                    minOrderValue = imageDto.getImgOrder();
                     continue;
                 }
 
@@ -230,7 +221,7 @@ public class ProductVariantsController {
 
                 //Загрузить изображение в папку, получив URL загруженного изображения
                 String fileUri = Utils.cleanUrl(Services.fileManageService.saveFile(fileName,
-                        file, pvDto.getCategoryId(),
+                        file, product.getCategory().getId(),
                         pvDto.getProductId()).toString()
                 );
 
@@ -257,56 +248,38 @@ public class ProductVariantsController {
             List<ProductImage> deletingProductImages = Services.productImagesService.getByIdList(container.deletedImagesId());
 
             //Удалить изображения вариантов товаров заданные в список dto
-            if (deletingProductImages != null) {
-                ProductVariant variant;
-                for (ProductImage prodImage : deletingProductImages) {
-
-                    //Проверить, не изменялись ли удаляемые изображения
-                    // (нажали кнопку удаления и после добавили новое изображение, а id остался в списке)
-                    if (changedImages.contains(prodImage.getId()))
-                        continue;
-
-                    URI fileUri = new URI(prodImage.getImgLink());
-
-                    //Для проверки, является ли удаляемое изображение preview варианта товара
-                    //Каждый раз получаем один и тот же экземпляр варианта товара из-за того, что при удалении изображения, которое является preview,
-                    //тогда оно меняется и для варианта товара на следующее, которое так же может быть удаляемым. Следственно и для него нужно удалить preview
-                    variant = Services.productVariantsService.getById(pvDto.getId());
-
-                    //Получить путь к файлу предосмотра для варианта товара
-                    String variantPreview = variant.getPreviewImg();
-
-                    //Убрать из имени изображения путь и приставку thumb, чтобы можно былой найти основное изображение по названию
-                    variantPreview = variantPreview.substring(Utils.findLastIndex(variantPreview, "/\\")+1)
-                            .replace(Constants.THUMB_SUFFICE, "");
-
-                    //Получить имя удаляемого изображения - убрать путь в названии
-                    String prodImageName = prodImage.getImgLink().substring(Utils.findLastIndex(prodImage.getImgLink(), "/\\")+1);
-
-                    //Если удаляемое изображение, является первым изображением - изображение предосмотра
-                    //всегда содержит в себе название основного
-                    if (variantPreview.contains(prodImageName)){
-                        //Удалить изображение и его preview, внутри preview будет заменено на следующее по порядку изображение, пока они не закончатся
-                        ControllerUtils.deleteAtReplaceThumb(fileUri, variant, prodImage, categoryAndProductIds);
-                        continue;
-                    }
-
-                    Services.fileManageService.deleteFile(fileUri);
-
-                    Services.productImagesService.deleteById(prodImage.getId());
-
-                }//for
-            }
+            if (deletingProductImages != null)
+                ControllerUtils.deleteProductVariantImages(deletingProductImages, changedImages, changedVariant);
 
         } catch (Exception e) {
             System.out.println(Arrays.toString(e.getStackTrace()));
             throw new ApiException(e.toString());
         }
 
-        return String.format("Товар с id: %d успешно изменён!", pvDto.getId());
+        return String.format("Вариант товара с id: %d успешно изменён!", pvDto.getId());
 
     }
 
+    // Удалить вариант товара
+    @DeleteMapping(value = "/delete_by_id/{id}")
+    public ResponseEntity<String> deletePvById(@PathVariable @Min(1) long id){
 
+        boolean isDeleted = Services.productVariantsService.deleteById(id);
+
+        return new ResponseEntity<>(String.format("Вариант товара с id %d %s удалить!", id, isDeleted ? "удалось" : "не удалось"),
+                HttpStatusCode.valueOf(isDeleted ? 200 : 500));
+
+    }
+
+    // Удалить вариант товара
+    @PutMapping(value = "/recover_by_id/{id}")
+    public ResponseEntity<String> recoverPvById(@PathVariable @Min(1) long id){
+
+        boolean isRecovered = Services.productVariantsService.recoverDeletedById(id);
+
+        return new ResponseEntity<>(String.format("Вариант товара с id %d %s восстановить!", id, isRecovered ? "удалось" : "не удалось"),
+                HttpStatusCode.valueOf(isRecovered ? 200 : 500));
+
+    }
 
 }

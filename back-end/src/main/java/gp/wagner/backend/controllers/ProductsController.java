@@ -5,6 +5,8 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
+import gp.wagner.backend.domain.dto.response.PageDto;
+import gp.wagner.backend.domain.dto.response.ProducerRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
 import gp.wagner.backend.domain.entites.categories.Category;
@@ -86,9 +88,22 @@ public class ProductsController {
         return new AbstractMap.SimpleEntry<>(productsPage.getTotalElements(), productsDto);
     }
 
-    //Выборка с фильтрами + пагинация фильтрации
-    //В DTO фильтра передаётся: значения и типы характеристик товара, заданные по модели EAV
-    //Возвращается: количество данных + список товаров на странице в виде пары ключ + значение
+    //Выборка всех товаров по производителю
+    @GetMapping(value = "/by_producer",produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<ProductPreviewRespDto> getProductsByProducer(
+                                             @RequestParam(value = "producer_id", defaultValue = "1") long producerId,
+                                             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
+                                             @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
+                                             @RequestParam(value = "sort", defaultValue = "price_desc") String sortType){
+
+
+        Page<Product> productsPage = Services.productsService.getByProducerPaged(producerId,pageNum - 1, limit);
+
+        return new PageDto<>(
+                productsPage, () -> productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList()
+        );
+    }
+
     /**
      * Выборка с фильтрами + пагинация фильтрации
      * В DTO фильтра передаётся: значения и типы характеристик товара, заданные по модели EAV
@@ -99,7 +114,7 @@ public class ProductsController {
             @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
             @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit") @Max(80) int limit,
-            @RequestParam(value = "category_id")  Long categoryId,
+            @RequestParam(value = "category_id", defaultValue = "0")  Long categoryId,
             @RequestParam(value = "price_range", defaultValue = "") String priceRange){
 
         //Container - список DTO с условиями фильтрации и логическими операциями (or/and)
@@ -239,8 +254,23 @@ public class ProductsController {
                         .filter(f -> Objects.equals(f.getOriginalFilename(), imageDto.getFileName()))
                         .findFirst().orElse(null);
 
-                if (file == null)
+                //Если файл загружен не был и при этом его путь задан в dto, то возможно это изменение порядка
+                if (file == null) {
+                    if (!Services.fileManageService.isExists(new URI(imageDto.getFileName())))
+                        continue;
+
+                    //Получить имя файла
+                    ProductImage productImage = Services.productImagesService.getByLink(imageDto.getFileName());
+
+                    //Если такого изображения нет, или оно не для этого варианта товара
+                    if (productImage == null || !Objects.equals(productImage.getProductVariant().getId(), basicVariant.getId()))
+                        continue;
+
+                    // Выполнить логику замены изображений местами
+                    ControllerUtils.changeImagesOrder(imageDto, productImage, basicVariant, minOrderValue);
+
                     continue;
+                }
 
                 //Получить имя загружаемого файла, заменив \ на / и убрав ..
                 String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
@@ -289,44 +319,8 @@ public class ProductsController {
             List<ProductImage> deletingProductImages = Services.productImagesService.getByIdList(container.deletedImagesId());
 
             //Удалить изображения вариантов товаров заданные в список dto
-            if (deletingProductImages != null) {
-                ProductVariant variant;
-                for (ProductImage prodImage : deletingProductImages) {
-
-                    //Проверить, не изменялись удаляемые изображения
-                    // (нажали кнопку удаления и после добавили новое изображение, а id остался в списке)
-                    if (changedImages.contains(prodImage.getId()))
-                        continue;
-
-                    URI fileUri = new URI(prodImage.getImgLink());
-
-                    //Для проверки, является ли удаляемое изображение preview БАЗОВОГО варианта товара, у каждого товара имеется базовая версия
-                    variant = Services.productVariantsService.getById(productVariantId);
-
-                    //Получить путь к файлу предосмотра для варианта товара
-                    String variantPreview = variant.getPreviewImg();
-
-                    //Убрать из имени изображения путь и приставку thumb, чтобы можно былой найти основное изображение по названию
-                    variantPreview = variantPreview.substring(Utils.findLastIndex(variantPreview, "/\\")+1)
-                            .replace(Constants.THUMB_SUFFICE, "");
-
-                    //Получить имя удаляемого изображения - убрать путь в названии
-                    String prodImageName = prodImage.getImgLink().substring(Utils.findLastIndex(prodImage.getImgLink(), "/\\")+1);
-
-                    //Если удаляемое изображение, является первым изображением - изображение предосмотра
-                    //всегда содержит в себе название основного
-                    if (variantPreview.contains(prodImageName)){
-                        //Удалить изображение и его preview, внутри preview будет заменено на следующее по порядку изображение, пока они не закончатся
-                        ControllerUtils.deleteAtReplaceThumb(fileUri, variant, prodImage,categoryAndProductIds);
-                        continue;
-                    }
-
-                    Services.fileManageService.deleteFile(fileUri);
-
-                    Services.productImagesService.deleteById(prodImage.getId());
-
-                }//for
-            }
+            if (deletingProductImages != null)
+                ControllerUtils.deleteProductVariantImages(deletingProductImages, changedImages, basicVariant);
 
             //Редактирование товара (по значениям, переданным в DTO)
             Services.productsService.update(productDto);

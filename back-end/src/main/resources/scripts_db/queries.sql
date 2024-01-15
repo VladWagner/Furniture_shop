@@ -95,15 +95,9 @@ where p_attr.attr_name like '%прих%' and av.txt_values like 'средний'
 -- Выборка повторяющихся материалов для товаров в определённой категории
 set @category = 'Пуф';
 select
-   /* vp.id as product_id,*/
-   /* vp.producer_name,*/
-   /* vp.category,*/
-   /* vp.parent_category,*/
-   /* pa.attr_name,*/
     attributes_values.txt_values,
     attributes_values.int_value,
     attributes_values.float_value,
-    -- count(case when (txt_values is not null or int_value is not null or float_value is not null) then 1 else null end) as count,
     count(*)
 from
     attributes_values join view_products vp on attributes_values.product_id = vp.id
@@ -327,15 +321,16 @@ where
     c.parent_id = :id;
 
 -- Выборка атрибутов под конкретные категории и их максимальных значений
-set @categoryId = 8;
+set @categoryId = 11;
 with products_in_category as(
+    set @categoryId = 8;
     select
         p.id
     from
         products p
     where
-        -- (@categoryId > 0 and p.category_id = @categoryId) or @categoryId <= 0)
-        p.category_id in (10,11,15))
+       (@categoryId > 0 and p.category_id = @categoryId and p.is_deleted = false and p.show_product = true) or @categoryId <= 0)
+       -- p.category_id in (10,11,15) and p.is_deleted = false and p.show_product = true)
 
 select
     av.attribute_id as attributeId,
@@ -431,10 +426,10 @@ select distinct
 from products p join producers producer on p.producer_id = producer.id
                 join variants_product vp on p.id = vp.product_id
 where
-    p.product_name like concat('%',@keyword,'%') or
+    (p.product_name like concat('%',@keyword,'%') or
     p.description like concat('%',@keyword,'%') or
     vp.title like concat('%',@keyword,'%') or
-    producer.producer_name like concat('%',@keyword,'%');
+    producer.producer_name like concat('%',@keyword,'%')) and p.is_deleted = false and p.show_product = true;
 
 -- Выборка заказов и их детальной информации
 select
@@ -462,6 +457,90 @@ select
     c.email
 from orders join customers c on orders.customer_id = c.id
 where
-    c.email = 'user4@gmail.com'
+    c.email = 'user4@gmail.com';
     -- (@code <= 0 or @code is null and @code = orders.code) or orders.code > 0
    -- if(@order_state_id is null or @order_state_id <= 0, (@code is not null and @code > 0 and @code = orders.code), orders.id = @order_state_id)
+
+-- Выборка корзин и их детальной информации
+select
+    baskets.id as basket_id,
+    u.login,
+    p.id as product_id,
+    vp.id as pv_id,
+    vp.title as variant_name,
+    p.description as product_description,
+    vp.price,
+    bpv.products_count,
+    (vp.price * bpv.products_count) as summ,
+    baskets.added_date
+
+from baskets join users u on baskets.user_id = u.id
+             join (baskets_products_variants bpv
+                            join (variants_product vp
+                                join products p on vp.product_id = p.id) on bpv.product_variant_id = vp.id)
+                on baskets.id = bpv.basket_id
+where u.id = 3;
+
+-- Выборка всех товаров с их просмотрами
+select
+    p.id,
+    SUM(ifnull(pviews.count,0)) as amount
+from products p left join products_views pviews on p.id = pviews.product_id
+group by p.id
+having
+    amount >= 0
+order by amount desc;
+
+-- Выборка среднего просмотра для каждого товара
+select
+    p.id,
+    AVG(ifnull(pviews.count,0)) as avg_amount
+from products p left join products_views pviews on p.id = pviews.product_id
+group by p.id
+having
+        avg_amount >= 0
+order by avg_amount desc;
+
+-- Выборка товаров с максимальным количеством промотров
+select
+    p.id,
+    SUM(ifnull(pviews.count,0)) as amount
+from products p left join products_views pviews on p.id = pviews.product_id
+group by p.id
+having
+     amount >= (
+     Select  MAX(sums)
+     from
+         (Select SUM(pviews.count) as sums
+          from products p left join products_views pviews on p.id = pviews.product_id
+          group by p.id) as views_sums);
+with max_views as (select
+    p.id,
+    SUM(ifnull(pviews.count,0)) as amount
+from products p left join products_views pviews on p.id = pviews.product_id
+group by p.id
+having
+     amount >= (
+     Select  MAX(sums)
+     from
+         (Select SUM(pviews.count) as sums
+          from products p left join products_views pviews on p.id = pviews.product_id
+          group by p.id) as views_sums))
+
+select
+    COUNT(*)
+from max_views;
+
+
+
+-- Выбрать посетителей и просмотренные ими товары
+select
+    visitors.id,
+    visitors.fingerprint,
+    p.id,
+    p.product_name,
+    (select vp.price from variants_product vp where vp.product_id = p.id limit 1) as price,
+    -- SUM(ifnull(pv.count,0)) as amount
+    pv.count
+from visitors join (products_views pv join products p on pv.product_id = p.id) on visitors.id = pv.visitor_id
+group by visitors.id, visitors.fingerprint, p.id, p.product_name, price;

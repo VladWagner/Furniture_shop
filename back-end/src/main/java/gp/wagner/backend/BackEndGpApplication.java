@@ -12,12 +12,6 @@ public class BackEndGpApplication {
 
 		SpringApplication.run(BackEndGpApplication.class, args);
 
-		/*try {
-			Services.indexService.initIndexing();
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
-		}*/
-
 		try {
 			//String ip = InetAddress.getLocalHost().getHostAddress();
 			String ip = InetAddress.getLoopbackAddress().getHostAddress();
@@ -25,6 +19,8 @@ public class BackEndGpApplication {
 			System.out.printf("\nCurrent Ip-address: %s", ip);
 
 		} catch (Exception e) {
+
+			System.out.println("Получить ip сервера не удалось");
 		}
 
 	}

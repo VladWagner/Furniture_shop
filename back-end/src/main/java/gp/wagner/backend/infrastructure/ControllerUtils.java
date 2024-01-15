@@ -1,6 +1,8 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.configurations.StaticContextAccessor;
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
+import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
@@ -12,12 +14,19 @@ import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
 import gp.wagner.backend.middleware.Services;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.*;
 
 public class ControllerUtils {
+
 
     //Сформировать список объектов ProductPreviewRespDto для отправки на клиента
     //TODO: такой тип выборки ужасно прожорлив и нужно срочно разбираться с ManyToOne <--> OneToMany,
@@ -26,33 +35,13 @@ public class ControllerUtils {
 
         if (products == null)
             return null;
-
-        //Выборки всех вариантов
-        //List<ProductVariant> productVariants = Services.productVariantsService.getAll();
-
-        //Выбор всех атрибутов в RAM
-        //List<AttributeValue> attributeValues = Services.attributeValuesService.getAll();
-
         return products.stream().map(p -> {
             //Получить стоимость перового, базового варианта товара
-            // ProductVariant baseVariant = Services.productVariantsService.getByProductId(p.getId()).stream().min(Comparator.comparing(ProductVariant::getId)).get();
-            /*ProductVariant baseVariant = productVariants.stream()
-                    .filter(pv -> Objects.equals(pv.getProduct().getId(), p.getId()))
-                    .min(Comparator.comparing(ProductVariant::getId))
-                    .get();*/
             ProductVariant baseVariant = p.getProductVariants().get(0);
 
-
-            return new ProductPreviewRespDto(p, baseVariant.getPrice(), baseVariant.getPreviewImg(), p.getAttributeValues() /*attributeValues.stream().
-                    filter(av -> av.getProduct().getId().equals(p.getId())).toList()*/);
+            return new ProductPreviewRespDto(p, baseVariant.getPrice(), baseVariant.getPreviewImg(), p.getAttributeValues());
         }).toList();
     }//getProductsPreviewsList
-
-    //Формирование DTO для возврата информации о товаре
-    /*public static ProductDetailsRespDto getPorudctDetailsDto(){
-
-    }*/
-
 
     //Создание списка характеристик - создание DTO
     public static List<AttributeValueRespDto> getAttributesValues(Long productId){
@@ -109,6 +98,9 @@ public class ControllerUtils {
                                            Utils.CategoryAndProductIds ids,
                                            ProductImageDto imageDto,
                                            List<Long> changedImages) throws Exception {
+
+        if (multipartFile == null)
+            return;
 
         //Загрузить новый файл thumb и убрать все приставки "URL=" из адреса -
         String fileUri = Utils.cleanUrl(Services.fileManageService.saveFile(loadFileName, multipartFile, ids.categoryId(), ids.productId()).toString());
@@ -206,6 +198,85 @@ public class ControllerUtils {
             categoriesViewsDto.childCategories.add(findSubCategoryViews(childCategories.get(0)));
 
         return categoriesViewsDto;
+    }
+
+    // Удалить изображения заданные в DTO при редактировании варианта товара
+
+    public static void deleteProductVariantImages(List<ProductImage> deletingProductImages, List<Long> changedImages,
+                                                  ProductVariant variant) throws Exception {
+
+        Utils.CategoryAndProductIds categoryAndProductIds = new Utils.CategoryAndProductIds(variant.getProduct().getCategory().getId(), variant.getProduct().getId());
+
+        //ProductVariant variant;
+        for (ProductImage prodImage : deletingProductImages) {
+
+            //Проверить, не изменялись ли удаляемые изображения
+            // (нажали кнопку удаления и после добавили новое изображение, а id остался в списке)
+            if (changedImages.contains(prodImage.getId()))
+                continue;
+
+            URI fileUri = new URI(prodImage.getImgLink());
+
+            //Для проверки, является ли удаляемое изображение preview варианта товара
+            //Каждый раз получаем один и тот же экземпляр варианта товара из-за того, что при удалении изображения, которое является preview,
+            //тогда оно меняется и для варианта товара на следующее, которое так же может быть удаляемым. Следственно и для него нужно удалить preview
+            variant = Services.productVariantsService.getById(variant.getId());
+
+            //Получить путь к файлу предосмотра для варианта товара
+            String variantPreview = variant.getPreviewImg();
+
+            //Убрать из имени изображения путь и приставку thumb, чтобы можно былой найти основное изображение по названию
+            variantPreview = variantPreview.substring(Utils.findLastIndex(variantPreview, "/\\")+1)
+                    .replace(Constants.THUMB_SUFFICE, "");
+
+            //Получить имя удаляемого изображения - убрать путь в названии
+            String prodImageName = prodImage.getImgLink().substring(Utils.findLastIndex(prodImage.getImgLink(), "/\\")+1);
+
+            //Если удаляемое изображение, является первым изображением - изображение предосмотра
+            //всегда содержит в себе название основного
+            if (variantPreview.contains(prodImageName)){
+
+                // Удалить preview, внутри preview будет заменено на следующее по порядку изображение, пока они не закончатся
+                deleteAtReplaceThumb(fileUri, variant, prodImage, categoryAndProductIds);
+                continue;
+            }
+
+            Services.fileManageService.deleteFile(fileUri);
+
+            Services.productImagesService.deleteById(prodImage.getId());
+
+        }//for
+    }
+
+    // Поменять порядок вывода изображений
+    public static void changeImagesOrder(ProductImageDto imageDto, ProductImage existingImage, ProductVariant pv, int minOrderValue) throws Exception {
+
+        //Найти изображение с заданным в DTO порядковым номером
+        ProductImage imageByOrder = Services.productImagesService.getByVariantIdAndByOrder(pv.getId(), imageDto.getImgOrder());
+
+        //Если изображение с таким порядковым номером имеется и при этом не есть тем же изображением
+        if (imageByOrder != null && !imageByOrder.getId().equals(existingImage.getId())){
+            //"Поменять изображения местами"
+            imageByOrder.setImgOrder(existingImage.getImgOrder());
+            Services.productImagesService.update(imageByOrder);
+        }
+
+        existingImage.setImgOrder(imageDto.getImgOrder());
+
+        Services.productImagesService.update(existingImage);
+
+        //Если при замене порядкового номера изображение стало первым, тогда создать thumbnail
+        if (existingImage.getImgOrder() <= minOrderValue) {
+
+            //Удалить предыдущее thumbnail
+            String oldPreview = Services.productVariantsService.getById(pv.getId()).getPreviewImg();
+            Services.fileManageService.deleteFile(new URI(oldPreview));
+
+            String thumbnailUri = Utils.cleanUrl(Services.fileManageService.saveThumbnail(existingImage.getImgLink(),
+                    pv.getProduct().getCategory().getId(), pv.getProduct().getId()
+                    ).toString());
+            Services.productVariantsService.updatePreview(pv.getId(), thumbnailUri);
+        }
     }
 
 }

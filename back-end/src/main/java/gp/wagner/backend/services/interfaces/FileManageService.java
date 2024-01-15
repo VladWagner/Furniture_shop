@@ -15,6 +15,9 @@ public interface FileManageService {
     //Загрузить файл для базового варианта товара
     Resource saveFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId) throws IOException;
 
+    //Загрузить файл варианта товара
+    Resource saveProducerOrCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, Long producerId) throws IOException;
+
     //Сформировать файл предосмотра
     Resource saveThumbnail(String filePath, Long categoryId, Long productId) throws IOException ;
 

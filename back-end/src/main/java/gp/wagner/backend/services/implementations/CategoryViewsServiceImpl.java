@@ -2,15 +2,12 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
-import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.CategoryViewsRepository;
-import gp.wagner.backend.repositories.ProductViewsRepository;
+import gp.wagner.backend.repositories.categories.CategoryViewsRepository;
 import gp.wagner.backend.services.interfaces.CategoryViewsService;
-import gp.wagner.backend.services.interfaces.ProductViewsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.*;
@@ -18,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -72,7 +70,7 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         //Если такого посетителя нет, тогда создать его
         if (visitor == null) {
 
-            Visitor v = new Visitor(null, "", fingerPrint);
+            Visitor v = new Visitor(null, "", fingerPrint, new Date());
 
             /*Services.visitorsService.create("", fingerPrint);
             createdVisitorId = Services.visitorsService.getMaxId();*/

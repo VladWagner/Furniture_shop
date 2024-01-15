@@ -1,25 +1,36 @@
 package gp.wagner.backend.infrastructure;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.entites.baskets.Basket;
+import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entites.visits.ProductViews;
+import gp.wagner.backend.domain.entites.visits.Visitor;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 //Класс для вынесения повторяющихся и вспомогательных методов из сервисов
 public class ServicesUtils<T> {
 
     //Создание предиката для фильтрации товаров по цене
-    public static Predicate getPricePredicate(String priceRange, Root<Product> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+    public static Predicate getPricePredicate(String priceRange, From<?, ?> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
         //Присоединить таблицу вариантов товаров
         Join<Product, ProductVariant> productProductVariantJoin = root.join("productVariants");
 
         //Создание подзапроса для получения мин.id варианта товара - базового варианта товара
-        Subquery<Integer> subqueryId = query.subquery(Integer.class);
+        Subquery<Long> subqueryId = query.subquery(Long.class);
         Root<ProductVariant> subQueryRoot = subqueryId.from(ProductVariant.class);
         subqueryId.select(cb.min(subQueryRoot.get("id"))).where(cb.equal(subQueryRoot.get("product"), root));
 
@@ -42,8 +53,13 @@ public class ServicesUtils<T> {
     }
 
     //Сформировать все предикаты
-    public static List<Predicate> collectProductsPredicates(CriteriaBuilder cb, Root<Product> root, CriteriaQuery<?> query,
+    public static List<Predicate> collectProductsPredicates(CriteriaBuilder cb, From<?, ?> root, CriteriaQuery<?> query,
                                                             ProductFilterDtoContainer container, Long categoryId, String priceRange){
+        Class<?> rootType = root.getJavaType();
+
+        if (rootType != Product.class)
+            return null;
+
         List<Predicate> predicates = new ArrayList<>();
 
         //Доп.фильтрация по категории
@@ -56,7 +72,7 @@ public class ServicesUtils<T> {
         }
 
         //Доп.фильтрация по производителям
-        if (container.getProducersNames() != null && container.getProducersNames().size() > 0){
+        if (container != null && container.getProducersNames() != null && container.getProducersNames().size() > 0){
             Join<Product, Producer> producerJoin = root.join("producer");
 
             predicates.add(producerJoin.get("producerName").in(container.getProducersNames()));
@@ -69,4 +85,271 @@ public class ServicesUtils<T> {
         return predicates;
     }
 
+    // Найти заказы по id или по коду через criteria api
+    public static Order getOrdersByIdOrCode(Long id, Long orderCode, EntityManager entityManager) {
+
+        if (id == null && orderCode == null)
+            return null;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Для формирования запросов
+        CriteriaQuery<Order> query = cb.createQuery(Order.class);
+
+        // Таблица со заказываемыми товарами
+        Root<Order> root = query.from(Order.class);
+
+        Predicate selectionPredicate;
+
+        // Сформировать условия в зависимости от параметров
+        if (id == null)
+            selectionPredicate = cb.equal(root.get("code"), orderCode);
+        else if (orderCode == null)
+            selectionPredicate = cb.equal(root.get("id"), id);
+        else
+            selectionPredicate = cb.and(
+                    cb.equal(root.get("id"), id),
+                    cb.equal(root.get("code"), orderCode)
+            );
+
+        query.where(selectionPredicate);
+
+        return entityManager.createQuery(query).getSingleResult();
+    }
+
+    // Найти варианты товаров по id или по коду заказа через criteria api
+    public static OrderAndProductVariant getOrdersAndPvByIdOrCode(Long id, Long orderCode, EntityManager entityManager) {
+
+        if (id == null && orderCode == null)
+            return null;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Для формирования запросов
+        CriteriaQuery<OrderAndProductVariant> query = cb.createQuery(OrderAndProductVariant.class);
+
+        // Таблица со заказываемыми товарами
+        Root<OrderAndProductVariant> root = query.from(OrderAndProductVariant.class);
+
+        // Присоединить заказы
+        Path<Order> orderPath = root.get("order");
+
+        Predicate selectionPredicate;
+
+        // Сформировать условия в зависимости от параметров
+        if (id == null)
+            selectionPredicate = cb.equal(orderPath.get("code"), orderCode);
+        else if (orderCode == null)
+            selectionPredicate = cb.equal(orderPath.get("id"), id);
+        else
+            selectionPredicate = cb.and(
+                    cb.equal(orderPath.get("id"), id),
+                    cb.equal(orderPath.get("code"), orderCode)
+            );
+
+        query.where(selectionPredicate);
+
+        return entityManager.createQuery(query).getSingleResult();
+    }
+
+    // Метод для поиска корзин - частично обобщённый
+    public static <R> R findByProdVariantIdAndUserIdGeneric(Long pvId, List<Long> pvIdList, Integer userId, EntityManager entityManager, /*Class<Q> queriesType,*/ Class<R> returnType){
+
+        if (pvId == null && userId == null && pvIdList == null)
+            return null;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        //Объект для формирования запросов к БД
+        CriteriaQuery<Basket> query = cb.createQuery(Basket.class);
+
+        //Составная таблица - корзина
+        Root<Basket> root = query.from(Basket.class);
+
+        //Присоединить таблицу многие ко многим и вариантов товара
+        Join<Basket, BasketAndProductVariant> bpvJoin = pvId != null || pvIdList != null ? root.join("basketAndPVList") : null;
+        Path<ProductVariant> productVariantPath = bpvJoin != null ? bpvJoin.get("productVariant") : null;
+
+        Join<Basket, User> userJoin = userId != null ? root.join("user") : null;
+
+        //Условие для выборки если заданы оба параметра
+        Predicate predicate = pvId != null && userId != null ? cb.and(
+                cb.equal(productVariantPath.get("id"), pvId),
+                cb.equal(userJoin.get("id"), userId)
+        ) : null;
+
+        // Если не все параметры заданы, только id варианта или пользователя, либо если задан только список
+        if (pvId != null && userId == null)
+            predicate = cb.equal(productVariantPath.get("id"), pvId);
+        else if (userId != null && pvId == null)
+            predicate = cb.equal(userJoin.get("id"), userId);
+        else if (pvIdList != null) {
+
+            CriteriaBuilder.In<Long> cbIn =  cb.in(productVariantPath.get("id"));
+
+            // Добавить значения из списка в условие
+            pvIdList.forEach(cbIn::value);
+
+            predicate = cbIn;
+        }
+
+        query.where(predicate);
+
+        List<Basket> resultList = entityManager.createQuery(query).getResultList();
+
+        // Небезопасные приведения выбраны осознанно
+        if (resultList.size() > 0 && List.class.isAssignableFrom(returnType))
+            return (R) resultList;
+        else if (resultList.size() > 0 && returnType == Basket.class)
+            return (R) resultList.get(0);
+
+        return null;
+    }
+
+    // Пересчёт суммы в корзине
+    public static void countSumInBaskets(List<Basket> baskets, List<BasketAndProductVariant> bpvListAll){
+        List<BasketAndProductVariant> bpvList;
+
+        // Для каждой корзины пересчитать сумму
+        for (Basket basket: baskets) {
+            // Выбрать записи для текущей корзины и записи, где вариант товара не скрыт и не удалён
+            bpvList = bpvListAll.stream()
+                    .filter(e -> e.getBasket().getId().equals(basket.getId())
+                            && e.getProductVariant().getShowVariant()
+                            && (e.getProductVariant().getIsDeleted() == null || !e.getProductVariant().getIsDeleted()))
+                    .toList();
+
+            if (bpvList.isEmpty())
+                continue;
+
+            // Пересчитать сумму с изменённым вариантом товара
+            int newSum = bpvList.stream()
+                    .map(bpv -> bpv.getProductVariant().getPrice() * bpv.getProductsAmount())
+                    .reduce(0, Integer::sum);
+
+            basket.setSum(newSum);
+
+        }
+    }
+
+
+    // Пересчёт суммы в заказе
+    public static void countSumInOrders(List<Order> orders, List<OrderAndProductVariant> opvListAll){
+        List<OrderAndProductVariant> opvList;
+
+        for(Order order: orders){
+            // Специально не производим никаких других проверок, поскольку для заказов с разными статусами могут быть нужны
+            // разные расчёты, которые будут определятся за пределом данного метода
+            opvList = opvListAll.stream()
+                    .filter(e -> e.getOrder().getId().equals(order.getId()))
+                    .toList();
+
+            if (opvList.isEmpty())
+                continue;
+
+            // Собственно пересчёт суммы
+            int newSum = opvList.stream()
+                    .map(e -> e.getProductVariant().getPrice() * e.getProductsAmount())
+                    .reduce(0, Integer::sum);
+
+            order.setSum(newSum);
+
+        }// for
+    }
+
+    // Формирование запроса для получения ProductsViews
+    public static TypedQuery<Tuple> getTypedQueryProductsViews(AggregateOperationsEnum operation, EntityManager entityManager, Long categoryId, String priceRange, GeneralSortEnum sortEnum){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+
+        Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
+
+        // Сформировать запрос с агрегатной функцией подсчёта суммы
+        Expression<?> expression/* = cb.sum(cb.coalesce(root.get("count"), 0))*/ = switch (operation) {
+            case SUM -> cb.sum(cb.coalesce(root.get("count"), 0));
+            case AVG -> cb.avg(cb.coalesce(root.get("count"), 0));
+            case MAX -> cb.max(cb.coalesce(root.get("count"), 0));
+            case MIN -> cb.min(cb.coalesce(root.get("count"), 0));
+        };
+
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+
+        if (predicates != null && !predicates.isEmpty())
+            query.where(predicates.toArray(new Predicate[0]));
+
+        query.multiselect(
+                productJoin.get("id"),
+                expression
+        ).groupBy(productJoin.get("id"));
+
+        query.orderBy(sortEnum == GeneralSortEnum.ASC ? cb.asc(expression) : cb.desc(expression));
+
+        return entityManager.createQuery(query);
+    }
+
+    // Подсчёт количества записей просмотров товаров с заданными параметрами
+    public static Long getTypedQueryCountProductsViews(EntityManager entityManager, Long categoryId, String priceRange){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+
+        Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
+
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+
+        if (predicates != null && !predicates.isEmpty())
+            query.where(predicates.toArray(new Predicate[0]));
+
+        query.select(cb.countDistinct(productJoin.get("id")))/*.groupBy(productJoin.get("id"))*/;
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
+    // Подсчёт количества посетителей, которые просмотрели товары с заданными параметрами
+    public static Long countVisitorsWithProductsViews(EntityManager entityManager, Long categoryId, String priceRange){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<Visitor> root = query.from(Visitor.class);
+
+        Join<Visitor, ProductViews> productViewsJoin = root.join("productViewsList");
+        Join<ProductViews, Product> productJoin = productViewsJoin.join("product");
+
+        // Сформировать запрос
+
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+
+        if (predicates != null && !predicates.isEmpty())
+            query.where(predicates.toArray(new Predicate[0]));
+
+        query.select(cb.countDistinct(root.get("id")));
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
+    // Подсчёт количества просмотров с максимальными значениеями
+    public static int countMaxProductsViews(EntityManager entityManager, long maxCount, Long categoryId, String priceRange){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Основной запрос выборки записей просмотров товаров
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+        Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
+
+        // Добавить предикаты
+        List<Predicate> predicates = collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+
+        // Основной запрос
+        Expression<Integer> sumExpression = cb.sum(cb.coalesce(root.get("count"), 0));
+
+        if (predicates != null && !predicates.isEmpty())
+            query.where(predicates.toArray(new Predicate[0]));
+
+        query.select(productJoin.get("id"))
+                .groupBy(productJoin.get("id"))
+                .having(cb.ge(sumExpression, maxCount));
+
+
+        return entityManager.createQuery(query).getResultList().size();
+    }
 }

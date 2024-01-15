@@ -39,18 +39,25 @@ public class Product {
     //Связующие свойство категории товара (Многие товары к 1 категории)
     @JoinColumn(name = "category_id")
     @ManyToOne(fetch = FetchType.LAZY)
+    @BatchSize(size = 256)
     private Category category;
 
     //Связующие свойство производителя товара (Многие товаров к 1 производителю)
     @JoinColumn(name = "producer_id")
     @ManyToOne(fetch = FetchType.LAZY)
+    @BatchSize(size = 256)
     private Producer producer;
 
     //Наличие товара
     @Column(name = "is_available")
     private Boolean isAvailable;
 
+    // Флаг удалён ли товар
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
+
     //Флаг вывода товара
+    //false == 0
     @Column(name = "show_product")
     private Boolean showProduct;
 

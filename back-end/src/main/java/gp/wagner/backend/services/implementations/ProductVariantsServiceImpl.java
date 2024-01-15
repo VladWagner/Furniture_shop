@@ -1,19 +1,28 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
+import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.CategoriesRepository;
-import gp.wagner.backend.repositories.ProductVariantsRepository;
+import gp.wagner.backend.repositories.products.ProductVariantsRepository;
 import gp.wagner.backend.services.interfaces.ProductVariantsService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class ProductVariantsServiceImpl implements ProductVariantsService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     //Репозиторий
     private ProductVariantsRepository productVariantsRepository;
@@ -50,11 +59,11 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         if (dto == null)
             return -1;
 
-        ProductVariant pv = new ProductVariant(dto.getTitle(),
+        ProductVariant pv = new ProductVariant(null ,dto.getTitle(),
                 Services.productsService.getById(dto.getProductId()),
                 dto.getPrice(),
                 previewImg.isEmpty() ? Constants.EMPTY_IMAGE.toString() : previewImg,
-                dto.getShowProductVariant() != null ? dto.getShowProductVariant() : true);
+                dto.getShowPv() != null ? dto.getShowPv() : true, null);
 
         return productVariantsRepository.saveAndFlush(pv).getId();
     }
@@ -75,20 +84,43 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         if (dto == null)
             return null ;
 
+        ProductVariant oldProductVariant = productVariantsRepository.findById(dto.getId())
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти вариант товара с id = %d для редактирования",dto.getId())));
+
         if (previewImg == null || previewImg.isEmpty())
-            previewImg = productVariantsRepository.findById(dto.getId()).get().getPreviewImg();
+            previewImg = oldProductVariant.getPreviewImg();
 
-        productVariantsRepository.updateProductVariant(dto.getProductId(), dto.getProductId(), previewImg, dto.getTitle(), dto.getPrice());
+        //productVariantsRepository.updateProductVariant(dto.getProductId(), dto.getProductId(), previewImg, dto.getTitle(), dto.getPrice());
 
-        ProductVariant pv = new ProductVariant(dto.getTitle(),
+        ProductVariant pv = new ProductVariant(dto.getId(), dto.getTitle(),
                 Services.productsService.getById(dto.getProductId()),
                 dto.getPrice(),
                 previewImg.isEmpty() ? Constants.EMPTY_IMAGE.toString() : previewImg,
-                dto.getShowProductVariant() != null ? dto.getShowProductVariant() : true);
+                dto.getShowPv() != null ? dto.getShowPv() : true, null);
 
-        pv.setId(dto.getId());
+        int oldPrice = oldProductVariant.getPrice();
+        boolean oldShowState = oldProductVariant.getShowVariant();
+        pv = productVariantsRepository.saveAndFlush(pv);
 
-        return productVariantsRepository.saveAndFlush(pv);
+        // После обновления цены варианта, обновить все корзины и необработанные заказы
+        if (pv.getPrice() != oldPrice && pv.getShowVariant()) {
+            Services.basketsService.updateBasketsOnPvPriceChanged(pv);
+            Services.ordersService.updateOrdersOnPvPriceChanged(pv);
+        }
+        // Не изменили стоимость, но при этом восстановили показ варианта товара
+        else if (pv.getPrice() == oldPrice && (!oldShowState && pv.getShowVariant())) {
+
+            Services.basketsService.updateBasketsOnPvDisclosure(pv, null);
+            Services.ordersService.updateOrdersOnPvDisclosure(pv, null);
+
+        }
+        //Скрытие варианта товара (текущее состояние отличается от прошлого)
+        else if (!pv.getShowVariant() && oldShowState){
+            Services.basketsService.updateBasketsOnPvHidden(pv, null);
+            Services.ordersService.updateOrdersOnPvHidden(pv, null);
+        }
+
+        return pv;
 
     }
 
@@ -96,12 +128,63 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
     public void update(long productVariantId, long productId, String previewImg, String title, int price) {
         productVariantsRepository.updateProductVariant(productVariantId, productId, previewImg, title, price);
     }
+
+    @Override
+    public void updatePvDisplay(long productVariantId) {
+        ProductVariant pv = productVariantsRepository.findById(productVariantId)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти вариант товара с id: %d", productVariantId)));
+
+        // Изменить значение на противоположное
+        pv.setShowVariant(!pv.getShowVariant());
+
+        pv = productVariantsRepository.saveAndFlush(pv);
+
+        // Разные действия в зависимости от скрытия/открытия варианта
+        if (!pv.getShowVariant()) {
+            Services.basketsService.updateBasketsOnPvHidden(pv, null);
+            Services.ordersService.updateOrdersOnPvHidden(pv, null);
+        } else {
+            Services.basketsService.updateBasketsOnPvDisclosure(pv, null);
+            Services.ordersService.updateOrdersOnPvDisclosure(pv, null);
+        }
+    }
+
+    // Изменение состояния вариантов товара в соответсвии с изменением состояния самого товаров
+    @Override
+    public void updateCascadePvDisplay(Product product) {
+
+        // Найти варианты товара, состояние которых отличается от состояния товара (товар скрыт, а варианты - нет)
+        List<ProductVariant> pvList = product.getProductVariants()
+                .stream()
+                .filter(pv -> pv.getShowVariant() == null || pv.getShowVariant() != product.getShowProduct())
+                .toList();
+
+        if (pvList.isEmpty())
+            return;
+
+        // сохранить изменения вариантов товаров
+        pvList.forEach(pv -> pv.setShowVariant(product.getShowProduct()));
+
+        productVariantsRepository.saveAllAndFlush(pvList);
+
+        if (!product.getShowProduct()) {
+            Services.basketsService.updateBasketsOnPvHidden(null, pvList);
+            Services.ordersService.updateOrdersOnPvHidden(null, pvList);
+        } else {
+            Services.basketsService.updateBasketsOnPvDisclosure(null, pvList);
+            Services.ordersService.updateOrdersOnPvDisclosure(null, pvList);
+        }
+
+    }
     //endregion
 
     //Изменить изображение предосмотра
     @Override
+    @Transactional
     public void updatePreview(long productVariantId, String previewImg) {
         productVariantsRepository.updateProductVariantPreview(productVariantId, previewImg);
+        entityManager.flush();
+        entityManager.clear();
     }
 
     @Override
@@ -121,6 +204,116 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
 
     @Override
     public List<ProductVariant> getByProductId(Long productId) {
+
         return productVariantsRepository.findProductVariantsByProductId(productId);
     }
+
+    @Override
+    public boolean deleteById(long pvId) {
+
+        ProductVariant foundProductVariant = productVariantsRepository.findById(pvId)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",pvId)));
+
+        if (foundProductVariant.getIsDeleted() != null && foundProductVariant.getIsDeleted())
+            throw  new ApiException(String.format("Вариант товара с id: %d уже удалён!", pvId));
+
+        foundProductVariant.setIsDeleted(true);
+
+        foundProductVariant = productVariantsRepository.saveAndFlush(foundProductVariant);
+
+        Services.basketsService.updateBasketsOnPvDelete(foundProductVariant, null);
+        Services.ordersService.updateOrdersOnPvDelete(foundProductVariant, null);
+
+        return foundProductVariant.getIsDeleted();
+    }
+
+    @Override
+    public boolean recoverDeletedById(long pvId) {
+        ProductVariant foundProductVariant = productVariantsRepository.findById(pvId)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",pvId)));
+
+        if (foundProductVariant.getIsDeleted() == null || !foundProductVariant.getIsDeleted())
+            throw  new ApiException(String.format("Вариант товара с id: %d не был удалён!", pvId));
+
+        foundProductVariant.setIsDeleted(false);
+
+        return !productVariantsRepository.saveAndFlush(foundProductVariant).getIsDeleted();
+    }
+
+    @Override
+    public void deleteByProductId(long productId) {
+        productVariantsRepository.deleteVariantsByProduct(productId, null);
+
+        List<ProductVariant> changedPv = getByProductId(productId);
+
+        // Восстановить варианты товаров в корзине и заказе
+        if (!changedPv.isEmpty()){
+            Services.basketsService.updateBasketsOnPvDelete(null, changedPv);
+            Services.ordersService.updateOrdersOnPvDelete(null, changedPv);
+        }
+
+    }
+
+    @Override
+    public void recoverDeletedByProductId(long productId) {
+        productVariantsRepository.recoverVariantsByProduct(productId, null);
+    }
+
+    @Override
+    public void deleteByProductIdList(List<Long> productsIds) {
+
+        if (productsIds == null || productsIds.isEmpty())
+            throw new ApiException("Не удалось удалить товары по списку. Список некорректен!");
+
+        productVariantsRepository.deleteVariantsByProduct(null, productsIds);
+        List<ProductVariant> productVariants = productVariantsRepository.findProductVariantsByProductIdList(productsIds);
+
+        //productVariants.forEach(pv -> pv.setIsDeleted(true));
+
+        // Убрать все удалённые варианты из корзин и заказов
+        if (!productVariants.isEmpty()){
+            Services.basketsService.updateBasketsOnPvDelete(null, productVariants);
+            Services.ordersService.updateOrdersOnPvDelete(null, productVariants);
+        }
+
+    }
+
+    @Override
+    public void recoverDeletedByProductIdList(List<Long> productsIds) {
+
+        if (productsIds == null || productsIds.isEmpty())
+            throw new ApiException("Не удалось восстановить товары по списку. Список некорректен!");
+
+        productVariantsRepository.recoverVariantsByProduct(null, productsIds);
+
+    }
+
+    @Override
+    public void hideByProductsList(List<Product> products) {
+        List<ProductVariant> pvList = productVariantsRepository.findProductVariantsByProductIdList(products.stream().map(Product::getId).toList());
+
+        pvList.forEach(pv -> pv.setShowVariant(false));
+
+        productVariantsRepository.saveAllAndFlush(pvList);
+
+        // Произвести перерасчёт сумм в незавершенных заказах и корзинах
+        Services.basketsService.updateBasketsOnPvHidden(null, pvList);
+        Services.ordersService.updateOrdersOnPvHidden  (null, pvList);
+
+    }
+
+    @Override
+    public void recoverHidenByProductsList(List<Product> products) {
+
+        List<ProductVariant> pvList = productVariantsRepository.findProductVariantsByProductIdList(products.stream().map(Product::getId).toList());
+
+        pvList.forEach(pv -> pv.setShowVariant(true));
+
+        productVariantsRepository.saveAllAndFlush(pvList);
+
+        // Произвести перерасчёт сумм в незавершенных заказах и корзинах
+        Services.basketsService.updateBasketsOnPvDisclosure(null, pvList);
+        Services.ordersService.updateOrdersOnPvDisclosure(null, pvList);
+    }
+
 }

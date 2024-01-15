@@ -37,7 +37,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             value = """
     insert into attributes_values
         (product_id, attribute_id, txt_values, int_value, float_value, double_value, bool_value, date_value)
-    values 
+    values
         (:productId,:attributeId,:txtValue,:intValue,:floatValue,:doubleValue,:boolValue,:dateValue)
     """)
     int insertValue(@Param("productId") long productId, @Param("attributeId") long attributeId,
@@ -76,7 +76,8 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             from
                 products p
             where
-                (:categoryId > 0 and p.category_id = :categoryId) or :categoryId <= 0)
+                (:categoryId > 0 and p.category_id = :categoryId and p.is_deleted = false and p.show_product = true)
+                    or :categoryId <= 0)
         
         select
             av.attribute_id as attributeId,
@@ -105,7 +106,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             from
                 products p
             where
-                p.category_id in :category_id_list)
+                p.category_id in :category_id_list and p.is_deleted = false and p.show_product = true)
         
         select
             av.attribute_id as attributeId,
@@ -135,10 +136,11 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
                 products p join variants_product pv on p.id = pv.product_id
                            join producers producer on p.producer_id = producer.id
             where
-                p.product_name like concat('%',:keyword,'%') or
+                (p.product_name like concat('%',:keyword,'%') or
                 p.description like concat('%',:keyword,'%') or
                 pv.title like concat('%',:keyword,'%') or
-                producer.producer_name like concat('%',:keyword,'%'))
+                producer.producer_name like concat('%',:keyword,'%')) and
+                p.is_deleted = false and p.show_product = true)
         
         select
             av.attribute_id as attributeId,

@@ -30,8 +30,11 @@ public class ProductVariantPreviewRespDto {
     //Стоимость товара
     private int price;
 
-    //Выводить ли данный вариант
+    //Выводить ли данный вариант. В заказах и товарах можно скрывать за полупрозрачным фоном и писать, что товар закончился и сумма пересчитана
     private boolean showVariant;
+
+    private boolean isDeleted;
+
 
     public ProductVariantPreviewRespDto(ProductVariant variant) {
         this.id = variant.getId();
@@ -41,5 +44,6 @@ public class ProductVariantPreviewRespDto {
         this.previewImgLink = variant.getPreviewImg();
         this.price = variant.getPrice();
         this.showVariant = variant.getShowVariant();
+        this.isDeleted = variant.getIsDeleted() != null && variant.getIsDeleted();
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -37,7 +38,7 @@ public class VisitorsServiceImpl implements VisitorsService {
         if (fingerPrint.isBlank() || fingerPrint.isEmpty())
             return -1;
 
-        Visitor visitor = new Visitor(null, ipAddress, fingerPrint);
+        Visitor visitor = new Visitor(null, ipAddress, fingerPrint, new Date());
         /*repository.insertVisitor(ipAddress, fingerPrint);
         return repository.getMaxId();*/
         return repository.saveAndFlush(visitor).getId();
@@ -52,7 +53,8 @@ public class VisitorsServiceImpl implements VisitorsService {
         if (visitor == null)
             return;
 
-        repository.updateVisitor(visitor.getId(), visitor.getIpAddress(), visitor.getFingerprint());
+        //repository.updateVisitor(visitor.getId(), visitor.getIpAddress(), visitor.getFingerprint());
+        repository.saveAndFlush(visitor);
     }
 
     @Override
@@ -60,8 +62,17 @@ public class VisitorsServiceImpl implements VisitorsService {
         if (visitorId <= 0 || fingerPrint.isEmpty())
             return;
 
-        repository.updateVisitor(visitorId, ipAddress, fingerPrint);
+        repository.updateVisitor(visitorId, ipAddress, fingerPrint, new Date());
     }
+
+    @Override
+    public void updateLastVisitDate(long visitorId, Date visitDate) {
+        if (visitorId <= 0)
+            return;
+
+        repository.updateLastVisitDate(visitorId, visitDate);
+    }
+
     //endregion
 
     @Override

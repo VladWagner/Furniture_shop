@@ -3,11 +3,16 @@ package gp.wagner.backend.domain.specifications;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterBlock;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.eav.ProductAttribute;
+import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.FilterOperations;
 import gp.wagner.backend.infrastructure.Utils;
+import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
+import org.hibernate.annotations.BatchSize;
 import org.springframework.data.jpa.domain.Specification;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 
@@ -134,11 +139,28 @@ public class ProductSpecifications {
     //Создать спецификации фильтрации ЧЕРЕЗ ПОДЗАПРОСЫ, которые hibernate будет использовать во время формирования запросов и предикатов
     public static List<Specification<Product>> createSubQueriesProductSpecifications(ProductFilterDtoContainer filtersDto) {
 
-        //Список предикатов для каждой спецификации (уровень фильтров)
-        List<Predicate> predicates = new ArrayList<>();
-
         //Спецификации для задания в CriteriaBuilder (уровень блоков фильтров)
         List<Specification<Product>> specifications = new ArrayList<>();
+
+        // Выборка неудалённых и не скрытых элементов
+        specifications.add(
+                (root, query, cb) -> cb.and(
+                                cb.or(
+                                        cb.isNull(root.get("isDeleted")),
+                                        cb.equal(root.get("isDeleted"), false)
+                                    ) ,//or
+                                cb.or(
+                                        cb.isNull(root.get("showProduct")),
+                                        cb.equal(root.get("showProduct"), true)
+                                )
+                        )// and
+        );
+
+        if (filtersDto.getProductFilterBlockList() == null)
+            return specifications;
+
+        //Список предикатов для каждой спецификации (уровень фильтров)
+        List<Predicate> predicates = new ArrayList<>();
 
         //Пройти по каждому заданному блоку фильтров
         for (ProductFilterBlock filterBlock : filtersDto.getProductFilterBlockList()) {
@@ -154,6 +176,7 @@ public class ProductSpecifications {
 
                         //Создание предикатов фильтрации по каждому фильтру - внутри всё
                         for (ProductFilterDto dto : filterBlock.getProductFilters()) {
+
                             // Подзапрос к таблице значений атрибутов под конкретное значение фильтра
                             Subquery<Long> subQueryAv = criteriaQuery.subquery(Long.class);
 
@@ -184,9 +207,7 @@ public class ProductSpecifications {
                             // Если значение должно быть >= заданного
                             else if (dto.getOperation().equals(FilterOperations.GREATER_THAN_EQUAL.getValue()))
                                 subQueryPredicate = cb.and(
-                                                //Поиск нужной характеристики
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
-                                                //Поиск и сравнение значения характеристики
                                                 cb.ge(subProdAttrValueJoin.get("intValue"), Utils.TryParseInt(dto.getValue()))
                                         );//cb.and
 
@@ -195,9 +216,7 @@ public class ProductSpecifications {
                             // Если значение должно быть <= заданного
                             else if (dto.getOperation().equals(FilterOperations.LESS_THAN_EQUAL.getValue()))
                                 subQueryPredicate = cb.and(
-                                                //Поиск нужной характеристики
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
-                                                //Поиск и сравнение значения характеристики
                                                 cb.le(subProdAttrValueJoin.get("intValue"), Utils.TryParseInt(dto.getValue()))
                                         );//cb.and
                                 //end-else if
@@ -218,9 +237,7 @@ public class ProductSpecifications {
                                     continue;
 
                                 subQueryPredicate = cb.and(
-                                                //Поиск нужной характеристики
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
-                                                //Поиск и сравнение значения характеристики
                                                 cb.between(subProdAttrValueJoin.get("intValue"), val1, val2)
                                         );//cb.and
                             }
@@ -249,3 +266,4 @@ public class ProductSpecifications {
         return specifications;
     }
 }
+

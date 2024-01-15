@@ -5,6 +5,8 @@ import gp.wagner.backend.domain.entites.visits.Visitor;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.context.properties.bind.Name;
 
+import javax.xml.crypto.Data;
+import java.util.Date;
 import java.util.List;
 
 
@@ -17,9 +19,10 @@ public interface VisitorsService {
     //Изменение записи
     void update(Visitor visitor);
     void update(long visitorId,@DefaultValue("") String ipAddress, String fingerPrint);
+    void updateLastVisitDate(long visitorId, Date visitDate);
 
     //Выборка всех записей
-    public List<Visitor> getAll();
+    List<Visitor> getAll();
 
     //Выборка записи под id
     Visitor getById(Long id);

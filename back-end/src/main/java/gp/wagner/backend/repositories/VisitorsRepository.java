@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
+
 @Repository
 public interface VisitorsRepository extends JpaRepository<Visitor,Long> {
 
@@ -21,21 +23,33 @@ public interface VisitorsRepository extends JpaRepository<Visitor,Long> {
     @Query(nativeQuery = true,
     value = """
         insert into visitors  
-        (fingerprint, ip_address)
+        (fingerprint, ip_address, last_visit_at)
         values 
-        (:fp, :ip)
+        (:fp, :ip,:last_visit)
     """)
-    int insertVisitor(@Param("ip") String ip, @Param("fp") String fingerPrint);
+    int insertVisitor(@Param("ip") String ip, @Param("fp") String fingerPrint, @Param("last_visit") Date lastVisitDate);
 
     //Изменение посетителя
     @Transactional
     @Query(nativeQuery = true,
     value = """
     update visitors set
-                        ip_address = :ip,fingerprint = :fp
+                        ip_address = :ip,
+                        fingerprint = :fp,
+                        last_visit_at = :last_visit
     where id = :visitorId
     """)
-    void updateVisitor(@Param("visitorId") long id, @Param("ip") @DefaultValue(" ") String ip, @Param("fp") String fingerPrint);
+    void updateVisitor(@Param("visitorId") long id, @Param("ip") @DefaultValue(" ") String ip, @Param("fp") String fingerPrint, @Param("last_visit") Date lastVisitDate);    //Изменение посетителя
+
+    @Transactional
+    @Modifying
+    @Query(nativeQuery = true,
+    value = """
+    update visitors set
+                        last_visit_at = :last_visit
+    where id = :visitorId
+    """)
+    void updateLastVisitDate(@Param("visitorId") long id, @Param("last_visit") Date lastVisitDate);
 
     //Получить посетителя по finger print
     Visitor getVisitorByFingerprint(String fingerPrint);

@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.request.crud;
 
+import gp.wagner.backend.domain.entites.baskets.Basket;
 import gp.wagner.backend.infrastructure.Utils;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Min;
@@ -9,6 +10,7 @@ import lombok.*;
 
 import java.text.ParseException;
 import java.util.Date;
+import java.util.Map;
 
 //Объект для добавления/редактирования товара в корзину
 @Data
@@ -22,18 +24,16 @@ public class BasketRequestDto {
     @Nullable
     private Long id;
 
+    // Ассоциативная коллекция - id варианта товара + его количество
     @NotNull
-    @Min(1)
-    private Long productVariantId;
+    private Map<Integer, Integer> productVariantIdAndCount;
+
     @NotNull
     @Min(1)
     private Long userId;
 
-    @Min(0)
-    private int productsAmount;
-
     //Дата задаётся строкой - на стороне бэка будет производиться создание нужного объекта
-    @NotBlank
+    /*@NotBlank
     private String addedDate;
 
     //Получение даты из строки
@@ -44,6 +44,6 @@ public class BasketRequestDto {
         } catch (ParseException e) {
             return null;
         }
-    }
+    }*/
 
 }

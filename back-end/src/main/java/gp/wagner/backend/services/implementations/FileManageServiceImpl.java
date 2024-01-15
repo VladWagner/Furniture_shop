@@ -1,6 +1,8 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.services.interfaces.FileManageService;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
@@ -77,6 +79,52 @@ public class FileManageServiceImpl implements FileManageService {
         return saveFile(fileName, multipartFile, categoryId, productId, null);
     }
 
+    @Override
+    public Resource saveProducerOrCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, Long producerId) throws IOException {
+
+        if (categoryId != null && producerId != null)
+            throw new ApiException("Невозможно сохранить файл для производителя и категории одновременно!");
+
+        StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_UTIL.toString());
+
+        //Если задана категория, тогда добавить ещё один каталог
+        if (categoryId != null)
+            sb.append("/categories_previews");
+
+        //Если задан id производителя
+        if (producerId != null)
+            sb.append("/producers_logos");
+
+        Path newPath = Paths.get(sb.toString());
+
+        if (!Files.exists(newPath))
+            Files.createDirectories(newPath);
+
+        String extension = fileName.substring(fileName.lastIndexOf("."));
+
+        // Имя файла без расширения
+        fileName = fileName.substring(0, fileName.lastIndexOf("."));
+
+        // Сформировать описание сохраняемого файла (для категории/производителя)
+        String newFileName = categoryId != null ? "category" :
+                producerId != null ? "producer" : "some_file";
+
+        // Добавить уникальный идентификатор
+        long id = categoryId != null ? categoryId : producerId != null ? producerId : Utils.getRandom(1000, 1_000_000);
+
+        // Добавить к пути имя сгенерированное файла -
+        // что сохраняется (производитель/категория)_id производителя/категории_первые несколько символов имени исходного файла_расширение
+        Path filePath = newPath.resolve(String.format("%s-%d-%s%s", newFileName, id,
+                fileName.length() >= 2 ? fileName.substring(0,2) : fileName.charAt(0), extension));
+
+        // Записать файл
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()))) {
+            bos.write(multipartFile.getBytes());
+        }
+
+        return new UrlResource(filePath.toUri());
+    }
+
     //Загрузка изображения для предосмотра товара
     @Override
     public Resource saveThumbnail(String fileUri, Long categoryId, Long productId) throws IOException {
@@ -135,9 +183,8 @@ public class FileManageServiceImpl implements FileManageService {
     public boolean isExists(URI filePath) {
 
         boolean result = false;
-        Path path = Paths.get(filePath);
-
         try {
+            Path path = Paths.get(filePath);
             result = Files.exists(path);
         } catch (Exception e) {
             return false;

@@ -1,13 +1,18 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.ProducersRepository;
 import gp.wagner.backend.services.interfaces.ProducersService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -31,25 +36,149 @@ public class ProducersServiceImpl implements ProducersService {
     }
 
     @Override
+    public Producer create(ProducerRequestDto dto, String imageUri) {
+
+        if (dto == null)
+            throw new ApiException("Не получилось создать объект Producer. Dto задан некорректно!");
+
+        Producer producer = new Producer(null, dto.getProducerName(), null, null, dto.getIsShown(),
+                imageUri.isEmpty() ? Constants.EMPTY_IMAGE.toString() : imageUri);
+
+        return producersRepository.saveAndFlush(producer);
+
+    }
+
+    @Override
     public void update(Producer producer) {
         if (producer == null)
             throw new ApiException("Не получилось изменить объект Producer с id %d. Задано некорректное значение!");
 
+        Producer oldProducer = producersRepository.getProducerById(producer.getId())
+                .orElseThrow(() -> new ApiException(String.format("Producer с Id: %d не найден!",producer.getId())));
+
+        boolean oldShownValue = oldProducer.getIsShown();
+        Date oldDeletedAtValue = oldProducer.getDeletedAt();
+
         producersRepository.saveAndFlush(producer);
+
+        // Если производитель был скрыт
+        if (!producer.getIsShown() && oldShownValue)
+            Services.productsService.hideByProducer(producer);
+        // Если производителя восстановили из скрытия
+        else if (!oldShownValue && producer.getIsShown())
+            Services.productsService.recoverHiddenByProducer(oldProducer);
+
+        // Если производитель был удалён
+        if(oldDeletedAtValue == null && producer.getDeletedAt() != null)
+            Services.productsService.deleteByProducerId(oldProducer.getId());
+
+    }
+
+    @Override
+    public void update(ProducerRequestDto dto, String imageUri) {
+
+        if (dto == null || dto.getId() == null)
+            throw new ApiException("Не получилось изменить объект Producer. Dto задан некорректно!");
+
+        Producer foundProducer = producersRepository.getProducerById(dto.getId())
+                .orElseThrow(() -> new ApiException(String.format("Producer с Id: %d не найден!",dto.getId())));
+
+        boolean oldShownValue = foundProducer.getIsShown();
+        Date oldDeletedAtValue = foundProducer.getDeletedAt();
+
+        foundProducer.setProducerName(dto.getProducerName());
+        foundProducer.setIsShown(dto.getIsShown());
+        foundProducer.setDeletedAt(dto.getDeleted() ? new Date() : foundProducer.getDeletedAt());
+        foundProducer.setProducerLogo(imageUri.isEmpty() ? foundProducer.getProducerLogo() : imageUri);
+
+        producersRepository.saveAndFlush(foundProducer);
+
+        // Если производитель был скрыт
+        if (!foundProducer.getIsShown() && oldShownValue)
+            Services.productsService.hideByProducer(foundProducer);
+        // Если производителя восстановили из скрытия и задан флаг восстановления всех связанных сущностей
+        else if (dto.getIsDisclosed() && dto.getDiscloseHeirs())
+            Services.productsService.recoverHiddenByProducer(foundProducer);
+
+        // Если производитель был удалён
+        if(oldDeletedAtValue == null && foundProducer.getDeletedAt() != null)
+            Services.productsService.deleteByProducerId(foundProducer.getId());
+
     }
 
     @Override
     public void deleteById(long id) {
-        if(id <= 0)
-            throw new ApiException(String.format("Не получилось удалить запись в Producer. Id: %d является некорректным!",id));
 
-        producersRepository.deleteById(id);
+        Producer foundProducer = producersRepository.findById(id).orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",id)));
+
+        if (foundProducer.getDeletedAt() != null)
+            throw  new ApiException(String.format("Производитель с id: %d уже удалён!", id));
+
+        Services.productsService.deleteByProducerId(id);
+
+        foundProducer.setDeletedAt(new Date());
+
+        producersRepository.saveAndFlush(foundProducer);
 
     }
 
     @Override
-    public List<Producer> getAll() {
-        return producersRepository.findAll();
+    public void recoverById(long id, boolean recoverHeirs) {
+
+        Producer foundProducer = producersRepository.findById(id).orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",id)));
+
+        if (foundProducer.getDeletedAt() == null)
+            throw  new ApiException(String.format("Производитель с id: %d не был удалён!", id));
+
+        if (recoverHeirs)
+            Services.productsService.recoverDeletedByProducerId(id);
+
+        foundProducer.setDeletedAt(null);
+
+        producersRepository.saveAndFlush(foundProducer);
+
+    }
+
+    @Override
+    public void hideById(long id) {
+
+        Producer foundProducer = producersRepository.findById(id)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",id)));
+
+        if (!foundProducer.getIsShown())
+            throw  new ApiException(String.format("Производитель с id: %d уже скрыт!", id));
+
+        foundProducer.setIsShown(false);
+
+        producersRepository.saveAndFlush(foundProducer);
+
+        // Скрыть все товары, варианты и изменить корзины
+        Services.productsService.hideByProducer(foundProducer);
+
+    }
+
+    @Override
+    public void recoverHiddenById(long id, boolean recoverHeirs) {
+
+        Producer foundProducer = producersRepository.findById(id)
+                .orElseThrow(() -> new ApiException(String.format("Не удалось найти производителя с id = %d!",id)));
+
+        if (foundProducer.getIsShown())
+            throw  new ApiException(String.format("Производитель с id: %d не был скрыт!", id));
+
+        foundProducer.setIsShown(true);
+
+        producersRepository.saveAndFlush(foundProducer);
+
+        // Восстановить из скрытия все товары, варианты и изменить корзины
+        if (recoverHeirs)
+            Services.productsService.recoverHiddenByProducer(foundProducer);
+
+    }
+
+    @Override
+    public Page<Producer> getAll(int pageNum, int limit) {
+        return producersRepository.findAll(PageRequest.of(pageNum-1, limit));
     }
 
     @Override
@@ -58,7 +187,7 @@ public class ProducersServiceImpl implements ProducersService {
         if(id <= 0)
             throw new ApiException(String.format("Не получилось найти Producer с Id: %d. Задано некорректное значение!",id));
 
-        return producersRepository.getProducerById(id);
+        return producersRepository.getProducerById(id).orElseThrow(() -> new ApiException(String.format("Producer с Id: %d не найден!",id)));
     }
 
     @Override

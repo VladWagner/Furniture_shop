@@ -28,7 +28,7 @@ public class User {
     private String email;
 
     //Роль пользователя (Многие пользователи к 1 роли)
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "role_id")
     private UserRole userRole;
 

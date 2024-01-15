@@ -8,6 +8,7 @@ import lombok.Setter;
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
+import java.util.Date;
 import java.util.List;
 
 //Производители
@@ -30,4 +31,17 @@ public class Producer {
     @OneToMany(mappedBy = "producer")
     @BatchSize(size = 20)
     private List<Product> products;
+
+    // Флаг удаления элемента
+    @Column(name = "deleted_at")
+    private Date deletedAt;
+
+    // Флаг вывода элемента
+    @Column(name = "is_shown")
+    private Boolean isShown;
+
+    // Аватар компании (логотип и т.д.)
+    @Column(name = "producer_img")
+    private String producerLogo;
+
 }

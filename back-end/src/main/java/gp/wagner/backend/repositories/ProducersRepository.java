@@ -21,33 +21,45 @@ public interface ProducersRepository extends JpaRepository<Producer,Long> {
     @Query(nativeQuery = true,
             value = """
         insert into producers
-        (producer_name)
+        (producer_name, producer_img)
         values
-        (:name)
+        (:name, :logo)
     """)
-    void insertProducer(@Param("name") String producerName);
+    void insertProducer(@Param("name") String producerName, @Param("logo") String producerLogo);
 
-    //Изменение категории
+    // Обновить товары производителя при его удалении
+    @Transactional
+    @Query(nativeQuery = true, value = """
+    update products
+        set
+            is_deleted = true
+    where producer_id = :producer_id
+    
+""")
+    void deleteProducerProducts(@Param("producer_id") long producerId);
+
+    //Изменение производителя
     @Transactional
     @Modifying
     @Query(nativeQuery = true,
             value = """
         update producers set
-                            producer_name = :name
+                            producer_name = :name,
+                            producer_img = :logo
         where id = :id
     """)
-    void updateProducer(@Param("id") int productId, @Param("name") String producerName);
+    void updateProducer(@Param("id") int productId, @Param("name") String producerName, @Param("logo") String producerLogo);
 
     //Получить максимальный id
     @Query(value = """
     select
-        max(c.id)
+        max(p.id)
     from
-        Category c
+        Producer p
     """)
     long getMaxId();
 
-    Producer getProducerById(long producerId);
+    Optional<Producer> getProducerById(long producerId);
 
     //Получить производителей в определённой категории
     @Query(value = """

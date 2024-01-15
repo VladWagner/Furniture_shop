@@ -4,6 +4,7 @@ import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.JoinColumn;
@@ -79,6 +80,29 @@ public class ProductPreviewRespDto {
         this.sizes = attributeValues.size() > 0? String.format("Размер см: Ш %d x В %d x Г %d", attributeValues.get(0).getIntValue(),
                                                                     attributeValues.get(1).getIntValue(),
                                                                     attributeValues.get(2).getIntValue()) : "Размер неизвестен";
+
+
+    }
+    public ProductPreviewRespDto(Product product) {
+
+        Category category = product.getCategory();
+        Producer producer = product.getProducer();
+        ProductVariant basicVariant = product.getProductVariants().get(0);
+        List<AttributeValue> avsList = product.getAttributeValues();
+
+        this.id = product.getId();
+        this.name = product.getName();
+        this.categoryId = category.getId();
+        this.categoryName = category.getName();
+        this.producerId = producer.getId();
+        this.producerName = producer.getProducerName();
+        this.isAvailable = product.getIsAvailable();
+        this.showProduct = product.getShowProduct();
+        this.price = basicVariant.getPrice();
+        this.previewImgLink = basicVariant.getPreviewImg();
+         this.sizes = avsList.size() > 0? String.format("Размер см: Ш %d x В %d x Г %d", avsList.get(0).getIntValue(),
+                                                                                         avsList.get(1).getIntValue(),
+                                                                                         avsList.get(2).getIntValue()) : "Размер неизвестен";
 
 
     }

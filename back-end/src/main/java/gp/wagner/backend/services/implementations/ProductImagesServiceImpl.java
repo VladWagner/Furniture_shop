@@ -1,13 +1,13 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.repositories.ProductImagesRepository;
+import gp.wagner.backend.repositories.products.ProductImagesRepository;
 import gp.wagner.backend.services.interfaces.ProductImagesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ProductImagesServiceImpl implements ProductImagesService {

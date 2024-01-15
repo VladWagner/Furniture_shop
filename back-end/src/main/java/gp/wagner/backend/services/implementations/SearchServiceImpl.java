@@ -6,7 +6,7 @@ import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
-import gp.wagner.backend.repositories.ProductsRepository;
+import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.SearchService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
