@@ -17,6 +17,9 @@ public class CustomerRequestDto {
     @Nullable
     private Long id;
 
+    @Nullable
+    private String fingerPrint;
+
     @NotNull
     @NotBlank
     private String name;

@@ -27,7 +27,6 @@ import java.util.*;
 
 public class ControllerUtils {
 
-
     //Сформировать список объектов ProductPreviewRespDto для отправки на клиента
     //TODO: такой тип выборки ужасно прожорлив и нужно срочно разбираться с ManyToOne <--> OneToMany,
     //поскольку здесь каждый раз происходит запрос к БД на каждой итерации

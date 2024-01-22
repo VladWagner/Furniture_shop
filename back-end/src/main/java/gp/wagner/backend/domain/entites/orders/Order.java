@@ -25,10 +25,6 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //Количество заказываемых вариантов товара
-   /* @Column(name = "products_amount")
-    private int productsAmount;*/
-
     //Дата и время заказа
     @Column(name = "order_date")
     private Date orderDate;

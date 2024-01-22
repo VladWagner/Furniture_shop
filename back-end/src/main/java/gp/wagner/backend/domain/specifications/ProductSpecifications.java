@@ -3,16 +3,11 @@ package gp.wagner.backend.domain.specifications;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterBlock;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.infrastructure.FilterOperations;
+import gp.wagner.backend.infrastructure.enums.FilterOperations;
 import gp.wagner.backend.infrastructure.Utils;
-import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
-import org.hibernate.annotations.BatchSize;
 import org.springframework.data.jpa.domain.Specification;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 

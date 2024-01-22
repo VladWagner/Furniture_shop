@@ -21,6 +21,7 @@ public class Utils {
 
     //Формат вывода даты
     public static SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
+    public static SimpleDateFormat sdf_date_only = new SimpleDateFormat("dd.MM.yyyy");
 
     //Убрать из url лишние префиксы и слэши - через регулярку
     public static String cleanUrl(String fileUri) {

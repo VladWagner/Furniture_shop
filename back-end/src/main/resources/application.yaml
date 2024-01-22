@@ -17,7 +17,7 @@ spring:
         hbm2ddl:
           auto: none
         dialect: org.hibernate.dialect.MySQLDialect
-        generate_statistics: true
+        generate_statistics: false
   main:
     allow-bean-definition-overriding: true
   servlet:

@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.orders;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
-import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import lombok.AllArgsConstructor;
@@ -23,7 +23,8 @@ public class OrderRespDto {
     private long code;
 
     // Покупатель
-    private Customer customer;
+    @JsonProperty(value = "customer_dto")
+    private CustomerRespDto customerDto;
 
     // Статус заказа
     private long orderStateId;
@@ -53,7 +54,7 @@ public class OrderRespDto {
     public OrderRespDto(Order order) {
         this.id = order.getId();
         this.code = order.getCode();
-        this.customer = order.getCustomer();
+        this.customerDto = new CustomerRespDto(order.getCustomer());
         this.orderStateId = order.getOrderState().getId();
         //this.productVariantPreview = order.getOrderAndPVList().stream().map(opv -> new ProductVariantPreviewRespDto(opv.getProductVariant())).toList();
         this.productVariantsAndCount = order.getOrderAndPVList().stream().map(ProductVariantAndCount::new).toList();

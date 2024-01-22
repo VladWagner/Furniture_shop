@@ -2,17 +2,20 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
+import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.orders.OrderState;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entites.visits.Visitor;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.CustomersRepository;
 import gp.wagner.backend.repositories.orders.OrdersAndProductVariantsRepository;
 import gp.wagner.backend.repositories.orders.OrdersRepository;
@@ -20,8 +23,9 @@ import gp.wagner.backend.repositories.products.ProductVariantsRepository;
 import gp.wagner.backend.services.interfaces.OrdersService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -105,18 +109,31 @@ public class OrdersServiceImpl implements OrdersService {
 
         // Добавить покупателя, если он не задан
         Long customerId = dto.getCustomer().getId();
+
+        // Проверить наличие созданного посетителя с таким отпечатком браузера
+        Visitor visitor = null;
+        if (!dto.getCustomer().getFingerPrint().isEmpty()){
+            visitor = Services.visitorsService.saveIfNotExists(dto.getCustomer().getFingerPrint());
+        }
+
         if (customerId == null || customerId <= 0)
-            customerId = customersRepository.save(new Customer(dto.getCustomer())).getId();
+            customerId = customersRepository.save(new Customer(dto.getCustomer(), visitor)).getId();
 
         else{
-            // Получить запись о переданном покупателе и объекте из БД с тем же i
-            Customer newCustomer = new Customer(dto.getCustomer());
+            // Получить запись о переданном покупателе и объекте из БД с тем же id
+            Customer newCustomer = new Customer(dto.getCustomer(), visitor);
             Customer oldCustomer = customersRepository.findById(customerId).orElse(null);
 
             //Сравнить предыдущую запись с заданной
-            if (!newCustomer.isEqualTo(oldCustomer))
+            if (!newCustomer.isEqualTo(oldCustomer)) {
+
+                // Если покупатель изменён, но при этом в старой записи существует Visitor
+                if (newCustomer.getVisitor() == null && oldCustomer != null && oldCustomer.getVisitor() != null)
+                    newCustomer.setVisitor(oldCustomer.getVisitor());
+
                 //Если значения полей !=, тогда пересохранить запись, поскольку произошло редактирование
                 customersRepository.save(newCustomer);
+            }
 
         }
 
@@ -170,7 +187,7 @@ public class OrdersServiceImpl implements OrdersService {
             throw new ApiException("Dto заказа задан некорректно!");
 
         //Order foundOrder = ordersRepository.findOrderByIdOrCode(orderDto.getId(), orderDto.getCode());
-        Order foundOrder = getOrdersByIdOrCode(orderDto.getId(), orderDto.getCode(), Order.class).get(0);
+        Order foundOrder = getOrdersOrOpvByOrderIdOrCode(orderDto.getId(), orderDto.getCode(), Order.class).get(0);
 
         if (foundOrder == null)
             throw new ApiException(String.format("Не удалось найти заказ id: %d и кодом: %d", orderDto.getId(), orderDto.getCode()));
@@ -178,6 +195,14 @@ public class OrdersServiceImpl implements OrdersService {
         List<OrderAndProductVariant> opvList = addOrUpdateProductVariants(orderDto.getProductVariantIdAndCount().entrySet(), foundOrder);
 
         opvRepository.saveAll(opvList);
+
+        // Максимально корректно пересчитать сумму заказа - пока что дольше, но зато точно правильно
+        opvList = getOrdersOrOpvByOrderIdOrCode(foundOrder.getId(), foundOrder.getCode(), OrderAndProductVariant.class);
+
+        // Пересчитать сумму заказа + проводить фильтрацию, если заказ активен и уже не является историей
+        ServicesUtils.countSumInOrder(foundOrder, opvList, foundOrder.getOrderState().getId() == Constants.MutableOrderStateId);
+
+        update(foundOrder);
 
     }
 
@@ -190,11 +215,8 @@ public class OrdersServiceImpl implements OrdersService {
         // Сформировать список товаров в заказе + подсчитать общую сумму заказа
         List<OrderAndProductVariant> newOpvList = new LinkedList<>();
 
-        // Получить список вариантов товаров для заданной корзины
-        //List<OrderAndProductVariant> oldOpvList = opvRepository.findOrderAndPvByIdOrCode(order.getId(), order.getCode());
-        List<OrderAndProductVariant> oldOpvList = getOrdersByIdOrCode(order.getId(), order.getCode(), OrderAndProductVariant.class);
-
-        int totalSum = order.getSum();
+        // Получить список вариантов товаров для определённого заказа
+        List<OrderAndProductVariant> oldOpvList = getOrdersOrOpvByOrderIdOrCode(order.getId(), order.getCode(), OrderAndProductVariant.class);
 
         ProductVariant productVariant;
         OrderAndProductVariant oldOpv;
@@ -206,7 +228,7 @@ public class OrdersServiceImpl implements OrdersService {
             if (productVariant == null)
                 continue;
 
-            // Найти существующую запись таблицы
+            // Найти существующую запись таблицы OrderAndProductVariant
             ProductVariant finalProductVariant = productVariant;
             oldOpv = oldOpvList.stream()
                     .filter(opv -> opv.getProductVariant().getId().equals(finalProductVariant.getId()))
@@ -215,30 +237,14 @@ public class OrdersServiceImpl implements OrdersService {
 
             // Сохранить || добавить вариант товара
             if (oldOpv != null){
-
-                // Вычислить сумму со старым количеством вариантов в заказе для вычитания
-                int oldSumPart = oldOpv.getProductsAmount() * productVariant.getPrice();
-
-                // Вычесть часть старой суммы для конкретного варианта товара и его количества
-                if (totalSum >= oldSumPart)
-                    totalSum -= oldSumPart;
-
                 oldOpv.setProductsAmount(entry.getValue());
                 newOpvList.add(oldOpv);
-
-                totalSum += oldOpv.getProductsAmount() * productVariant.getPrice();
-
             }
             else {
                 newOpvList.add(new OrderAndProductVariant(null, entry.getValue(), productVariant, order));
-                totalSum += productVariant.getPrice() * entry.getValue();
             }
 
         }
-
-        // Задать обновлённую сумму и обновить саму запись о заказе
-        order.setSum(totalSum);
-        update(order);
 
         return newOpvList;
 
@@ -328,7 +334,8 @@ public class OrdersServiceImpl implements OrdersService {
 
         List<OrderAndProductVariant> opvAll = opvRepository.findOrdersAndPvByIdListOrCodesList(ordersToChange.stream().map(Order::getId).toList());
 
-        // Получить элементы, которые нужно удалить
+        // Получить элементы, которые нужно удалить в наихудшем случае сложность скорее всего может быть O(n^2).
+        // Возможно стоит сделать changedPvIdsList в виде Map<Long, Integer> и сохранять переданный id + флаг
         List<OrderAndProductVariant> opvToDelete = opvAll.stream()
                 .filter(e -> singlePvId != null ? e.getProductVariant().getId().equals(singlePvId) :
                         changedPvIdsList.stream().anyMatch(pvId -> pvId.equals(e.getProductVariant().getId()))
@@ -450,7 +457,7 @@ public class OrdersServiceImpl implements OrdersService {
     public long deleteOrder(Long id, Long code) {
 
         //Order deletingOrder = ordersRepository.findOrderByIdOrCode(id, code);
-        Order deletingOrder = getOrdersByIdOrCode(id, code, Order.class).get(0);
+        Order deletingOrder = getOrdersOrOpvByOrderIdOrCode(id, code, Order.class).get(0);
 
         if (deletingOrder != null){
 
@@ -493,30 +500,35 @@ public class OrdersServiceImpl implements OrdersService {
 
         query.where(predicate);
 
-        OrderAndProductVariant opv = entityManager.createQuery(query).getSingleResult();
+        OrderAndProductVariant opv;
+
+        try {
+            opv = entityManager.createQuery(query).getSingleResult();
+        } catch (Exception e) {
+            opv = null;
+        }
 
         // Если запись найдена, тогда удаляем
         if (opv == null)
             return false;
 
-        // Уменьшить общую сумму заказа
+        opvRepository.delete(opv);
+
+        // Найти заказ для уменьшения суммы
         Order editedOrder = getByOrderCode(code);
 
-        // Вычесть из общей частную сумму для заданного варианта товара
-        int newSum = editedOrder.getSum() - (opv.getProductsAmount() * opv.getProductVariant().getPrice());
+        List<OrderAndProductVariant> opvList = getOrdersOrOpvByOrderIdOrCode(editedOrder.getId(), null, OrderAndProductVariant.class);
 
-        editedOrder.setSum(newSum);
+        ServicesUtils.countSumInOrder(editedOrder, opvList, true);
 
         update(editedOrder);
-
-        opvRepository.delete(opv);
 
         return true;
     }
 
-    // Частично generic метод для получения заказов по id или вариантов товаров под конкретный заказ
+    // Частично generic метод для получения заказа по id или вариантов товаров под конкретный заказ
     @Override
-    public <T> List<T> getOrdersByIdOrCode(Long id, Long orderCode, Class<T> type) {
+    public <T> List<T> getOrdersOrOpvByOrderIdOrCode(Long id, Long orderCode, Class<T> type) {
 
         boolean isOpvType = type == OrderAndProductVariant.class;
         boolean isOrderType = type == Order.class;
@@ -557,6 +569,47 @@ public class OrdersServiceImpl implements OrdersService {
         return entityManager.createQuery(query).getResultList();
     }
 
+    @Override
+    public SimpleTuple<Date, Date> getOrdersDatesBorders(Long statusId, Integer categoryId) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
+
+        Root<Order> root = query.from(Order.class);
+        Path<OrderState> orderStatePath = root.get("orderState");
+        Path<OrderAndProductVariant> opvPath = root.get("orderAndPVList");
+
+        Path<ProductVariant> productVariantPath = opvPath.get("productVariant");
+        Path<Product> productPath = productVariantPath.get("product");
+        Path<Category> categoryPath = productPath.get("category");
+
+        Expression<Date> minDate = cb.min(root.get("orderDate")).as(Date.class);
+        Expression<Date> maxDate = cb.max(root.get("orderDate")).as(Date.class);
+
+        Predicate predicate;
+
+        if ((statusId != null && categoryId != null) && (statusId != 0 && categoryId != 0))
+            predicate = cb.and(
+                    cb.equal(orderStatePath.get("id"), statusId),
+                    cb.equal(categoryPath.get("id"), categoryId)
+            );
+        else
+            predicate = statusId != null && statusId != 0 ? cb.equal(orderStatePath.get("id"), statusId) :
+                        categoryId != null && categoryId != 0 ? cb.equal(categoryPath.get("id"), categoryId) : null;
+
+        if (predicate != null)
+            query.where(predicate);
+
+        query.multiselect(minDate, maxDate);
+
+        TypedQuery<Tuple> typedQuery = entityManager.createQuery(query);
+
+        Tuple rawTuple = typedQuery.getSingleResult();
+
+
+        return new SimpleTuple<>(rawTuple.get(0, Date.class), rawTuple.get(1, Date.class));
+    }
+
     // Выборка товаров и определённым вариантом товара и статусом
     private List<Order> findOrdersByPvIdAndStateId(Long pvId, List<Long> pvIdList, long statusId){
 
@@ -586,6 +639,7 @@ public class OrdersServiceImpl implements OrdersService {
                 cb.equal(orderStatePath.get("id"), statusId)
         ) : cb.equal(orderStatePath.get("id"), statusId);
 
+        // Поиск по списку id
         if (pvIdList != null && pvId == null){
             CriteriaBuilder.In<Long> cbIn = cb.in(productVariantPath.get("id"));
 

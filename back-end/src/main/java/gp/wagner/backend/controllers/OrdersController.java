@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +26,8 @@ import java.util.Map;
 @RequestMapping(value = "/api/orders")
 public class OrdersController {
 
-    //Получение всех заказа
+    //Получение всех заказов
+    // {{host}}/api/orders?offset=1&limit=20
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<OrderRespDto> getOrderAllOrders(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
                                                 @Valid @RequestParam(value = "limit") @Max(80) int limit){
@@ -104,6 +106,20 @@ public class OrdersController {
             return new ResponseEntity<>(String.format("Не получилось удалить вариант товара. Скорее всего не найдена запись для варианта с id %d\nЛибо заказ уже в обрабтке!",
                     productVariantId), HttpStatusCode.valueOf(500));
 
+    }
+
+    // Получить возможный диапазон заказов определённого статуса и/или в определённой категории
+    @GetMapping(value = "/orders_dates_range", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Date> createOrder(@RequestParam(value = "state_id", required = false) Long stateId, @RequestParam(value = "category_id", required = false) Integer categoryId){
+
+        SimpleTuple<Date, Date> result = Services.ordersService.getOrdersDatesBorders(stateId, categoryId);
+
+        Map<String, Date> minMaxDates = new HashMap<>();
+
+        minMaxDates.put("min", result.getValue1());
+        minMaxDates.put("max", result.getValue2());
+
+        return minMaxDates;
     }
 
 }

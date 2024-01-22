@@ -4,7 +4,7 @@ import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.VisitorRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.VisitorProductViewRespDto;
-import gp.wagner.backend.infrastructure.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;

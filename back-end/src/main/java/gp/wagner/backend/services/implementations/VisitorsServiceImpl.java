@@ -44,6 +44,17 @@ public class VisitorsServiceImpl implements VisitorsService {
         return repository.saveAndFlush(visitor).getId();
 
     }
+
+    @Override
+    public Visitor saveIfNotExists(String fingerPrint) {
+
+        Visitor visitor = getByFingerPrint(fingerPrint);
+
+        if (visitor == null)
+            visitor = repository.saveAndFlush(new Visitor(null, new Date(), "",  fingerPrint));
+
+        return visitor;
+    }
     //endregion
 
     //region Изменение
@@ -87,7 +98,7 @@ public class VisitorsServiceImpl implements VisitorsService {
 
     @Override
     public Visitor getByFingerPrint(String fingerPrint) {
-        return repository.getVisitorByFingerprint(fingerPrint);
+        return repository.getVisitorByFingerprint(fingerPrint).orElse(null);
     }
 
     @Override

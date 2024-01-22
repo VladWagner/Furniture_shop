@@ -13,7 +13,7 @@ import lombok.Setter;
 
 import java.util.List;
 
-//Объект передачи и вывода товара в списке товаров в виде карточки
+//Посетители и товары, которые они смотрели
 @Getter
 @Setter
 @AllArgsConstructor

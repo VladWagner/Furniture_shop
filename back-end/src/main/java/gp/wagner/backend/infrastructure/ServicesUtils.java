@@ -1,9 +1,12 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
+import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.entites.baskets.Basket;
 import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.Producer;
@@ -12,13 +15,15 @@ import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
+import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
+import gp.wagner.backend.middleware.Services;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 //Класс для вынесения повторяющихся и вспомогательных методов из сервисов
@@ -52,7 +57,7 @@ public class ServicesUtils<T> {
         return null;
     }
 
-    //Сформировать все предикаты
+    //Сформировать все предикаты для товаров
     public static List<Predicate> collectProductsPredicates(CriteriaBuilder cb, From<?, ?> root, CriteriaQuery<?> query,
                                                             ProductFilterDtoContainer container, Long categoryId, String priceRange){
         Class<?> rootType = root.getJavaType();
@@ -81,6 +86,71 @@ public class ServicesUtils<T> {
         //Доп.фильтрация по ценам
         if (priceRange != null)
             predicates.add(getPricePredicate(priceRange, root, query, cb));
+
+        return predicates;
+    }
+
+    // Сформировать все предикаты для заказов
+    public static List<Predicate> collectOrdersPredicates(CriteriaBuilder cb, OrdersAndBasketsCountFiltersRequestDto dto,
+                                                          Path<Product> productPath, Path<Order> orderPath, Path<ProductVariant> pvPath){
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (dto.getCategoryId() != null && dto.getCategoryId() > 0)
+            predicates.add(cb.equal(productPath.get("category").get("id"), dto.getCategoryId()));
+
+        // Если задан статус заказа
+        if (dto.getStateId() != null && dto.getStateId() > 0)
+            predicates.add(cb.equal(orderPath.get("orderState").get("id"), dto.getStateId()));
+
+
+        //region Используются именно отдельные проверки условий вместо between, чтобы можно было задать начальное значение без конечного
+        // Если задана начальная дата
+        if (dto.getMinDate() != null)
+            predicates.add(cb.greaterThanOrEqualTo(orderPath.get("orderDate"), dto.getMinDate()));
+
+        // Если задана конечная дата
+        if (dto.getMaxDate() != null)
+            predicates.add(cb.lessThanOrEqualTo(orderPath.get("orderDate"), dto.getMaxDate()));
+
+        // Если задана минимальная цена
+        if (dto.getPriceMin() != null)
+            predicates.add(cb.greaterThanOrEqualTo(pvPath.get("price"), dto.getPriceMin()));
+
+        // Если задана максимальная цена варианта
+        if (dto.getPriceMax() != null)
+            predicates.add(cb.lessThanOrEqualTo(pvPath.get("price"), dto.getPriceMax()));
+        //endregion
+
+        return predicates;
+    }
+
+    // Сформировать все предикаты для корзин
+    public static List<Predicate> collectBasketsPredicates(CriteriaBuilder cb, OrdersAndBasketsCountFiltersRequestDto dto,
+                                                          Path<Product> productPath, Path<Basket> basketPath, Path<ProductVariant> pvPath){
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        if (productPath != null && dto.getCategoryId() != null && dto.getCategoryId() > 0)
+            predicates.add(cb.equal(productPath.get("category").get("id"), dto.getCategoryId()));
+
+        //region Используются именно отдельные проверки условий вместо between, чтобы можно было задать начальное значение без конечного
+        // Если задана начальная дата
+        if (basketPath != null && dto.getMinDate() != null)
+            predicates.add(cb.greaterThanOrEqualTo(basketPath.get("addedDate"), dto.getMinDate()));
+
+        // Если задана конечная дата
+        if (basketPath != null && dto.getMaxDate() != null)
+            predicates.add(cb.lessThanOrEqualTo(basketPath.get("addedDate"), dto.getMaxDate()));
+
+        // Если задана минимальная цена
+        if (pvPath != null && dto.getPriceMin() != null)
+            predicates.add(cb.greaterThanOrEqualTo(pvPath.get("price"), dto.getPriceMin()));
+
+        // Если задана максимальная цена варианта
+        if (pvPath != null && dto.getPriceMax() != null)
+            predicates.add(cb.lessThanOrEqualTo(pvPath.get("price"), dto.getPriceMax()));
+        //endregion
 
         return predicates;
     }
@@ -232,8 +302,7 @@ public class ServicesUtils<T> {
         }
     }
 
-
-    // Пересчёт суммы в заказе
+    // Пересчёт суммы в заказах
     public static void countSumInOrders(List<Order> orders, List<OrderAndProductVariant> opvListAll){
         List<OrderAndProductVariant> opvList;
 
@@ -257,6 +326,29 @@ public class ServicesUtils<T> {
         }// for
     }
 
+    // Пересчёт суммы в одном заказе
+    public static void countSumInOrder(Order order, List<OrderAndProductVariant> opvList, boolean filtrateList){
+
+        // Если задан флаг фильтрации
+        if (filtrateList)
+            opvList = opvList.stream()
+                    .filter(e ->
+                            e.getProductVariant().getShowVariant() &&
+                            (e.getProductVariant().getIsDeleted() == null || !e.getProductVariant().getIsDeleted())
+                    ).toList();
+
+        if (opvList.isEmpty())
+            return;
+
+        // Собственно пересчёт суммы
+        int newSum = opvList.stream()
+                .map(e -> e.getProductVariant().getPrice() * e.getProductsAmount())
+                .reduce(0, Integer::sum);
+
+        order.setSum(newSum);
+
+    }
+
     // Формирование запроса для получения ProductsViews
     public static TypedQuery<Tuple> getTypedQueryProductsViews(AggregateOperationsEnum operation, EntityManager entityManager, Long categoryId, String priceRange, GeneralSortEnum sortEnum){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -271,6 +363,7 @@ public class ServicesUtils<T> {
             case AVG -> cb.avg(cb.coalesce(root.get("count"), 0));
             case MAX -> cb.max(cb.coalesce(root.get("count"), 0));
             case MIN -> cb.min(cb.coalesce(root.get("count"), 0));
+            default -> cb.count(root.get("id"));
         };
 
         List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
@@ -327,7 +420,7 @@ public class ServicesUtils<T> {
         return entityManager.createQuery(query).getResultList().get(0);
     }
 
-    // Подсчёт количества просмотров с максимальными значениеями
+    // Подсчёт количества просмотров с максимальными значениями
     public static int countMaxProductsViews(EntityManager entityManager, long maxCount, Long categoryId, String priceRange){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -352,4 +445,37 @@ public class ServicesUtils<T> {
 
         return entityManager.createQuery(query).getResultList().size();
     }
+
+    // Подсчёт общего просмотренных товаров для одного покупателя
+    public static long countCustomerProductsViews(EntityManager entityManager, CustomerRequestDto customerDto){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Основной запрос выборки записей просмотров товаров
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+        Path<Visitor> visitorPath = root.get("visitor");
+        Path<Customer> customerPath = visitorPath.get("customers");
+
+        Predicate predicate;
+        if (customerDto.getId() != null && customerDto.getFingerPrint() != null)
+            predicate = cb.or(
+                    cb.equal(visitorPath.get("fingerprint"), customerDto.getFingerPrint()),
+                    cb.equal(customerPath.get("id"), customerDto.getId())
+            );
+        else if (customerDto.getId() == null)
+            predicate = cb.equal(visitorPath.get("fingerprint"), customerDto.getFingerPrint());
+        else
+            predicate = cb.equal(customerPath.get("id"), customerDto.getId());
+
+        query.where(predicate);
+        query.select(cb.count(root.get("id")));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+
+        typedQuery.setMaxResults(1);
+
+        return typedQuery.getSingleResult();
+    }
+
+
 }

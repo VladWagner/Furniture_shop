@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.entites.products;
 
+import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -53,6 +54,11 @@ public class ProductVariant {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "productVariant")
     @BatchSize(size = 256)
     private List<ProductImage> productImages;
+
+    //Варианты товаров в заказах
+    /*@OneToMany(mappedBy = "productVariant")
+    @BatchSize(size = 256)
+    private List<OrderAndProductVariant> orderAndPVList;*/
 
     public ProductVariant(Long id, String title, Product product, int price, String previewImg, boolean showVariant, List<ProductImage> productImages) {
         this.id = id;

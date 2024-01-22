@@ -16,6 +16,8 @@ public interface VisitorsService {
     long create(Visitor visitor);
     long create(String ipAddress, String fingerPrint);
 
+    Visitor saveIfNotExists(String fingerPrint);
+
     //Изменение записи
     void update(Visitor visitor);
     void update(long visitorId,@DefaultValue("") String ipAddress, String fingerPrint);

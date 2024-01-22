@@ -2,6 +2,13 @@ package gp.wagner.backend.middleware;
 
 import gp.wagner.backend.services.Indexer;
 import gp.wagner.backend.services.interfaces.*;
+import gp.wagner.backend.services.interfaces.admin_panels.AdminPanelStatisticsService;
+import gp.wagner.backend.services.interfaces.categories.CategoriesService;
+import gp.wagner.backend.services.interfaces.categories.CategoryViewsService;
+import gp.wagner.backend.services.interfaces.products.ProductImagesService;
+import gp.wagner.backend.services.interfaces.products.ProductVariantsService;
+import gp.wagner.backend.services.interfaces.products.ProductViewsService;
+import gp.wagner.backend.services.interfaces.products.ProductsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -114,6 +121,14 @@ public class Services {
     @Autowired
     public void setProductViewService(SearchService searchService){
         Services.searchService = searchService;
+    }
+
+    //Сервис статистики в админ-панели
+    public static AdminPanelStatisticsService adminPanelStatisticsService ;
+
+    @Autowired
+    public void setProductViewService(AdminPanelStatisticsService adminPanelService){
+        Services.adminPanelStatisticsService = adminPanelService;
     }
 
     //Сервис для инициализации hibernate search

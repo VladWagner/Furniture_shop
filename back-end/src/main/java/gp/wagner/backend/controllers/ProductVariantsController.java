@@ -181,7 +181,7 @@ public class ProductVariantsController {
 
                 //Найти нужный файл по имени, заданном в dto изображений
                 MultipartFile file = files.stream()
-                        .filter(f -> f.getOriginalFilename().equals(imageDto.getFileName()))
+                        .filter(f -> Objects.equals(f.getOriginalFilename(), imageDto.getFileName()))
                         .findFirst().orElse(null);
 
                 //Если файл загружен не был и при этом его путь задан в dto, то возможно это изменение порядка

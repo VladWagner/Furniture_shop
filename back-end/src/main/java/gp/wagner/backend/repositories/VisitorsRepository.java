@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
+import java.util.Optional;
 
 @Repository
 public interface VisitorsRepository extends JpaRepository<Visitor,Long> {
@@ -52,7 +53,7 @@ public interface VisitorsRepository extends JpaRepository<Visitor,Long> {
     void updateLastVisitDate(@Param("visitorId") long id, @Param("last_visit") Date lastVisitDate);
 
     //Получить посетителя по finger print
-    Visitor getVisitorByFingerprint(String fingerPrint);
+    Optional<Visitor> getVisitorByFingerprint(String fingerPrint);
 
     //Получить maxId
     @Query(value = """

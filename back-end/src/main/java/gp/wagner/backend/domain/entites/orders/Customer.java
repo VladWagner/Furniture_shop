@@ -1,6 +1,8 @@
 package gp.wagner.backend.domain.entites.orders;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
+import gp.wagner.backend.domain.entites.visits.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +24,8 @@ public class Customer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Посетитель, перешедший в разряд покупателя
+
     //Фамилия
     @Column(name = "surname")
     private String surname;
@@ -40,11 +44,12 @@ public class Customer {
 
     //Номер телефона
     @Column(name = "phone_number")
-    private long phoneNumber ;
+    private long phoneNumber;
 
-    // Флаг подтверждения электронной почты
-    @Column(name = "confirmed_email")
-    private boolean confirmedEmail;
+    // Посетитель, с которого пришел заказ
+    @ManyToOne
+    @JoinColumn(name = "visitor_id")
+    private Visitor visitor;
 
     public Customer(CustomerRequestDto dto) {
         this.id = dto.getId();
@@ -54,8 +59,17 @@ public class Customer {
         this.email = dto.getEmail();
         this.phoneNumber = dto.getPhoneNumber();
     }
+    public Customer(CustomerRequestDto dto, Visitor visitor) {
+        this.id = dto.getId();
+        this.surname = dto.getSurname();
+        this.name = dto.getName();
+        this.patronymic = dto.getPatronymic();
+        this.email = dto.getEmail();
+        this.phoneNumber = dto.getPhoneNumber();
+        this.visitor = visitor;
+    }
 
-    //Являются ли изменения в объекте необходимыми для его перезаписи в БД
+    // Являются ли изменения в объекте необходимыми для его перезаписи в БД
     public boolean isEqualTo(Customer customer){
 
         if(customer == null)
@@ -67,6 +81,7 @@ public class Customer {
 
 
         return phoneNumber == customer.phoneNumber &&
+                this.visitor.isEqualTo(customer.getVisitor()) &&
                 Objects.equals(this.id, customer.id) &&
                 Objects.equals(this.surname, customer.surname) &&
                 Objects.equals(this.name, customer.name) &&

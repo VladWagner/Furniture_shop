@@ -7,8 +7,8 @@ import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import org.springframework.data.domain.Page;
-import org.springframework.data.repository.query.Param;
 
+import java.util.Date;
 import java.util.List;
 
 
@@ -78,6 +78,9 @@ public interface OrdersService {
     boolean deletePVFromOrder(long code, long productVariantId);
 
     //Получить все заказы по email покупателя
-    <T> List<T> getOrdersByIdOrCode (Long id, Long orderCode, Class<T> type);
+    <T> List<T> getOrdersOrOpvByOrderIdOrCode(Long id, Long orderCode, Class<T> type);
+
+    // Получить пограничные значения дат для заказов с определённым статусом/в определённой категории
+    SimpleTuple<Date, Date> getOrdersDatesBorders(Long statusId, Integer categoryId);
 
 }

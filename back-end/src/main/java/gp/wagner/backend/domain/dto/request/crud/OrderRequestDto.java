@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.request.crud;
 
+import gp.wagner.backend.validation.order_request_dto.annotations.ValidOrderRequestDto;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,7 @@ import java.util.Map;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidOrderRequestDto
 public class OrderRequestDto {
 
     //Для редактирования заказа
@@ -23,7 +25,7 @@ public class OrderRequestDto {
     private Map<Integer, Integer> productVariantIdAndCount;
 
     // Объект покупателя (может создаваться либо уже существовать) - агрегация
-    @NotNull
+    @Nullable
     private CustomerRequestDto customer;
 
     @Nullable

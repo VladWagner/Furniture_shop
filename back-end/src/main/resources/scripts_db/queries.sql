@@ -532,7 +532,6 @@ select
 from max_views;
 
 
-
 -- Выбрать посетителей и просмотренные ими товары
 select
     visitors.id,
@@ -544,3 +543,251 @@ select
     pv.count
 from visitors join (products_views pv join products p on pv.product_id = p.id) on visitors.id = pv.visitor_id
 group by visitors.id, visitors.fingerprint, p.id, p.product_name, price;
+
+-- Количество посещений за
+with visistors_in_dates as (select
+    v.last_visit_at,
+    COUNT(*) as visits_amount
+from
+    visitors v
+where v.last_visit_at between '2023-12-05' and '2024-01-16'
+group by v.last_visit_at
+)
+
+select
+    coalesce(sum(vid.visits_amount), 0)
+from visistors_in_dates vid;
+
+-- Выборка просмотров из таблицы daily_visits
+select
+    dv.date,
+    dv.count
+from
+    daily_visits dv
+where dv.date between '2023-12-05' and '2024-01-16';
+
+select
+    coalesce(SUM(dv.count), 0)
+from
+    daily_visits dv
+where
+    dv.date between '2023-12-05' and '2024-01-16';
+
+-- Выборка количества заказов по дням в определённом периоде
+set @order_state_id = null;
+select
+    DATE(o.order_date),
+    COUNT(o.id) as orders_amount,
+    SUM(o.sum) as sum
+from
+    orders o
+where
+    o.order_date between '2023-12-25' and '2024-01-16' and
+    ((@order_state_id is not null and order_date > 0 and o.order_state_id = @order_state_id)
+          or @order_state_id is null or @order_state_id <0 )
+group by o.order_date;
+
+-- Конверсия из просмотров в заказ товара в определённой категории по дням
+set @category_id = null;
+with date_and_orders_count as (select
+    DATE(o.order_date) as order_date_alias,
+    coalesce((select count(v.id)
+        from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits, -- кол-во визитов в текущую дату
+    COUNT(DISTINCT(o.id)) as orders_amount
+from orders o join (orders_products_variants opv join
+                            (variants_product vp join products p on vp.product_id = p.id)
+                            on opv.product_variant_id = vp.id)
+        on o.id = opv.order_id
+where o.order_date between '2023-09-25' and '2024-01-17' and
+    ((@category_id is not null and @category_id > 0 and p.category_id = @category_id)
+        or @category_id is null or @category_id < 0 )
+group by order_date_alias, visits)
+
+select
+    doc.order_date_alias,
+    doc.orders_amount,
+    doc.visits,
+    coalesce(doc.orders_amount/visits, 0) as cvr
+from date_and_orders_count doc;
+
+-- Конверсия из просмотров в заказ товара по id
+set @product_id = null;
+with date_and_orders_count as (
+select
+    DATE(o.order_date) as order_date_alias,
+    coalesce((select count(v.id)
+        from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
+    COUNT(DISTINCT(o.id)) as orders_amount
+from orders o left join (orders_products_variants opv join
+                            (variants_product vp join products p on vp.product_id = p.id)
+                            on opv.product_variant_id = vp.id)
+        on o.id = opv.order_id
+where o.order_date between '2023-09-25' and '2024-01-17' and
+    ((@product_id is not null and @product_id > 0 and p.id = @product_id)
+        or @product_id is null or @product_id < 0)
+group by order_date_alias, visits)
+
+
+select
+    doc.order_date_alias,
+    doc.orders_amount,
+    doc.visits,
+    coalesce(doc.orders_amount/visits*100, 0) as cvr
+from date_and_orders_count doc
+where doc.visits > doc.orders_amount;
+
+-- Выборка конверсий добавлений в корзину определённого товара
+set @product_id = null;
+select
+    bdc.add_date_alias,
+    bdc.addings_amount,
+    bdc.visits,
+    coalesce(bdc.addings_amount/visits*100, 0) as cvr
+from (select
+          DATE(b.added_date) as add_date_alias,
+          coalesce((select count(v.id)
+                    from visitors v where v.last_visit_at = add_date_alias group by v.last_visit_at), 0) as visits,
+          COUNT(DISTINCT(b.id)) as addings_amount
+      from baskets b left join (baskets_products_variants bpv join
+          (variants_product vp join products p on vp.product_id = p.id)
+                          on bpv.product_variant_id = vp.id)
+                         on b.id = bpv.basket_id
+      where b.added_date between '2023-09-25' and '2024-01-17' and
+          ((@product_id is not null and @product_id > 0 and p.id = @product_id)
+              or @product_id is null or @product_id <= 0)
+      group by add_date_alias, visits) as bdc;
+
+-- Частота просмотров товаров на посетителя
+with products_views_in_category as (select
+    c.id as category_id,
+    p_categ.id as parent_id,
+    coalesce(c.category_name, sub_c.sub_name) as categ_name,
+    (select coalesce(sum(pviews.count),0) from products_views pviews join products p on p.id = pviews.product_id
+              where p.category_id = c.id) as products_views,
+    (select count(pviews.visitor_id) from products_views pviews join products p on p.id = pviews.product_id
+              where p.category_id = c.id) as visitors_amount,
+    (select coalesce(sum(pviews.count)/count(pviews.visitor_id),0) from products_views pviews join products p on p.id = pviews.product_id
+              where p.category_id = c.id) as frequecny
+
+from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
+                  join categories as p_categ on c.parent_id = p_categ.id)
+
+-- рассчитать частоту
+select
+    pvic.category_id,
+    pvic.parent_id,
+    pvic.categ_name,
+    pvic.products_views,
+    pvic.visitors_amount,
+    coalesce(products_views/visitors_amount, 0) as frequency
+from
+    products_views_in_category pvic;
+
+-- Частота просмотров категорий на посетителя
+with categories_views as (select
+    c.id as category_id,
+    p_categ.id as parent_id,
+    coalesce(c.category_name, sub_c.sub_name) as categ_name,
+    (select coalesce(sum(cviews.count),0) from categories_views cviews where cviews.category_id = c.id) as products_views,
+    (select count(cviews.visitor_id) from categories_views cviews where cviews.category_id = c.id) as visitors_amount,
+    (select coalesce(sum(cviews.count)/count(cviews.visitor_id),0) from categories_views cviews where cviews.category_id = c.id) as frequecny
+
+from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
+                  join categories as p_categ on c.parent_id = p_categ.id)
+
+-- рассчитать частоту
+select
+    cv.category_id,
+    cv.parent_id,
+    cv.categ_name,
+    cv.products_views,
+    cv.visitors_amount,
+    coalesce(products_views/visitors_amount, 0) as frequency
+from
+    categories_views cv;
+
+-- Количество заказов каждого товара в категории + фильтр
+set @category_id = null, @date_lo = '2023-09-25', @date_hi = '2024-01-17';
+set @price_min = null, @price_max = null;
+select
+    p.id,
+    p.product_name,
+    pv.title,
+    pv.id as pv_id,
+    /*count(distinct (p.id)) as orders_amount_product,*/
+    count(pv.id) as orders_amount_variant
+from
+    products p join (orders_products_variants opv join orders o on opv.order_id = o.id
+                                                  join variants_product pv on opv.product_variant_id = pv.id)
+               on pv.product_id = p.id
+where ((@category_id is not null and @category_id > 0 and p.category_id = @category_id)
+        or @category_id is null or @category_id < 0 ) and
+        (@date_lo is not null and o.order_date >= @date_lo or @date_lo is null) and
+        (@date_hi is not null and o.order_date <= @date_hi or @date_hi is null) and
+        (@price_min is not null and pv.price >= @price_min or @price_min is null) and
+        (@price_max is not null and @price_max > 0 and pv.price <= @price_max or @price_max is null or @price_max <= 0)
+group by pv.id/*, p.product_name*/
+having orders_amount_variant > 1;
+
+set @date_lo = '2024-01-01', @date_hi = null/*'2024-01-16'*/;
+select
+    MIN(o.order_date),
+    Max(o.order_date)
+from
+    orders o join order_states os on o.order_state_id = os.id
+where
+    o.order_state_id = 2;
+
+-- Выборка товаров с подсчётом кол-ва
+select
+    p.id,
+    p.product_name,
+    count(distinct (o.id)) as orders_amount
+from
+    orders_products_variants opv join orders o on opv.order_id = o.id
+                                 join (variants_product pv join (products p join categories c on p.category_id = c.id) on pv.product_id = p.id)
+                                     on opv.product_variant_id = pv.id
+group by p.id,p.product_name;
+
+-- Выборка товаров с наибольшим кол-вом ФАКТОВ добавлений в корзину
+with max_views as (select
+    p.id,
+    p.product_name, pv.title,pv.id as pv_id,
+    COUNT(pv.id) as amount
+    from baskets_products_variants bpv join baskets b on b.id = bpv.basket_id
+                                       join (variants_product pv join (products p join categories c on p.category_id = c.id) on pv.product_id = p.id) on bpv.product_variant_id = pv.id
+    group by pv.id
+    having
+            amount >= (
+            Select  MAX(count)
+            from
+                (Select p.id, pv.id as pv_di, COUNT(pv.id) as count
+                 from baskets_products_variants bpv join baskets b on b.id = bpv.basket_id
+                                                    join (variants_product pv join (products p join categories c on p.category_id = c.id) on pv.product_id = p.id) on bpv.product_variant_id = pv.id
+                 group by pv.id) as views_sums))
+
+select
+    COUNT(*)
+from max_views;
+
+-- Выборка из корзин
+Select pv.id, p.product_name, pv.title, COUNT(pv.id) as count
+from baskets_products_variants bpv join baskets b on b.id = bpv.basket_id
+                                   join (variants_product pv join (products p join categories c on p.category_id = c.id) on pv.product_id = p.id) on bpv.product_variant_id = pv.id
+group by pv.id;
+
+-- Выборка товаров, просмотренных определённым покупателем
+select
+    pvw.product_id,
+    p.product_name,
+    (select pv.price from variants_product pv where pv.product_id = p.id order by pv.id desc limit 1) as product_price,
+    pvw.count as general_views_count
+
+from products_views pvw join products p on pvw.product_id = p.id
+                        join (visitors v join customers customer on v.id = customer.visitor_id) on pvw.visitor_id = v.id
+where customer.id = 11;
+select
+    count(pvw.id)
+from products_views pvw join products p on pvw.product_id = p.id
+                        join (visitors v join customers customer on v.id = customer.visitor_id) on pvw.visitor_id = v.id
+where customer.id = 10;
