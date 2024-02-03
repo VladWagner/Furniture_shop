@@ -6,6 +6,7 @@ import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import org.aspectj.weaver.ast.Or;
 import org.springframework.data.domain.Page;
 
 import java.util.Date;
@@ -63,10 +64,10 @@ public interface OrdersService {
     List<Order> getOrdersByEmail(String email);
 
     //Получить заказы для определённого варианта товара по id
-    List<OrderAndProductVariant> getOrdersByProductVariant(long pvId);
+    Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage);
 
     //Получить заказы для определённого ТОВАРА по его id
-    List<OrderAndProductVariant> getOrdersAndPvByProduct(long productId);
+    Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage);
 
     //Получение максимального id - последнее добавленное значение
     long getMaxId();

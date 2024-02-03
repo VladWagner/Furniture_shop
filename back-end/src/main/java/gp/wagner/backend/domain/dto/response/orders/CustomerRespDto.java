@@ -20,14 +20,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CustomerRespDto {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
     private Long id;
 
     // Посетитель, перешедший в разряд покупателя
 
     //Фамилия
-    @Column(name = "surname")
     private String surname;
 
     //Имя

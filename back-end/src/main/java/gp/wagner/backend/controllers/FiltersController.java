@@ -1,7 +1,8 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
+import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
+import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
@@ -12,7 +13,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping(value = "/api/filter")
-public class FilterController {
+public class FiltersController {
 
     //Выборка всех корзин заданного пользователя
     /**
@@ -22,9 +23,9 @@ public class FilterController {
      * проверять, что value != null, в противном случае просто игнорировать данный DTO</p>
      * */
     @GetMapping(value = "/filter_by_category/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, List<FilterValueDto<Integer>>> getFilterByCategory(@PathVariable long id){
+    public Map<String, List<FilterValuesDto<Integer>>> getFilterByCategory(@PathVariable long id){
 
-        Map<String, List<FilterValueDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByCategory(id);
+        Map<String, List<FilterValuesDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByCategory(id);
 
         if (filterValueDtoList == null)
             throw new ApiException(String.format("Значения фильтрации для категории %d не найдены. Not found!", id));
@@ -49,12 +50,12 @@ public class FilterController {
     // Выборка значений для блока фильтров при поиске по id категорий найденных товаров
     // Принимаем map, поскольку иначе неудавалось передать именованную коллекцию
     @GetMapping(value = "/filter_by_categories", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, List<FilterValueDto<Integer>>> getFilterByCategories(@RequestPart(value = "categories") Map<String, Long[]> ids){
+    public Map<String, List<FilterValuesDto<Integer>>> getFilterByCategories(@RequestPart(value = "categories") Map<String, Long[]> ids){
 
         // Получение списка id категорий
         List<Long> idList = Arrays.stream(ids.values().stream().toList().get(0)).toList();
 
-        Map<String, List<FilterValueDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByCategories(idList);
+        Map<String, List<FilterValuesDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByCategories(idList);
 
         if (filterValueDtoList == null)
             throw new ApiException("Значения фильтрации для в заданных категориях не найдены. Not found!");
@@ -64,12 +65,24 @@ public class FilterController {
 
     //Выборка значений для блока фильтров при поиске по ключевому слову (если товары по нему были найдены)
     @GetMapping(value = "/filter_for_keyword", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, List<FilterValueDto<Integer>>> getFilterByKeyword(@RequestParam(value = "key") String key){
+    public Map<String, List<FilterValuesDto<Integer>>> getFilterByKeyword(@RequestParam(value = "key") String key){
 
-        Map<String, List<FilterValueDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByKeyword(key.toLowerCase());
+        Map<String, List<FilterValuesDto<Integer>>> filterValueDtoList = Services.attributeValuesService.getFiltersValuesByKeyword(key.toLowerCase());
 
         if (filterValueDtoList == null)
             throw new ApiException(String.format("Значения фильтрации по ключевому слову '%s' найдены не были. Not found!", key.length() > 10 ? key.substring(0,10).trim() : key));
+
+        return  filterValueDtoList;
+    }
+
+    // Возврат фильтра для пользователей
+    @GetMapping(value = "/filter_for_users", produces = MediaType.APPLICATION_JSON_VALUE)
+    public UserFilterValuesDto getFilterForUsers(){
+
+        UserFilterValuesDto filterValueDtoList = Services.usersService.getFilterValues();
+
+        if (filterValueDtoList == null)
+            throw new ApiException("Значения для фильтрации пользователей не найдены!");
 
         return  filterValueDtoList;
     }

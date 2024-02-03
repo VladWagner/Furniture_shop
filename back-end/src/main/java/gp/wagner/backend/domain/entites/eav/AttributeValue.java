@@ -9,7 +9,7 @@ import lombok.Setter;
 import jakarta.persistence.*;
 import java.util.Date;
 
-//Значения атрибутов - значения характеристик
+// Значения атрибутов - значения характеристик
 @Entity
 @Table(name = "attributes_values")
 @Getter
@@ -21,37 +21,37 @@ public class AttributeValue {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //Связующие свойство атрибута (Многие значения атрибута к 1 атрибуту)
+    // Связующие свойство атрибута (Многие значения атрибута к 1 атрибуту)
     @ManyToOne()
     @JoinColumn(name = "attribute_id")
     private ProductAttribute attribute;
 
-    //Связующие свойство товара (Многие значения различных атрибутов (характеристик) к 1 товару)
+    // Связующие свойство товара (Многие значения различных атрибутов (характеристик) к 1 товару)
     @ManyToOne()
     @JoinColumn(name = "product_id")
     private Product product;
 
-    //Строковое значение
+    // Строковое значение
     @Column(name = "txt_values")
     private String strValue = null;
 
-    //Целочисленное значение
+    // Целочисленное значение
     @Column(name = "int_value")
     private Integer intValue = null;
 
-    //Значение с плавающей запятой
+    // Значение с плавающей запятой
     @Column(name = "float_value")
     private Float floatValue = null;
 
-    //Значение double
+    // Значение double
     @Column(name = "double_value")
     private Double doubleValue = null;
 
-    //Значение bool
+    // Значение bool
     @Column(name = "bool_value")
     private Boolean boolValue = null;
 
-    //Значение даты
+    // Значение даты
     @Column(name = "date_value")
     private Date dateValue = null;
 

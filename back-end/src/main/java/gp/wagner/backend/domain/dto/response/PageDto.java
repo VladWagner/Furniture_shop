@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import org.springframework.data.domain.Page;
 
@@ -15,16 +16,21 @@ import java.util.function.Supplier;
 public class PageDto<T> {
 
     // Кол-во элементов на текущей странице
+    @JsonProperty("current_elements_amount")
     int currentElementsAmount;
 
     // Кол-во страниц
+    @JsonProperty("general_pages_amount")
     int generalPagesAmount;
 
+    @JsonProperty("general_elements_amount")
     long generalElementsAmount;
 
+    @JsonProperty("current_page")
     int currentPage;
 
     // Основная коллекция
+    @JsonProperty("collection")
     List<T> collection;
 
     public PageDto(Page<T> page) {

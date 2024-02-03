@@ -16,6 +16,7 @@ public interface CategoriesService {
     //Изменение записи
     void update(Category category);
 
+
     //Выборка всех записей
     List<Category> getAll();
 
@@ -28,4 +29,9 @@ public interface CategoriesService {
     //Выборка id дочерних категорий в родительской на одном уровне рекурсии
     List<Long> getChildCategories(int id);
 
+    // Скрыть категорию по id + скрыть все её товары
+    void hideById(long categoryId);
+
+    // Восстановить из скрытия по id категории + восстановить все его товары и варианты
+    void recoverHiddenById(long categoryId, boolean recoverHeirs);
 }

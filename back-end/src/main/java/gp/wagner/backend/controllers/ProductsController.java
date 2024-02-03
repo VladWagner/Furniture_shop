@@ -6,14 +6,12 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContaine
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
-import gp.wagner.backend.domain.dto.response.ProducerRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.exception.ApiException;
-import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
@@ -110,34 +108,52 @@ public class ProductsController {
      * Возвращается: количество данных + список товаров на странице в виде пары ключ + значение
      * */
     @GetMapping(value = "/filter",produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map.Entry<Long, List<ProductPreviewRespDto>> getProductsPaged(
+    public PageDto<ProductPreviewRespDto> getProductsPagedAndFiltered(
             @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
             @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit") @Max(80) int limit,
             @RequestParam(value = "category_id", defaultValue = "0")  Long categoryId,
             @RequestParam(value = "price_range", defaultValue = "") String priceRange){
 
-        //Container - список DTO с условиями фильтрации и логическими операциями (or/and)
-        SimpleTuple<List<Product>, Integer> productsTuple = Services.productsService.getAll(container, categoryId < 1 ? null : categoryId,
+        // Container - список DTO с условиями фильтрации и логическими операциями (or/and)
+        Page<Product> productsPage = Services.productsService.getAll(container, categoryId < 1 ? null : categoryId,
                 priceRange.isEmpty() ? null : priceRange,
                 pageNum, limit);
 
-        List<ProductPreviewRespDto> productsDto = ControllerUtils.getProductsPreviewsList(productsTuple.getValue1());
+        return new PageDto<>(productsPage, () -> productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList())/*new AbstractMap.SimpleEntry<>(productsTuple.getValue2().longValue(), productsDto)*/;
+    }
+    @GetMapping(value = "/filter_new",produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<ProductPreviewRespDto> getProductsPagedAndFiltered2(
+            @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
+            @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+            @Valid @RequestParam(value = "limit") @Max(80) int limit,
+            @RequestParam(value = "category_id", defaultValue = "0")  Long categoryId,
+            @RequestParam(value = "price_range", defaultValue = "") String priceRange){
 
-        //Фильтрация по диапазону стоимостей и категория производятся по данным, полученным в отдельных параметрах, не через DTO фильтра
 
-        return new AbstractMap.SimpleEntry<>(productsTuple.getValue2().longValue(), productsDto);
+        SimpleTuple<Integer, Integer> prices = Utils.parseTwoNumericValues(priceRange);
+
+        // Container - список DTO с условиями фильтрации и логическими операциями (or/and)
+        Page<Product> productsPage = Services.productsService.getAllWithCorrectPrices(container, categoryId < 1 ? null : categoryId,
+                prices != null ? priceRange : null, pageNum, limit);
+
+        return new PageDto<>(productsPage, () -> {
+            if (prices == null)
+                return productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList();
+            else
+                return productsPage.getContent().stream().map(p -> new ProductPreviewRespDto(p, prices)).toList();
+        });
     }
 
-    //Выборка атрибутов товаров по id
-    //В параметрах передаём id товара для выборки значений его характеристик
-    //Возвращает пару ключ-значение с названием продукта + его характеристиками
+    // Выборка атрибутов товаров по id
+    // В параметрах передаём id товара для выборки значений его характеристик.
+    // Возвращает пару ключ-значение с названием продукта + его характеристиками
     @GetMapping(value = "/{id}/characteristics", produces = MediaType.APPLICATION_JSON_VALUE)
     public Map.Entry<String, List<AttributeValueRespDto>> getProductsCharacteristics(@PathVariable long id){
 
         Product product = Services.productsService.getById(id);
 
-        return new AbstractMap.SimpleEntry<>(product.getName(), ControllerUtils.getAttributesValues(product.getId()));
+        return new AbstractMap.SimpleEntry<>(product.getName(), product.getAttributeValues().stream().map(AttributeValueRespDto::new).toList());
     }
 
     //Выборка товара по id

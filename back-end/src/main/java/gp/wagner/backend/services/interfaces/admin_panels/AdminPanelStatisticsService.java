@@ -7,7 +7,7 @@ import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.SimpleTuple;
-import gp.wagner.backend.infrastructure.enums.StatisticsObjectEnum;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
 
@@ -48,10 +48,10 @@ public interface AdminPanelStatisticsService {
     Page<Object[]> getCategoriesViewsFrequency(int pageNum, int dataOnPage);
 
     // Количество заказов каждого товара/варианта + фильтр
-    Page<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, int pageNum, int dataOnPage, StatisticsObjectEnum statisticsEnum);
+    Page<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, int pageNum, int dataOnPage, ProductsOrVariantsEnum statisticsEnum);
 
     // Количество заказов каждого товара/варианта без пагинации - для формирования CSV/XLS
-    List<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, StatisticsObjectEnum statisticsEnum);
+    List<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, ProductsOrVariantsEnum statisticsEnum);
 
 
     // Топ товаров по добавлениям в корзины

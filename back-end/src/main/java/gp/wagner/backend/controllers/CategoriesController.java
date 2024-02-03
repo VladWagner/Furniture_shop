@@ -11,12 +11,16 @@ import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import jakarta.annotation.Nullable;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
 
 @RestController
 @RequestMapping(value = "/api/categories")
@@ -25,6 +29,28 @@ public class CategoriesController {
     //Выборка всех категорий
     @GetMapping(value = "/", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<CategoryDto> getCategories(){
+
+        /*String generatedStr = "generated_image";
+
+        char[] chars = generatedStr.toCharArray();
+
+        int sumAmount = 0;
+        int multiplicaionLast = 1;
+
+        for (int i = 0; i < chars.length; i++) {
+
+            int charNum = chars[i];
+
+            if (i < chars.length - 1)
+                sumAmount += charNum;
+
+            multiplicaionLast *= charNum > 0 ? charNum : 1;
+        }
+
+        sumAmount *= chars[chars.length-1];
+
+        if (sumAmount > 0)
+            throw new ApiException(String.format("Всё вроде далось посчитать. Сумму+умножение = %d & Умножение = %d", sumAmount, multiplicaionLast));*/
 
         List<Category> categories = Services.categoriesService.getAll();
 
@@ -56,7 +82,7 @@ public class CategoriesController {
 
     //Получить просмотры каждой категории
     @GetMapping(value = "/category_views/{category_id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CategoriesViewsDtoContainer/*List<CategoryViews>*/ getCategoryViews(@PathVariable long category_id){
+    public CategoriesViewsDtoContainer getCategoryViews(@PathVariable long category_id){
 
         SimpleTuple<SimpleTuple<Boolean,Category>, List<CategoryViews>> categoryViewsTuple = Services.categoryViewsService.getByCategoryId(category_id);
 
@@ -114,5 +140,25 @@ public class CategoriesController {
         return dtoList;
     }
 
+    // Скрыть категорию
+    @GetMapping(value = "/hide_category/{category_id}")
+    public ResponseEntity<Boolean> hideCategoryById(@Valid @PathVariable(value = "category_id") @Min(0) long categoryId){
 
+        Services.categoriesService.hideById(categoryId);
+
+        return ResponseEntity.ok()
+                .body(true);
+    }
+
+    // Восстановить категорию из скрытия
+    @GetMapping(value = "/recover_hidden_category")
+    public ResponseEntity<Boolean> recoverHiddenCategoryById(@Valid @RequestParam(value = "category_id") @Min(0) long categoryId,
+                                                             @RequestParam(value = "recover_heirs", defaultValue = "true") boolean recoverHeirs){
+
+        Services.categoriesService.recoverHiddenById(categoryId, recoverHeirs);
+
+        return ResponseEntity.ok()
+                .body(true);
+
+    }
 }

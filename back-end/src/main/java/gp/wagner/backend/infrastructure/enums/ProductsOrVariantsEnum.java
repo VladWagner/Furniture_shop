@@ -1,14 +1,13 @@
 package gp.wagner.backend.infrastructure.enums;
 
-//Тип сортировки по цене
-public enum StatisticsObjectEnum {
-
+// Тип фильтрации/статистической выборки
+public enum ProductsOrVariantsEnum {
 
     // Для конкретного запроса таблице заказов
     PRODUCTS("products"),
     VARIANTS("variants");
 
-    StatisticsObjectEnum(String statisticsType) {
+    ProductsOrVariantsEnum(String statisticsType) {
         this.statisticsType = statisticsType;
     }
 

@@ -1,6 +1,7 @@
 package gp.wagner.backend.domain.entites.orders;
 
 
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -47,6 +48,14 @@ public class Order {
     @OneToMany(mappedBy = "order")
     @BatchSize(size = 256)
     private List<OrderAndProductVariant> orderAndPVList;
+
+    // Товары для данного заказа
+    /*@ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "orders_products_variants",
+            joinColumns = {@JoinColumn(name = "order_id")},
+            inverseJoinColumns = {@JoinColumn(name = "product_variant_id")}
+    )
+    private List<ProductVariant> productVariants;*/
 
     // Итоговая сумма заказа
     @Column(name = "sum")

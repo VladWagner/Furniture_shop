@@ -49,12 +49,15 @@ public class Category {
     private List<Product> products;
 
     //Атрибуты под конкретную категорию - названия характеристик
-    //Проблемы начинаются здесь - LazyInitializationException
     @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinTable(name = "attributes_categories",
             joinColumns = {@JoinColumn(name = "category_id")},
             inverseJoinColumns = {@JoinColumn(name = "attribute_id")})
     private Set<ProductAttribute> productAttributes = new HashSet<>();
+
+    // Флаг вывода товаров категории
+    @Column(name = "is_shown")
+    private Boolean isShown;
 
     public Category(Long id, @NonNull String name, RepeatingCategory repeatingCategory, Category parentCategory) {
         this.id = id;

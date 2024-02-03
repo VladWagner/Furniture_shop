@@ -1,10 +1,13 @@
 package gp.wagner.backend.domain.dto.response.product;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.infrastructure.SimpleTuple;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.JoinColumn;
@@ -14,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Comparator;
 import java.util.List;
 
 //Объект передачи и вывода товара в списке товаров в виде карточки
@@ -21,6 +25,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProductPreviewRespDto {
 
     private Long id;
@@ -29,31 +34,46 @@ public class ProductPreviewRespDto {
     private String name;
 
     //Ссылка на превью
+    @JsonProperty("preview_img_link")
     private String previewImgLink;
 
     //Строковое значение размеров
     private String sizes;
 
-    //Связующие свойство категории товара
+    //Связующие свойство категории товара.
+    @JsonProperty("category_id")
     private long categoryId;
+
+    @JsonProperty("category_name")
     private String categoryName;
 
     //Связующие свойство производитель товара
+    @JsonProperty("producer_id")
     private long producerId;
+    @JsonProperty("producer_name")
     private String producerName;
 
     //Наличие товара
+    @JsonProperty("is_available")
     private boolean isAvailable;
 
     //Флаг вывода товара
+    @JsonProperty("show_product")
     private boolean showProduct;
 
     //Стоимость товара
     private int price;
 
     //Стоимость товара по скидке
+    @JsonProperty("discount_price")
     @Nullable
     private int discountPrice;
+
+    // Стоимость одного или нескольких вариантов товара - то есть базовая стоимость может быть вне диапазона, но стоимость варианта может быть в нём
+
+    @JsonProperty("mathcing_variant_price")
+    @Nullable
+    private int variantPrice;
 
     //Todo: здесь имеется немного непонятная запись - получение экземпляров класса AttributeValue по заданным через hardcode индексам
     //В чём и вопрос, с чего вдруг значения ширины, высоты и глубины будут находится именно по заданным индексам
@@ -104,6 +124,20 @@ public class ProductPreviewRespDto {
                                                                                          avsList.get(1).getIntValue(),
                                                                                          avsList.get(2).getIntValue()) : "Размер неизвестен";
 
+    }
+    public ProductPreviewRespDto(Product product, SimpleTuple<Integer, Integer> pricesRange) {
+
+        this(product);
+
+        // Найти цену варианта в диапазоне, цена базового варианта не входит в искомый диапазон
+        if (this.price <= pricesRange.getValue1() || this.price >= pricesRange.getValue2()) {
+            ProductVariant productVariant = product.getProductVariants()
+                                                   .stream()
+                                                   .filter(pv -> pv.getPrice() >= pricesRange.getValue1() && pv.getPrice() <= pricesRange.getValue2())
+                                                   .findFirst().orElse(null);
+
+            variantPrice = productVariant != null ? productVariant.getPrice() : 0;
+        }
 
     }
 }

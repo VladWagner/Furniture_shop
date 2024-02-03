@@ -33,11 +33,15 @@ delete from products where products.id > 0;
 ALTER TABLE products AUTO_INCREMENT = 1;
 
 -- таблица пользователей
-delete from users where users.id > 0;
-ALTER TABLE users AUTO_INCREMENT = 1;
+delete from users where users.id > 6;
+ALTER TABLE users AUTO_INCREMENT = 6;
 
-delete from users_passwords where users_passwords.id > 0;
-ALTER TABLE users_passwords AUTO_INCREMENT = 1;
+delete from users_passwords where users_passwords.id > 7;
+ALTER TABLE users_passwords AUTO_INCREMENT = 7;
+
+
+ALTER TABLE users AUTO_INCREMENT = 7;
+ALTER TABLE users_passwords AUTO_INCREMENT = 7;
 
 
 delete from products_images where products_images.id > 69;
@@ -65,3 +69,11 @@ ALTER TABLE baskets AUTO_INCREMENT = 1;
 -- Очистка таблицы с корзинами и вариантами товаров
 delete from baskets_products_variants where baskets_products_variants.id > 0;
 ALTER TABLE baskets_products_variants AUTO_INCREMENT = 1;
+
+-- Очистка таблицы с корзинами и вариантами товаров
+delete from baskets_products_variants where baskets_products_variants.id > 0;
+ALTER TABLE baskets_products_variants AUTO_INCREMENT = 1;
+
+-- Очистка таблицы токенов
+delete from password_reset_token where password_reset_token.id > 0;
+ALTER TABLE password_reset_token AUTO_INCREMENT = 1;

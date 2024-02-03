@@ -1,6 +1,7 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.exception.ApiException;
@@ -8,6 +9,8 @@ import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +24,7 @@ public class SearchController {
 
     //Поиск товаров
     @GetMapping(value = "/find_by_keyword", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map.Entry<Long, List<ProductPreviewRespDto>> findProductsByKeyword(
+    public PageDto<ProductPreviewRespDto> findProductsByKeyword(
             @RequestParam(value = "key") String key,
             @Valid @RequestPart(value = "filter", required = false) ProductFilterDtoContainer filterContainer,
             @RequestParam(value = "price_range", defaultValue = "") String priceRange,
@@ -29,17 +32,15 @@ public class SearchController {
             @RequestParam(value = "limit") int limit
     ){
 
-        SimpleTuple<Integer, List<Product>> resultSet = Services.searchService.getProductsByKeyword(key.toLowerCase(),
+        Page<Product> resultPage = Services.searchService.getProductsByKeyword(key.toLowerCase(),
                 filterContainer,
                 priceRange.isEmpty() ? null : priceRange,
                 page, limit);
 
-        if (resultSet.getValue2().size() == 0)
+        if (resultPage.isEmpty())
             throw new ApiException(String.format("Товары с заданным ключевым словом '%s' не найдены. Not found!", key.length() > 10 ? key.substring(0,10).trim() : key));
 
-        List<ProductPreviewRespDto> previewRespDtoList = ControllerUtils.getProductsPreviewsList(resultSet.getValue2());
-
-        return  new AbstractMap.SimpleEntry<>(resultSet.getValue1().longValue(), previewRespDtoList);
+        return new PageDto<>(resultPage, () -> resultPage.getContent().stream().map(ProductPreviewRespDto::new).toList());
     }
 
     //Получение предосмотра товаров по вводимому ключевому слову

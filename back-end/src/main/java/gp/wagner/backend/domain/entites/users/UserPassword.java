@@ -1,6 +1,8 @@
 package gp.wagner.backend.domain.entites.users;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
@@ -10,6 +12,8 @@ import jakarta.persistence.*;
 @Table(name = "users_passwords")
 @Getter
 @Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class UserPassword {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

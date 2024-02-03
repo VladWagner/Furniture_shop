@@ -10,6 +10,7 @@ import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
 import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductViewsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductViewsService;
@@ -139,9 +140,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
 
         query.where(cb.equal(visitorsJoin.get("fingerprint"), fingerPrint));
 
-        ProductViews productView = entityManager.createQuery(query).getSingleResult();
-
-        return productView;
+        return entityManager.createQuery(query).getSingleResult();
     }
 
     @Override
@@ -175,15 +174,15 @@ public class ProductViewsServiceImpl implements ProductViewsService {
     }
 
     @Override
-    public Page<SimpleTuple<Long, Integer>> getAllProductsViews(int pageNum, int offset, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+    public Page<SimpleTuple<Long, Integer>> getAllProductsViews(int pageNum, int limit, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
 
         TypedQuery<Tuple> typedQuery = ServicesUtils.getTypedQueryProductsViews(AggregateOperationsEnum.SUM, entityManager, categoryId, priceRange, sortEnum);
 
         if (pageNum > 0)
             pageNum -= 1;
 
-        typedQuery.setFirstResult(pageNum*offset);
-        typedQuery.setMaxResults(offset);
+        typedQuery.setFirstResult(pageNum*limit);
+        typedQuery.setMaxResults(limit);
 
         List<SimpleTuple<Long, Integer>> rawResult = typedQuery.getResultList()
                 .stream()
@@ -193,7 +192,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
         // Общее количество записей о просмотрах с такими параметрами
         Long elementsCount = ServicesUtils.getTypedQueryCountProductsViews(entityManager, categoryId, priceRange);
 
-        return new PageImpl<>(rawResult, PageRequest.of(pageNum, offset), elementsCount);
+        return new PageImpl<>(rawResult, PageRequest.of(pageNum, limit), elementsCount);
     }
 
     @Override
@@ -234,9 +233,9 @@ public class ProductViewsServiceImpl implements ProductViewsService {
         Root<ProductViews> sumsQueryRoot = sumsQuery.from(ProductViews.class);
         Join<ProductViews, Product> sumsProductJoin = sumsQueryRoot.join("product", JoinType.LEFT);
 
-        // Добавить предикаты
-        List<Predicate> predicatesMainQuery = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
-        List<Predicate> predicatesSumsQuery = ServicesUtils.collectProductsPredicates(cb, sumsProductJoin, sumsQuery, null, categoryId, priceRange);
+        // Добавить предикаты фильтрации по категории, цене и производителям
+        List<Predicate> predicatesMainQuery = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
+        List<Predicate> predicatesSumsQuery = ServicesUtils.collectProductsPredicates(cb, sumsProductJoin, sumsQuery, null, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
 
         // Добавить предикаты для корректного подсчёта сумм просмотров
         if (predicatesSumsQuery != null && !predicatesSumsQuery.isEmpty())
@@ -297,7 +296,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
 
         // Сформировать запрос
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
 
         if (predicates != null && !predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));

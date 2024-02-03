@@ -57,7 +57,9 @@ public class Utils {
     public static double getRandom(double lo, double hi) {
         return lo + rand.nextDouble() * (hi - lo);
     }
-
+    public static float getRandom(float lo, float hi) {
+        return lo + rand.nextFloat() * (hi - lo);
+    }
     public static int getRandom(int lo, int hi) {
         return lo + rand.nextInt(hi - lo);
     }
@@ -65,11 +67,24 @@ public class Utils {
         return lo + rand.nextLong(hi - lo);
     }
 
+    public static<T> T getRandomArrayElement(T[] arr){
+        int length = arr.length;
+
+        if (length == 0)
+            return null;
+        else if (length == 1)
+            return arr[0];
+
+        return arr[getRandom(0,length)];
+
+    }
+
     //Найти индекс последнего символа из заданного в строке
     public static int findLastIndex(String str, String ch){
 
         char[] chars = str.toCharArray();
         char[] checkingChars = ch.toCharArray();
+        //HashSet<String> checkingCharsSet = new HashSet<String>(Collections.arrayToList(ch.toCharArray()));
 
         //Если текущий символ входит хотя бы в 1 символ из ch, тогда возвращаем индекс элемента
         for (int i = chars.length - 1; i >= 0; i--) {
@@ -112,5 +127,43 @@ public class Utils {
         return resultNumber != null ? resultNumber : getRandom(10_000_000L, 99_999_999L);
     }
 
+    // Получить 2 числа из диапазона
+    public static SimpleTuple<Integer, Integer> parseTwoNumericValues(String range){
+        if (range == null || range.isBlank())
+            return null;
+
+        String[] values = range.split("[-_–—|]");
+
+        if (values.length <= 1)
+            return null;
+
+        Integer val1 = Utils.TryParseInt(values[0]);
+        Integer val2 = Utils.TryParseInt(values[1]);
+
+        if (val1 == null || val2 == null)
+            return  null;
+
+        return new SimpleTuple<>(val1, val2);
+
+    }
+
+    // Получить первые 1 или несколько симоволов переданной строки
+    public static String getFistSymbols(String str){
+
+        if (str == null || str.isBlank())
+            return null;
+
+        String[] arr = str.replaceAll("[ .,;:\\-–—]", " ").split("\\s+");
+
+        if (arr.length > 1) {
+
+            return arr[0].charAt(0) + String.valueOf(arr[1].charAt(0));
+        }
+        else if(str.length() > 1)
+            return str.charAt(0) + String.valueOf(str.charAt(1));
+        else
+            // Получит просто первый символ строки
+            return String.valueOf(str.charAt(0));
+    }
 
 }

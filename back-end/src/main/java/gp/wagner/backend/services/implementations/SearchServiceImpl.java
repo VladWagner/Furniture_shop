@@ -6,6 +6,7 @@ import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.SearchService;
 import jakarta.persistence.EntityManager;
@@ -14,7 +15,9 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
@@ -24,11 +27,11 @@ import java.util.List;
 @Service
 public class SearchServiceImpl implements SearchService {
 
-    // Репозиторий
-    private ProductsRepository productsRepository;
-
     @PersistenceContext
     private EntityManager entityManager;
+
+    // Репозиторий
+    private ProductsRepository productsRepository;
 
     @Autowired
     public void setProductsRepository(ProductsRepository prodRepo) {
@@ -37,17 +40,21 @@ public class SearchServiceImpl implements SearchService {
 
     // Поиск по ключевому слову вместе с фильтрацией результатов
     @Override
-    public SimpleTuple<Integer, List<Product>> getProductsByKeyword(String key, ProductFilterDtoContainer container,
+    public Page<Product> getProductsByKeyword(String key, ProductFilterDtoContainer filterContainer,
                                                                     String priceRange, int page, int limit) {
+
+        if (page > 0)
+            page -= 1;
+
         // Если фильтр будет не задан, тогда просто выборка по ключевому слову
-        if (container == null){
-            Page<Product> products = productsRepository.findProductsByKeyword(key, PageRequest.of(page-1, limit));
-            return new SimpleTuple<>((int) products.getTotalElements(), products.getContent());
+        if (filterContainer == null){
+            Page<Product> products = productsRepository.findProductsByKeyword(key, PageRequest.of(page, limit));
+            return products;
         }
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-        CriteriaQuery<Product> query = cb.createQuery(Product.class);
+        CriteriaQuery<Product> query = cb.createQuery(Product.class).distinct(true);
 
         Root<Product> root = query.from(Product.class);
 
@@ -56,47 +63,49 @@ public class SearchServiceImpl implements SearchService {
         //Список предикатов для поиска
         List<Predicate> searchPredicates = new ArrayList<>();
 
-        searchPredicates.add(cb.like(root.get("name"),"%" + key + "%"));
-        searchPredicates.add(cb.like(root.get("description"),"%" + key + "%"));
-        searchPredicates.add(cb.like(productVariantJoin.get("title"),"%" + key + "%"));
-        searchPredicates.add(cb.like(root.get("producer").get("producerName"), "%" + key + "%"));
+        String preparedKey = "%" + key + "%";
+        searchPredicates.add(cb.like(root.get("name"), preparedKey));
+        searchPredicates.add(cb.like(root.get("description"), preparedKey));
+        searchPredicates.add(cb.like(productVariantJoin.get("title"), preparedKey));
+        searchPredicates.add(cb.like(root.get("producer").get("producerName"),  preparedKey));
 
-        // Сфорировать предикаты фильтрации по цене и производителям
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, null, priceRange);
+        // Сформировать предикаты фильтрации по цене и производителям
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, filterContainer, null, priceRange,
+                ProductsOrVariantsEnum.VARIANTS);
 
         // Спецификации для фильтрации по характеристикам
-        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
+        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(filterContainer);
         Predicate featuresPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
 
         //Сформировать запрос
-        if (predicates.size() > 0)
+        if (predicates != null && !predicates.isEmpty())
             //Доп.фильтра по категории и ценам + фильтра по характеристикам
             query.where(cb.and(
                            cb.and(cb.or(searchPredicates.toArray(new Predicate[0]))
                                    ,featuresPredicate)),
                            cb.and(predicates.toArray(new Predicate[0]))
-                    ).distinct(true);
+                    );
         else
-            query.where(cb.and( cb.or(searchPredicates.toArray(new Predicate[0])), featuresPredicate)).distinct(true);
-
-        if (page > 0)
-            page -= 1;
+            query.where(cb.and( cb.or(searchPredicates.toArray(new Predicate[0])), featuresPredicate));
 
         TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+
+        typedQuery.setMaxResults(limit);
+        typedQuery.setFirstResult(page*limit);
 
         List<Product> products = typedQuery.getResultList();
 
         //Пагинация готовой коллекции
-        int listLength = products.size();
+        long elementsCount = ServicesUtils.countProductsByKeyword(preparedKey, entityManager, specifications, filterContainer, priceRange);
 
         //Начало списка
-        int startIdx = Math.min(page*limit, listLength);
+        //int startIdx = Math.min(page*limit, elementsCount);
 
         //Конец списка (offset + dataOnMage)
-        int endIdx = Math.min(startIdx + limit, listLength);
+        //int endIdx = Math.min(startIdx + limit, elementsCount);
 
-        //return new PageImpl<>(results, pageable, totalRows);
-        return new SimpleTuple<>(listLength, products.subList(startIdx, endIdx));
+        //  return new PageImpl<>(products.subList(startIdx, endIdx), PageRequest.of(page, limit), elementsCount);
+        return new PageImpl<>(products, PageRequest.of(page, limit), elementsCount);
     }
 
     //Предварительный поиск только при вводе ключевого слова
@@ -106,6 +115,6 @@ public class SearchServiceImpl implements SearchService {
         return productsRepository.findProductsByKeyword(key.toLowerCase(), PageRequest.of(0,6)).getContent();
     }
 
-    // Полноценный полнотекстовый поиск с блэкджеком и .... (словоформами, транслитерацией) через lucene
+    // Полноценный полнотекстовый поиск с блэкджеком и .... (словоформами, транслитерацией) через hibernate search
 
 }

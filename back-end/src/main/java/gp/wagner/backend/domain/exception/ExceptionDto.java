@@ -1,10 +1,12 @@
 package gp.wagner.backend.domain.exception;
 
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+import java.util.Arrays;
+
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class ExceptionDto {
@@ -36,7 +38,7 @@ public class ExceptionDto {
             return this;
         }
         public ExceptionBuilder stackTrace(String trace){
-            dto.message = trace;
+            dto.stackTrace = trace;
 
             return this;
         }
@@ -47,5 +49,11 @@ public class ExceptionDto {
 
     }
 
+    public <T extends Exception> ExceptionDto(T exception) {
+        this.exceptionType = exception.getClass();
+        this.message = exception.getMessage();
 
+        // Использовать только во время разработки для отладки.
+        this.stackTrace = Arrays.toString(exception.getStackTrace());
+    }
 }

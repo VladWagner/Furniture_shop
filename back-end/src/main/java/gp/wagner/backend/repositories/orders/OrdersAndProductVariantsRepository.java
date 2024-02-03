@@ -4,6 +4,8 @@ import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -44,7 +46,7 @@ public interface OrdersAndProductVariantsRepository extends JpaRepository<OrderA
     List<OrderAndProductVariant> findOrderAndProductVariantsByOrder_Id(long orderId);
 
     //Получить значения по определённому варианту товара
-    List<OrderAndProductVariant> findOrderAndProductVariantsByProductVariantId(long productVariantId);
+    Page<OrderAndProductVariant> findOrderAndProductVariantsByProductVariantId(long productVariantId, Pageable pageable);
 
     // Получить записи по id или номеру заказа
     @Query(value = """

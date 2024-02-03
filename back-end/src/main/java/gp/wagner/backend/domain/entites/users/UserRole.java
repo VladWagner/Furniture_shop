@@ -1,9 +1,14 @@
 package gp.wagner.backend.domain.entites.users;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
+
+import java.util.ArrayList;
+import java.util.List;
 
 //Роль пользователя
 @Entity
@@ -18,4 +23,9 @@ public class UserRole {
     //Роль
     @Column(name = "role")
     private String role;
+
+    // Пользователи с данной ролью
+    @OneToMany(mappedBy = "userRole")
+    @BatchSize(size = 256)
+    private List<User> users = new ArrayList<>();
 }

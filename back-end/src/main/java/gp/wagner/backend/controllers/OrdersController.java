@@ -11,6 +11,7 @@ import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import org.aspectj.weaver.ast.Or;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -30,7 +30,7 @@ public class OrdersController {
     // {{host}}/api/orders?offset=1&limit=20
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<OrderRespDto> getOrderAllOrders(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
-                                                @Valid @RequestParam(value = "limit") @Max(80) int limit){
+                                                   @Valid @RequestParam(value = "limit") @Max(80) int limit){
 
         Page<Order> orderPage = Services.ordersService.getAll(pageNum, limit);
 
@@ -41,7 +41,7 @@ public class OrdersController {
 
     //Добавление заказа
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Long> createOrder(@Valid /*@RequestPart(value = "order")*/ @RequestBody OrderRequestDto orderRequestDto){
+    public Map<String, Long> createOrder(@Valid @RequestBody OrderRequestDto orderRequestDto){
 
         SimpleTuple<Long, Long> result = Services.ordersService.create(orderRequestDto);
 
@@ -83,15 +83,32 @@ public class OrdersController {
 
     //Получение заказов по id варианта товара
     @GetMapping(value = "/orders_by_pv", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<OrderAndPvRespDto> getOrderByProductVariant(@RequestParam(value = "product_variant_id") long productVariantId){
+    public PageDto<OrderAndPvRespDto> getOrderByProductVariant(@RequestParam(value = "product_variant_id") long productVariantId,
+                                                            @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                            @Valid @RequestParam(value = "limit") @Max(80) int limit){
 
         // Если вариант товара будет show == false, тогда на фронте нужно будет отображать эту информацию и упоминать, что сумма пересчитана
-        List<OrderAndProductVariant> foundOpvList = Services.ordersService.getOrdersByProductVariant(productVariantId);
+        Page<OrderAndProductVariant> opvListPage = Services.ordersService.getOrdersByProductVariant(productVariantId, pageNum, limit);
 
-        if (foundOpvList.isEmpty())
+        if (opvListPage.getContent().isEmpty())
             throw new ApiException(String.format("Не удалось найти заказы для варианта товара с id: %d", productVariantId));
 
-        return foundOpvList.stream().map(OrderAndPvRespDto::new).toList();
+        return new PageDto<>(opvListPage, () -> opvListPage.getContent().stream().map(OrderAndPvRespDto::new).toList());
+    }
+
+    //Получение заказов по id товара
+    @GetMapping(value = "/orders_for_product", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<OrderRespDto> getOrderForProduct(@RequestParam(value = "productId") long productId,
+                                                            @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                            @Valid @RequestParam(value = "limit") @Max(80) int limit){
+
+        // Если вариант товара будет show == false, тогда на фронте нужно будет отображать эту информацию и упоминать, что сумма пересчитана
+        Page<Order> opvListPage = Services.ordersService.getOrdersByProductId(productId, pageNum, limit);
+
+        if (opvListPage.getContent().isEmpty())
+            throw new ApiException(String.format("Не удалось найти заказы для товара с id: %d", productId));
+
+        return new PageDto<>(opvListPage, () -> opvListPage.getContent().stream().map(OrderRespDto::new).toList());
     }
 
     //Удаление вариантов товара в определённом заказе

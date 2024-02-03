@@ -1,9 +1,8 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
-import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
+import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Map;
@@ -33,12 +32,12 @@ public interface AttributeValuesService {
     List<AttributeValue> getValuesByProductId(long product_id);
 
     // Получить значений атрибутов по определённой категории - для фильтров
-    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategory(long categoryId);
+    Map<String, List<FilterValuesDto<Integer>>> getFiltersValuesByCategory(long categoryId);
 
     // Получить значений атрибутов по массиву категорий
-    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByCategories(List<Long> categoriesIds);
+    Map<String, List<FilterValuesDto<Integer>>> getFiltersValuesByCategories(List<Long> categoriesIds);
 
     //Можно так же ещё сделать выборку значений фильтраци по ключевому слову.
     // То есть искать во всех репозитория так же и по ключевому слову в товаре
-    Map<String, List<FilterValueDto<Integer>>> getFiltersValuesByKeyword(String keyword);
+    Map<String, List<FilterValuesDto<Integer>>> getFiltersValuesByKeyword(String keyword);
 }

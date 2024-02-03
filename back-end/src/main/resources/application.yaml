@@ -8,25 +8,37 @@ spring:
     open-in-view: true
     properties:
       hibernate:
-        #search:
-        #  backend:
-        #    type: local-filesystem
-        #    directory.root: src/main/resources/indexes
         format_sql: true
         show_sql: true
         hbm2ddl:
           auto: none
         dialect: org.hibernate.dialect.MySQLDialect
         generate_statistics: false
+        #search:
+        #  backend:
+        #    directory:
+        #      type: local-filesystem
+        #      root: src/main/resources/indexes
+  security:
+    user:
+      name: name
+      password: password
+  mail:
+    mail_from: source@yandex.ru
+    host: smtp.yandex.ru
+    port: 587
+    username: userName
+    password: password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls.enable: true
+          ssl.trust: smtp.yandex.ru
+          timeout: 20000
   main:
     allow-bean-definition-overriding: true
   servlet:
     multipart:
       max-file-size: 100MB
       max-request-size: 100MB
-
-
-
-
-
-

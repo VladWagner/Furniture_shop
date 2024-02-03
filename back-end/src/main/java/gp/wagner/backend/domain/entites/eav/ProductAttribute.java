@@ -8,7 +8,9 @@ import lombok.Setter;
 
 import jakarta.persistence.*;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 //Атрибуты (характеристики товаров)
 //Данная сущность "хранит" все наименования атрибутов + по идее должна соединятся с категориями (м к м),
@@ -28,7 +30,15 @@ public class ProductAttribute {
     @Column(name = "attr_name")
     private String attributeName;
 
+    // Приоритет вывода атрибута в фильтре
+    @Column(name = "priority")
+    private Float priority;
+
+
     //Атрибуты под конкретную категорию
-    /*@ManyToMany(mappedBy = "productAttributes",fetch = FetchType.LAZY)
-    private List<Category> categories = new ArrayList<>();*/
+    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JoinTable(name = "attributes_categories",
+            joinColumns = {@JoinColumn(name = "attribute_id")},
+            inverseJoinColumns = {@JoinColumn(name = "category_id")})
+    private List<Category> productAttributes = new ArrayList<>();
 }

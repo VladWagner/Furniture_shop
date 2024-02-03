@@ -42,23 +42,6 @@ public class ControllerUtils {
         }).toList();
     }//getProductsPreviewsList
 
-    //Создание списка характеристик - создание DTO
-    public static List<AttributeValueRespDto> getAttributesValues(Long productId){
-        return Services.attributeValuesService.getValuesByProductId(productId)
-                .stream().map(av ->
-                        new AttributeValueRespDto(
-                                av.getId(),
-                                av.getAttribute().getAttributeName(),
-                                av.getAttribute().getId(),
-                                av.getStrValue(),
-                                av.getIntValue(),
-                                av.getFloatValue(),
-                                av.getDoubleValue(),
-                                av.getBoolValue(),
-                                av.getDateValue()))
-                .toList();
-    }//getAttributesValues
-
     //Добавление характеристик товара
     public static void addProductFeatures(long productId, List<AttributeValueDto> attributeValueDtoList){
         if (attributeValueDtoList.size() > 0)
@@ -190,8 +173,6 @@ public class ControllerUtils {
         List<Long> childCategories = Services.categoriesService.getChildCategories((int) categoryId);
 
         //Для каждого дочернего элемента, найти его дочерние элементы, пока не дойдём до последней
-        //for (Long id : childCategories)
-        //    categoriesViewsDto.childCategories.add(findSubCategoryViews(id));
 
         if(!childCategories.isEmpty())
             categoriesViewsDto.childCategories.add(findSubCategoryViews(childCategories.get(0)));
@@ -216,9 +197,9 @@ public class ControllerUtils {
 
             URI fileUri = new URI(prodImage.getImgLink());
 
-            //Для проверки, является ли удаляемое изображение preview варианта товара
-            //Каждый раз получаем один и тот же экземпляр варианта товара из-за того, что при удалении изображения, которое является preview,
-            //тогда оно меняется и для варианта товара на следующее, которое так же может быть удаляемым. Следственно и для него нужно удалить preview
+            // Для проверки, является ли удаляемое изображение preview варианта товара
+            // Каждый раз получаем один и тот же экземпляр варианта товара из-за того, что при удалении изображения, которое является preview,
+            // тогда оно меняется и для варианта товара на следующее, которое так же может быть удаляемым. Следовательно и для него нужно удалить preview
             variant = Services.productVariantsService.getById(variant.getId());
 
             //Получить путь к файлу предосмотра для варианта товара

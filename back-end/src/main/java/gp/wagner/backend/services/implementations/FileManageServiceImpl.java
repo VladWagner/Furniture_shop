@@ -1,7 +1,9 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.infrastructure.ProfileImageGenerator;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.services.interfaces.FileManageService;
 import net.coobird.thumbnailator.Thumbnails;
@@ -14,11 +16,13 @@ import org.springframework.util.ResourceUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 
 //Сервис для работы с файлами - загрузка изображений товаров и формирование thumbnails
 @Service
@@ -168,7 +172,80 @@ public class FileManageServiceImpl implements FileManageService {
     }
 
     @Override
+    public Resource saveUserProfileImg(String fileName, MultipartFile multipartFile, long userId) throws IOException {
+        if (userId <= 0)
+            throw new ApiException("Невозможно сохранить файл для несуществующего пользователя!");
+
+        String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), userId);
+
+        Path newPath = Paths.get(stringPath);
+
+        if (!Files.exists(newPath))
+            Files.createDirectories(newPath);
+
+        String extension = fileName.substring(fileName.lastIndexOf("."));
+
+        // Имя файла без расширения
+        fileName = fileName.substring(0, fileName.lastIndexOf("."));
+
+        // Добавить случайный идентификатор
+        long fileId = new Date().getTime()/*Utils.getRandom(1000, 1_000_000)*/;
+
+        // Добавить к пути имя сгенерированное файла
+        Path filePath = newPath.resolve(String.format("%d-%s%s",fileId,
+                fileName.length() >= 2 ? fileName.substring(0,2) : fileName.charAt(0), extension));
+
+        // Записать файл
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()))) {
+            bos.write(multipartFile.getBytes());
+        }
+
+        return new UrlResource(filePath.toUri());
+    }
+
+    @Override
+    public Resource generateAndSaveUserImg(User user) throws IOException {
+
+        if (user == null ||
+            ((user.getName() == null || user.getName().isBlank()) &&
+                    (user.getUserLogin() == null || user.getUserLogin().isBlank())) || user.getId() == null)
+            throw new ApiException("Пользователь для генерации и сохранения файла задан некорректно!");
+
+        String symbols;
+
+        // Получить первые символы имени или логина пользователя
+        if (user.getName() != null && !user.getName().isBlank())
+            symbols = Utils.getFistSymbols(user.getName());
+        else
+            symbols = Utils.getFistSymbols(user.getUserLogin());
+
+        // Сформировать изображение исходя из 1-х строк полей User
+
+        BufferedImage createdImg = ProfileImageGenerator.createImgWithChars(symbols);
+
+        String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), user.getId());
+
+        Path path = Paths.get(stringPath);
+
+        if (!Files.exists(path))
+            Files.createDirectories(path);
+
+
+        String fileName = String.format("%d-%s-%d.jpeg", new Date().getTime()/*Utils.getRandom(1000, 1_000_000)*/, Constants.GENERATED_USER_IMG_CODE, user.getId());
+
+        path = path.resolve(fileName);
+
+        ImageIO.write(createdImg, "png", path.toFile());
+
+        return new UrlResource(path.toUri());
+    }
+
+    @Override
     public void deleteFile(URI filePath) throws IOException {
+
+        if (filePath == null)
+            return;
+
         Path path = Paths.get(filePath);
 
         if (!Files.exists(path))
@@ -182,7 +259,7 @@ public class FileManageServiceImpl implements FileManageService {
     @Override
     public boolean isExists(URI filePath) {
 
-        boolean result = false;
+        boolean result;
         try {
             Path path = Paths.get(filePath);
             result = Files.exists(path);

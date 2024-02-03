@@ -16,8 +16,7 @@ import gp.wagner.backend.domain.entites.visits.Visitor;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
-import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
-import gp.wagner.backend.infrastructure.enums.StatisticsObjectEnum;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.repositories.admin_panel.AdminPanelStatisticsRepository;
 import gp.wagner.backend.services.interfaces.admin_panels.AdminPanelStatisticsService;
 import jakarta.persistence.EntityManager;
@@ -182,7 +181,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
     }
 
     // Создать criteria query для постраничной выборки заказов
-    private CriteriaQuery<Tuple> createQueryForProductsOrPvOrders(OrdersAndBasketsCountFiltersRequestDto filtersDto, StatisticsObjectEnum operationsEnum){
+    private CriteriaQuery<Tuple> createQueryForProductsOrPvOrders(OrdersAndBasketsCountFiltersRequestDto filtersDto, ProductsOrVariantsEnum operationsEnum){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
@@ -197,7 +196,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
         if (!predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));
 
-        boolean isProductsSelection = operationsEnum == StatisticsObjectEnum.PRODUCTS;
+        boolean isProductsSelection = operationsEnum == ProductsOrVariantsEnum.PRODUCTS;
         Expression<Long> countExpression = isProductsSelection ? cb.countDistinct(orderPath.get("id")) : cb.count(orderPath.get("id"));
 
         if (isProductsSelection) {
@@ -225,7 +224,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
 
     // Количество заказов каждого товара в категории + фильтр
     @Override
-    public Page<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, int pageNum, int dataOnPage, StatisticsObjectEnum statisticsEnum) {
+    public Page<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, int pageNum, int dataOnPage, ProductsOrVariantsEnum statisticsEnum) {
 
         if (pageNum > 0)
             pageNum -= 1;
@@ -247,7 +246,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
     }
 
     @Override
-    public List<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, StatisticsObjectEnum statisticsEnum) {
+    public List<Tuple> getOrdersCountForEachProduct(OrdersAndBasketsCountFiltersRequestDto filtersDto, ProductsOrVariantsEnum statisticsEnum) {
         // Сформировать запрос либо для выборки статистики по товарам, либо по вариантам
         CriteriaQuery<Tuple> query = createQueryForProductsOrPvOrders(filtersDto, statisticsEnum);
 

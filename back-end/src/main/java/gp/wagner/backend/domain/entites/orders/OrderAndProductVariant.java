@@ -9,7 +9,8 @@ import lombok.Setter;
 
 import java.util.Date;
 
-//Заказ и варианты товаров
+// Заказ и варианты товаров.
+// Данную сущность нельзя просто заменить связующим свойством ManyToMany, поскольку здесь хранится кол-во заказываемых товаров
 @Entity
 @Table(name = "orders_products_variants")
 @Getter

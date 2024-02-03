@@ -2,14 +2,14 @@ package gp.wagner.backend.services.implementations.products;
 
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
+import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductsService;
@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -64,7 +63,6 @@ public class ProductsServiceImpl implements ProductsService {
     }
     //endregion
 
-
     //region Изменение
     @Override
     public void update(Product item) {
@@ -99,7 +97,6 @@ public class ProductsServiceImpl implements ProductsService {
 
     // Выборка с пагинацией
     @Override
-    @Transactional()
     public Page<Product> getAll(int pageNum, int dataOnPage) {
 
         return productsRepository.findAllNotDeleted(PageRequest.of(pageNum, dataOnPage));
@@ -107,32 +104,30 @@ public class ProductsServiceImpl implements ProductsService {
 
     // Фильтрация и пагинация
     @Override
-    public SimpleTuple<List<Product>, Integer> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange,
+    public Page<Product> getAll(ProductFilterDtoContainer container, Long categoryId, String priceRange,
                                                       int pageNum, int dataOnPage) {
 
-        //Сформировать набор спецификаций для выборки из набора фильтров (фильтр = атрибут (характеристика) + операция)
+        // Сформировать набор спецификаций для выборки из набора фильтров (фильтр = атрибут (характеристика) + операция)
         List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
 
-        //Объект для формирования запросов - построитель запроса
+        // Объект для формирования запросов - построитель запроса
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-        //Рассчитать общее кол-во данных с такими фильтрами
-        //int totalCount = countData(cb, specifications, categoryId, priceRange);
-
+        // Рассчитать общее кол-во данных с такими фильтрами
         CriteriaQuery<Product> query = cb.createQuery(Product.class);
 
-        //Получить таблицу товаров для запросов
+        // Получить таблицу товаров для запросов
         Root<Product> root = query.from(Product.class);
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
 
-        //Получить предикат для выборки по заданным фильтрам (контейнер фильтров, который был передан из контроллера)
-        //При помощи данного предиката запросы будут строится со стороны Spring data & Hibernate
-        //Метод toPredicate - по-идее использует то анонимное создание спецификации, которое задано в ProductSpecifications.java
+        // Получить предикат для выборки по заданным фильтрам (контейнер фильтров, который был передан из контроллера)
+        // При помощи данного предиката запросы будут строится со стороны Spring data & Hibernate
+        // Метод toPredicate - по-идее использует то анонимное создание спецификации, которое задано в ProductSpecifications.java
         Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
 
-        //Сформировать запрос
-        if (predicates.size() > 0)
+        // Сформировать запрос
+        if (predicates != null && !predicates.isEmpty())
             //Доп.фильтра по категории и ценам + фильтра по характеристикам
             query.where(cb.and(
                     cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
@@ -147,32 +142,65 @@ public class ProductsServiceImpl implements ProductsService {
         TypedQuery<Product> typedQuery = entityManager.createQuery(query);
 
         //region Пагинация через TypedQuery
-        //Задать кол-во результатов на странице
-        //typedQuery.setMaxResults(dataOnPage);
+        // Задать кол-во результатов на странице
+        typedQuery.setMaxResults(dataOnPage);
 
-        //Задать смещение на кол-во страниц
-        //typedQuery.setFirstResult(pageNum*dataOnPage);
+        // Задать смещение на кол-во страниц
+        typedQuery.setFirstResult(pageNum*dataOnPage);
         //endregion
 
         List<Product> products = typedQuery.getResultList();
 
-        //Пагинация готовой коллекции
-        int listLength = products.size();
+        // Пагинация готовой коллекции
+        long elementsCount = ServicesUtils.countProductsByFilter(entityManager, specifications, container, categoryId, priceRange);
 
-        //Начало списка - вычисляем мин.значения из двух во избежание выхода за пределы списка
-        int startIdx = Math.min(pageNum*dataOnPage, listLength);
+        return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
+    }
 
-        //Конец списка (offset + dataOnMage) - вычисляем мин.значения из двух во избежание выхода за пределы списка
-        int endIdx = Math.min(startIdx + dataOnPage, listLength);
+    @Override
+    public Page<Product> getAllWithCorrectPrices(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange, int pageNum, int dataOnPage) {
 
-        return new SimpleTuple<>(products.subList(startIdx, endIdx), listLength);
-        //return new SimpleTuple<>(products, totalCount);
+        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(filtersContainer);
+
+        // Объект для формирования запросов - построитель запроса
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Используется установка флага distinct для корректной пагинации, иначе выбирается несоответствующее реальности количество записей
+        CriteriaQuery<Product> query = cb.createQuery(Product.class).distinct(true);
+        Root<Product> root = query.from(Product.class);
+
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, filtersContainer, categoryId, priceRange,
+                ProductsOrVariantsEnum.VARIANTS);
+
+        // Получить предикат для выборки по заданным фильтрам
+        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
+
+        // Сформировать запрос
+        if (predicates != null && !predicates.isEmpty())
+            //Доп.фильтра по категории и ценам + фильтра по характеристикам
+            query.where(cb.and(
+                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
+        else
+            query.where(filterPredicate);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+        typedQuery.setMaxResults(dataOnPage);
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+
+        List<Product> products = typedQuery.getResultList();
+
+        // Пагинация готовой коллекции
+        long elementsCount = ServicesUtils.countProductsByFilterPv(entityManager, specifications, filtersContainer, categoryId, priceRange);
+
+        return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
     @Override
     // Метод для подсчёта кол-ва данных полученных после выборки по определённым фильтрам.
-    // То есть здесь мы по сути производим повторный запрос с теми же фильтрами и считаем кол-во данных полученных с него
-    public long countData(ProductFilterDtoContainer container, Long categoryId, String priceRange){
+    public long countData(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange){
 
         //Объект для формирования запросов - построитель запроса
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -182,15 +210,17 @@ public class ProductsServiceImpl implements ProductsService {
         //Получить таблицу для запросов
         Root<Product> root = query.from(Product.class);
 
-        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(container);
+        List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(filtersContainer);
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange);
+        // Собираем предикаты по диапазону цен (варианты товара) и категории
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, filtersContainer, categoryId, priceRange,
+                ProductsOrVariantsEnum.VARIANTS);
 
         // Получить предикат для выборки по заданным фильтрам
         Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
 
         //Сформировать запрос
-        if (predicates.size() > 0)
+        if (predicates != null && !predicates.isEmpty())
             //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
             query.where(cb.and(
                     cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
@@ -208,13 +238,12 @@ public class ProductsServiceImpl implements ProductsService {
     @Override
     // Выборка записи по id
     public Product getById(Long id){
-        if (id != null) {
-            Optional<Product> productOptional = productsRepository.findById(id);
+        if (id == null)
+            throw new ApiException("Id товара задан некорректно!");
 
-            return productOptional.orElse(null);
+        Optional<Product> productOptional = productsRepository.findById(id);
 
-        }
-        return null;
+        return productOptional.orElseThrow(() -> new ApiException(String.format("Не удалось найти товар с id: %d!", id)));
     }
 
     @Override
@@ -258,32 +287,32 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     // Сформировать объект для выборки пограничных значений цены за товар (для фильтра)
-    private FilterValueDto<Integer> getFilterValueDto(Object rawResult){
+    private FilterValuesDto<Integer> getFilterValueDto(Object rawResult){
         Object[] range = (Object[]) rawResult;
 
         if (range == null || range.length == 0 || range[0] == null)
             return null;
 
-        return new FilterValueDto<>(0, "Prices", null,
+        return new FilterValuesDto<>(null, "Цена, руб.", null,
                 ((Number) range[0]).intValue(), ((Number) range[1]).intValue());
     }
 
     // Получить диапазон цен на товары в определённой категории
     @Override
-    public FilterValueDto<Integer> getPricesRangeInCategory(long categoryId) {
+    public FilterValuesDto<Integer> getPricesRangeInCategory(long categoryId) {
 
         return getFilterValueDto(productsRepository.getMinMaxPriceInCategory(categoryId));
     }
 
     // Получить диапазон цен на товары в нескольких категориях
     @Override
-    public FilterValueDto<Integer> getPricesRangeInCategories(List<Long> categoriesIds) {
+    public FilterValuesDto<Integer> getPricesRangeInCategories(List<Long> categoriesIds) {
         return getFilterValueDto(productsRepository.getMinMaxPriceInCategories(categoriesIds));
     }
 
     // Получить диапазон цен по ключевому слову (при поиске)
     @Override
-    public FilterValueDto<Integer> getPricesRangeByKeyword(String keyword) {
+    public FilterValuesDto<Integer> getPricesRangeByKeyword(String keyword) {
         return getFilterValueDto(productsRepository.getMinMaxPriceByKeyword(keyword));
     }
 
@@ -324,10 +353,15 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public void deleteByProducerId(long producerId) {
+    public void deleteByProducerId(Producer producer) {
+
+        // Если передаваемый producer не был удалён
+        if (producer.getDeletedAt() == null)
+            return;
 
         //Найти товары с определёнными производителем
-        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producerId, false, null);
+        //List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, null);
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(producer.getId(), Producer.class, false, null);
 
         products.forEach(p -> p.setIsDeleted(true));
 
@@ -339,9 +373,14 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public void recoverDeletedByProducerId(long producerId) {
+    public void recoverDeletedByProducerId(Producer producer) {
 
-        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producerId, true, null);
+        // Если восстанавливаемый производитель всё ещё скрыт
+        if (producer.getDeletedAt() != null)
+            return;
+
+        //List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producerId, true, null);
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(producer.getId(), Producer.class, true, null);
 
         products.forEach(p -> p.setIsDeleted(false));
 
@@ -358,7 +397,8 @@ public class ProductsServiceImpl implements ProductsService {
         if (producer.getIsShown())
             return;
 
-        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, true);
+        //List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, true);
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(producer.getId(), Producer.class, false, true);
 
         products.forEach(p -> p.setShowProduct(false));
 
@@ -373,14 +413,79 @@ public class ProductsServiceImpl implements ProductsService {
         if (!producer.getIsShown())
             return;
 
-        List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, false);
+        // List<Product> products = findProductsByProducerByIdAndIsDeletedFlag(producer.getId(), false, false);
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(producer.getId(), Producer.class, false, false);
 
         products.forEach(p -> p.setShowProduct(true));
 
-        Services.productVariantsService.recoverHidenByProductsList(products);
+        Services.productVariantsService.recoverHiddenByProductsList(products);
 
     }
 
+    @Override
+    public void hideByCategory(Category category) {
+        if (category.getIsShown())
+            return;
+
+        // Найти товары в категории, которые не были удалены и выводятся
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(category.getId(), Category.class, false, true);
+
+        products.forEach(p -> p.setShowProduct(false));
+
+        // Скрыть связанные записи вариантов товаров
+        Services.productVariantsService.hideByProductsList(products);
+
+        productsRepository.saveAllAndFlush(products);
+
+    }
+
+    @Override
+    public void recoverHiddenByCategory(Category category) {
+
+        // Если категория всё ещё скрыта
+        if (!category.getIsShown())
+            return;
+
+        // Найти товары в категории, которые не были удалены и скрыты
+        List<Product> products = findProductsByCategoryOrProducerAndIsDeletedFlag(category.getId(), Category.class, false, false);
+
+        products.forEach(p -> p.setShowProduct(true));
+
+        // Скрыть связанные записи вариантов товаров
+        Services.productVariantsService.recoverHiddenByProductsList(products);
+
+        productsRepository.saveAllAndFlush(products);
+    }
+
+    @Override
+    public void hideById(long productId) {
+        Product product = getById(productId);
+
+        if (!product.getShowProduct())
+            throw new ApiException(String.format("Товар с id: %d уже скрыт!", product.getId()));
+
+        product.setShowProduct(false);
+
+        Services.productVariantsService.hideByProductId(product);
+
+        productsRepository.saveAndFlush(product);
+
+    }
+
+    @Override
+    public void recoverHiddenById(long productId, boolean recoverHeirs) {
+        Product product = getById(productId);
+
+        if (product.getShowProduct())
+            throw new ApiException(String.format("Товар с id: %d не был скрыт!", product.getId()));
+
+        product.setShowProduct(true);
+
+        if (recoverHeirs)
+            Services.productVariantsService.recoverHiddenByProductId(product);
+
+        productsRepository.saveAndFlush(product);
+    }
 
     // Найти товары по производителю и флагу удаления
     private List<Product> findProductsByProducerByIdAndIsDeletedFlag(long producerId, Boolean isDeleted, Boolean isShown){
@@ -388,8 +493,8 @@ public class ProductsServiceImpl implements ProductsService {
 
         CriteriaQuery<Product> query = cb.createQuery(Product.class);
 
-        Root<Product> root = query.from(Product.class); 
-        
+        Root<Product> root = query.from(Product.class);
+
         // Присоединить производителя
         Path<Producer> producerPath = root.get("producer");
 
@@ -417,7 +522,51 @@ public class ProductsServiceImpl implements ProductsService {
         query.where(predicate);
 
         return entityManager.createQuery(query).getResultList();
-        
+
+    }
+
+    // Найти товары по производителю и флагу удаления
+    private List<Product> findProductsByCategoryOrProducerAndIsDeletedFlag(long searchId, Class<?> searchType, Boolean isDeleted, Boolean isShown){
+
+        if (searchType == null || (!searchType.isAssignableFrom(Producer.class) && !searchType.isAssignableFrom(Category.class)))
+            return new ArrayList<>();
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Product> query = cb.createQuery(Product.class);
+
+        Root<Product> root = query.from(Product.class);
+
+        // Присоединить производителя или категорию в зависимости от заданного типа
+        Path<?> searchPath = searchType == Producer.class ? root.get("producer") : root.get("category");
+
+        // Удалённые/Неудалённые товары в определённой категории
+
+        // Задать базовое значение
+        Predicate predicate = isShown == null && isDeleted == null ? cb.equal(searchPath.get("id"), searchId) : null;
+
+        if (isDeleted != null && isShown != null)
+            predicate = cb.and(
+                    cb.equal(searchPath.get("id"), searchId),
+                    cb.equal(root.get("isDeleted"), isDeleted),
+                    cb.equal(root.get("showProduct"), isShown)
+            );
+        else if (isDeleted != null) {
+            predicate = cb.and(
+                    cb.equal(searchPath.get("id"), searchId),
+                    cb.equal(root.get("isDeleted"), isDeleted)
+            );
+        }else if (isShown != null) {
+            predicate = cb.and(
+                    cb.equal(searchPath.get("id"), searchId),
+                    cb.equal(root.get("showProduct"), isShown)
+            );
+        }
+
+        query.where(predicate);
+
+        return entityManager.createQuery(query).getResultList();
+
     }
 
 }

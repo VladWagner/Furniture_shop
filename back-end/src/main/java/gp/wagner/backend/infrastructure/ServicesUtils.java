@@ -3,6 +3,7 @@ package gp.wagner.backend.infrastructure;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.baskets.Basket;
 import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.categories.Category;
@@ -15,22 +16,25 @@ import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.specifications.ProductSpecifications;
+import gp.wagner.backend.domain.specifications.UsersSpecifications;
 import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
 import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
-import gp.wagner.backend.middleware.Services;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
+import org.springframework.data.jpa.domain.Specification;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 //Класс для вынесения повторяющихся и вспомогательных методов из сервисов
-public class ServicesUtils<T> {
+public class ServicesUtils {
 
     //Создание предиката для фильтрации товаров по цене
-    public static Predicate getPricePredicate(String priceRange, From<?, ?> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+    public static Predicate getProductPricePredicate(SimpleTuple<Integer, Integer> priceRange, From<?, ?> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
         //Присоединить таблицу вариантов товаров
         Join<Product, ProductVariant> productProductVariantJoin = root.join("productVariants");
 
@@ -39,27 +43,116 @@ public class ServicesUtils<T> {
         Root<ProductVariant> subQueryRoot = subqueryId.from(ProductVariant.class);
         subqueryId.select(cb.min(subQueryRoot.get("id"))).where(cb.equal(subQueryRoot.get("product"), root));
 
-        //Разделить строку, что бы получить отдельные токены диапазона
-        String[] numbers = priceRange.split("[-–—_|]");
 
         //Если получить значения из строки удалось, тогда пытаемся их спарсить
-        if (numbers.length > 1) {
+        if (priceRange != null) {
 
-            Integer priceLo = Utils.TryParseInt(numbers[0]);
-            Integer priceHi = Utils.TryParseInt(numbers[1]);
+            int priceLo = priceRange.getValue1();
+            int priceHi = priceRange.getValue2();
 
-            if (priceLo != null && priceHi != null)
-                return cb.and(
-                        cb.equal(productProductVariantJoin.get("id"), subqueryId),
-                        cb.between(productProductVariantJoin.get("price"), priceLo, priceHi)
-                );//cb.and
+            return cb.and(
+                    cb.equal(productProductVariantJoin.get("id"), subqueryId),
+                    cb.between(productProductVariantJoin.get("price"), priceLo, priceHi)
+            );//cb.and
+        }
+        return null;
+    }
+    public static Predicate getProductVariantPricePredicate(SimpleTuple<Integer, Integer> priceRange, From<?, ?> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
+        //Присоединить таблицу вариантов товаров
+        Join<Product, ProductVariant> productAndPvJoin = root.join("productVariants");
+
+        //Создание подзапроса для получения вариантов для текущего товара, которые входят в диапазон
+        Subquery<Long> subQueryId = query.subquery(Long.class);
+        Root<ProductVariant> subQueryRoot = subQueryId.from(ProductVariant.class);
+
+        // Подзапрос для проверки базового варианта (его цена >= нижней границе) для корректного вывода
+        Subquery<Long> baseVpSubQuery = query.subquery(Long.class);
+        Root<ProductVariant> baseVpRoot = baseVpSubQuery.from(ProductVariant.class);
+
+        //Если получить значения из строки удалось, тогда формируем предикаты
+        if (priceRange != null) {
+
+            int priceLo = priceRange.getValue1();
+            int priceHi = priceRange.getValue2();
+
+            // Принимать в расчёт только выводимые и неудалённые варианты для определённого товара
+            subQueryId.select(subQueryRoot.get("product").get("id"))
+                    .where(cb.and(
+                            cb.equal(subQueryRoot.get("product").get("id"), root.get("id")),
+                            cb.between(subQueryRoot.get("price"), priceLo, priceHi),
+                            cb.equal(subQueryRoot.get("showVariant"), true),
+                            cb.equal(subQueryRoot.get("isDeleted"), false)
+                           )
+                    );
+
+            // Найти id базового варианта
+            //baseVpSubQuery.select(cb.min(subQueryRoot.get("id"))).where(cb.equal(baseVpRoot.get("product"), root));
+
+            // return cb.in(root.get("id")).value(subQueryId);
+            return cb.and(
+                    //cb.ge(productAndPvJoin.get("price"), priceLo),
+                    cb.in(root.get("id")).value(subQueryId)
+            );
+
         }
         return null;
     }
 
-    //Сформировать все предикаты для товаров
+    /**
+     * Метод формирует предикаты для параметров, которые на заданы в таблице products_attributes
+     * и являются свойствами Product или ProductVariant.
+     * @param root собственно источник выборки. Задан именно в типе From<?,?>, чтобы можно было задавать Path<> и Join<> в различных вызовах.
+     *
+     * @param povEnum флаг для определения типа фильрации: по цене товара или его вариантов.
+     *                Т.е. при проверке цены на принадлежность к диапазону будет происходить проверка только цены базового варианта или всех вариантов товара
+     * */
     public static List<Predicate> collectProductsPredicates(CriteriaBuilder cb, From<?, ?> root, CriteriaQuery<?> query,
-                                                            ProductFilterDtoContainer container, Long categoryId, String priceRange){
+                                                            ProductFilterDtoContainer container, Long categoryId, String priceRange, ProductsOrVariantsEnum povEnum){
+        Class<?> rootType = root.getJavaType();
+
+        if (rootType != Product.class)
+            return null;
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Доп.фильтрация по категории
+        if (categoryId != null) {
+            //Присоединить сущность категорий
+            Join<Product, Category> categoryJoin = root.join("category");
+
+            //Задать доп. условие выборки - по категориям
+            predicates.add(cb.equal(categoryJoin.get("id"), categoryId));
+        }
+
+        // Доп.фильтрация по производителям
+        if (container != null && container.getProducersNames() != null && container.getProducersNames().size() > 0){
+            Join<Product, Producer> producerJoin = root.join("producer");
+
+            predicates.add(producerJoin.get("producerName").in(container.getProducersNames()));
+        }
+
+        // Доп.фильтрация по ценам товара или вариантов
+        if (priceRange != null && povEnum != null) {
+
+            SimpleTuple<Integer, Integer> rangeTuple = Utils.parseTwoNumericValues(priceRange);
+
+            // Если получить диапазон не вышло, тогда уходим
+            if (rangeTuple == null)
+                return predicates;
+
+            // Определить тип выборки по цене (базового варианта или всех вариантов товара)
+            predicates.add(
+                    povEnum == ProductsOrVariantsEnum.PRODUCTS ?
+                    getProductPricePredicate(rangeTuple, root, query, cb) :
+                    getProductVariantPricePredicate(rangeTuple, root, query, cb)
+            );
+        }
+
+        return predicates;
+    }
+
+    public static List<Predicate> collectProductsPredicatesForFilter(CriteriaBuilder cb, From<?, ?> root, CriteriaQuery<?> query,
+                                                            ProductFilterDtoContainer container, Long categoryId, SimpleTuple<Integer, Integer> priceRange){
         Class<?> rootType = root.getJavaType();
 
         if (rootType != Product.class)
@@ -85,7 +178,7 @@ public class ServicesUtils<T> {
 
         //Доп.фильтрация по ценам
         if (priceRange != null)
-            predicates.add(getPricePredicate(priceRange, root, query, cb));
+            predicates.add(getProductVariantPricePredicate(priceRange, root, query, cb));
 
         return predicates;
     }
@@ -366,7 +459,7 @@ public class ServicesUtils<T> {
             default -> cb.count(root.get("id"));
         };
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
 
         if (predicates != null && !predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));
@@ -389,7 +482,8 @@ public class ServicesUtils<T> {
 
         Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
+                ProductsOrVariantsEnum.PRODUCTS);
 
         if (predicates != null && !predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));
@@ -410,7 +504,8 @@ public class ServicesUtils<T> {
 
         // Сформировать запрос
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
+                ProductsOrVariantsEnum.PRODUCTS);
 
         if (predicates != null && !predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));
@@ -430,7 +525,8 @@ public class ServicesUtils<T> {
         Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
 
         // Добавить предикаты
-        List<Predicate> predicates = collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange);
+        List<Predicate> predicates = collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
+                ProductsOrVariantsEnum.PRODUCTS);
 
         // Основной запрос
         Expression<Integer> sumExpression = cb.sum(cb.coalesce(root.get("count"), 0));
@@ -446,7 +542,7 @@ public class ServicesUtils<T> {
         return entityManager.createQuery(query).getResultList().size();
     }
 
-    // Подсчёт общего просмотренных товаров для одного покупателя
+    // Подсчёт общего количества просмотренных товаров для одного покупателя
     public static long countCustomerProductsViews(EntityManager entityManager, CustomerRequestDto customerDto){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -477,5 +573,186 @@ public class ServicesUtils<T> {
         return typedQuery.getSingleResult();
     }
 
+    // Подсчёт товаров или их вариантов в заказе
+    public static long countProductsOrVariantsOrders(EntityManager entityManager, long searchingId, Class<?> countingType){
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+
+        // Таблица со заказываемыми товарами
+        Root<OrderAndProductVariant> root = query.from(OrderAndProductVariant.class);
+
+        // Присоединение сущности productVariant
+        Join<OrderAndProductVariant, ProductVariant> pvJoin = root.join("productVariant");
+        Path<Product> productPath = null;
+
+        // Если происходит подсчёт количества заказов для товара
+        if (countingType == Product.class)
+            productPath = pvJoin.get("product");
+
+        Predicate predicate = productPath == null ?
+                                cb.equal(pvJoin.get("id"), searchingId) :
+                                cb.equal(productPath.get("id"), searchingId);
+
+        query.where(predicate)
+             .select(cb.count(root));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+
+        // Для перестраховки, чтобы избежать падения
+        typedQuery.setMaxResults(1);
+
+        return typedQuery.getSingleResult();
+    }
+
+    public static long countProductsByFilter(EntityManager entityManager,List<Specification<Product>> specifications, ProductFilterDtoContainer container, Long categoryId, String priceRange){
+
+        //Объект для формирования запросов - построитель запроса
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+
+        //Получить таблицу для запросов
+        Root<Product> root = query.from(Product.class);
+
+        // Собираем предикаты категории и дипазона цен отдельно в этом запросе, поскольку для них нужен root именно от текущего query
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
+
+        // Получить предикат для выборки по заданным фильтрам
+        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
+
+        //Сформировать запрос
+        if (predicates != null && !predicates.isEmpty())
+            //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
+            query.where(cb.and(
+                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
+        else
+            query.where(filterPredicate);
+
+        query.select(cb.count(root.get("id")));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+
+        return typedQuery.getResultList().get(0);
+    }
+
+    public static long countProductsByFilterPv(EntityManager entityManager, List<Specification<Product>> specifications, ProductFilterDtoContainer container, Long categoryId, String priceRange){
+
+        //Объект для формирования запросов - построитель запроса
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+
+        Root<Product> root = query.from(Product.class);
+
+        List<Predicate> predicates = collectProductsPredicates(cb, root, query, container, categoryId, priceRange, ProductsOrVariantsEnum.VARIANTS);
+
+        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
+
+        //Сформировать запрос
+        if (predicates != null && !predicates.isEmpty())
+            //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
+            query.where(cb.and(
+                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
+        else
+            query.where(filterPredicate);
+
+        query.select(cb.countDistinct(root.get("id")));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+        return typedQuery.getResultList().get(0);
+    }
+
+    public static long countProductsByKeyword(String key, EntityManager entityManager, List<Specification<Product>> specifications, ProductFilterDtoContainer container, String priceRange){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+
+        Root<Product> root = query.from(Product.class);
+
+        Join<Product, ProductVariant> productVariantJoin = root.join("productVariants");
+
+        //Список предикатов для поиска
+        List<Predicate> searchPredicates = new ArrayList<>();
+
+        searchPredicates.add(cb.like(root.get("name"),key));
+        searchPredicates.add(cb.like(root.get("description"),key));
+        searchPredicates.add(cb.like(productVariantJoin.get("title"),key));
+        searchPredicates.add(cb.like(root.get("producer").get("producerName"), key));
+
+        // Сформировать предикаты фильтрации по цене и производителям
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, null, priceRange,
+                ProductsOrVariantsEnum.VARIANTS);
+
+        // Спецификации для фильтрации по характеристикам
+        Predicate featuresPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
+
+        //Сформировать запрос
+        if (predicates != null && !predicates.isEmpty())
+            //Доп.фильтра по категории и ценам + фильтра по характеристикам
+            query.where(cb.and(
+                            cb.and(cb.or(searchPredicates.toArray(new Predicate[0]))
+                                    ,featuresPredicate)),
+                    cb.and(predicates.toArray(new Predicate[0]))
+            ).distinct(true);
+        else
+            query.where(cb.and( cb.or(searchPredicates.toArray(new Predicate[0])), featuresPredicate)).distinct(true);
+
+        query.select(cb.countDistinct(root.get("id")));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+
+        return typedQuery.getResultList().get(0);
+
+    }
+
+    // Подсчёт общего кол-ва пользователей по ключевому слову в имени или логине
+    public static long countUsersByKeyword(String key, EntityManager entityManager, Specification<User> specification){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+
+        Root<User> root = query.from(User.class);
+
+        List<Predicate> predicates = new ArrayList<>();
+
+        // Условие выборки по ключевым словам
+        predicates.add(cb.or(
+                cb.like(root.get("name"), key),
+                cb.like(root.get("userLogin"), key)
+        ));
+
+        // Снова создать предикат из спецификации, но уже для другого CriteriaQuery
+        if (specification != null)
+            predicates.add(specification.toPredicate(root, query, cb));
+
+        query.where(predicates.toArray(new Predicate[0]));
+
+        query.select(cb.countDistinct(root.get("id")));
+
+        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
+
+        return typedQuery.getResultList().get(0);
+
+    }
+
+    // Сформировать и отсортировать ассоциативную коллекцию фильтров по убыванию приоритетов
+    public static Map<String, List<FilterValuesDto<Integer>>> createAndSortFilterMap(List<FilterValuesDto<Integer>> filterValuesDtoList){
+
+        // Сформироват начальную ассоциативную коллекцию без сортировки по приоритетам
+        Map<String, List<FilterValuesDto<Integer>>> groupedFilters = filterValuesDtoList.stream()
+                .collect(Collectors.groupingBy(FilterValuesDto::getAttributeName));
+
+        // Новый отсортированный map
+
+        return groupedFilters.entrySet().
+                stream()
+                .sorted(Comparator.comparing(entry -> entry.getValue().get(0).getPriority()) )
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (oldValue, newValue) -> oldValue,
+                        LinkedHashMap::new
+                ));
+    }
 
 }

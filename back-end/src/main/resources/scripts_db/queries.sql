@@ -197,7 +197,7 @@ from
 where (pa.attr_name like 'Высота' and av.int_value between 700 and 2200 or
       pa.attr_name like 'Ширина' and av.int_value between 700 and 2300 or
       pa.attr_name like 'Глубина' and av.int_value between 300 and 1500) and
-(select vr.id from variants_product as vr where vr.product_id = vp.id limit 1) = variants.id;
+      (select vr.id from variants_product as vr where vr.product_id = vp.id limit 1) = variants.id;
 
 -- Подсчёт кол-ва товаров с фильтрацией по характеристикам
 select distinct
@@ -322,8 +322,7 @@ where
 
 -- Выборка атрибутов под конкретные категории и их максимальных значений
 set @categoryId = 11;
-with products_in_category as(
-    set @categoryId = 8;
+with products_in_category as (
     select
         p.id
     from
@@ -404,7 +403,7 @@ where
    -- (0 > 0 and p.category_id = 0) or 0 <= 0
 
 -- Полнотекстовый поиск через индексы
-set @keyword = 'BTS';
+set @keyword = 'шкав';
 select
     *
 from products p join producers producer on p.producer_id = producer.id
@@ -738,7 +737,7 @@ from
 where
     o.order_state_id = 2;
 
--- Выборка товаров с подсчётом кол-ва
+-- Выборка товаров с подсчётом кол-ва заказов
 select
     p.id,
     p.product_name,
@@ -791,3 +790,32 @@ select
 from products_views pvw join products p on pvw.product_id = p.id
                         join (visitors v join customers customer on v.id = customer.visitor_id) on pvw.visitor_id = v.id
 where customer.id = 10;
+
+-- Выборка пограничных значений для фильтра пользователей
+select
+    MIN(u.created_at) as minDate,
+    MAX(u.created_at) as maxDate
+from
+    users u join user_roles ur on u.role_id = ur.id
+          join users_passwords up on u.id = up.user_id;
+
+select
+    ur.id,
+    ur.role
+from
+    users u join user_roles ur on u.role_id = ur.id
+where u.name like concat('%','vag','%') or u.login like concat('%','vag','%')
+group by ur.id, ur.role;
+
+-- Проверка существования заданного email и login'a
+select
+Exists(select
+    u.id
+from
+    users u
+where u.login = 'user1')
+from users;
+
+-- Выборка характеристик товаров по категории
+delete from password_reset_token prt
+where prt.expiry_date <= now()

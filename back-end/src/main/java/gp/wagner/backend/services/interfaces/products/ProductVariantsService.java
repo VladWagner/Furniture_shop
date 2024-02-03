@@ -1,10 +1,8 @@
 package gp.wagner.backend.services.interfaces.products;
 
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
-import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -63,6 +61,10 @@ public interface ProductVariantsService {
     void recoverDeletedByProductIdList(List<Long> productsIds);
 
     void hideByProductsList(List<Product> products);
+    void hideByProductId(Product product);
 
-    void recoverHidenByProductsList(List<Product> products);
+    void recoverHiddenByProductsList(List<Product> products);
+    void recoverHiddenByProductId(Product product);
+
+    void deleteOrRecoverVariant(Long id, List<Long> idList, boolean deletionFlag);
 }

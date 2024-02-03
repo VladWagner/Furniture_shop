@@ -28,6 +28,7 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -118,7 +119,6 @@ public class OrdersServiceImpl implements OrdersService {
 
         if (customerId == null || customerId <= 0)
             customerId = customersRepository.save(new Customer(dto.getCustomer(), visitor)).getId();
-
         else{
             // Получить запись о переданном покупателе и объекте из БД с тем же id
             Customer newCustomer = new Customer(dto.getCustomer(), visitor);
@@ -420,32 +420,47 @@ public class OrdersServiceImpl implements OrdersService {
 
     // Получение всех заказов для определённого варианта товара
     @Override
-    public List<OrderAndProductVariant> getOrdersByProductVariant(long pvId) {
+    public Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage) {
 
-        return opvRepository.findOrderAndProductVariantsByProductVariantId(pvId);
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        return opvRepository.findOrderAndProductVariantsByProductVariantId(pvId, PageRequest.of(pageNum, dataOnPage));
     }
 
     // Получение всех заказов для определённого товара
     @Override
-    public List<OrderAndProductVariant> getOrdersAndPvByProduct(long productId) {
+    public Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage) {
+
+        if (pageNum > 0)
+            pageNum -= 1;
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         // Для формирования запросов
-        CriteriaQuery<OrderAndProductVariant> query = cb.createQuery(OrderAndProductVariant.class);
+        CriteriaQuery<Order> query = cb.createQuery(Order.class);
 
         // Таблица со заказываемыми товарами
         Root<OrderAndProductVariant> root = query.from(OrderAndProductVariant.class);
 
         // Присоединение сущности productVariant
         Join<OrderAndProductVariant, ProductVariant> pvJoin = root.join("productVariant");
-
-        // Получить товар из общего агрегата OrderAndProductVariant + ProductVariant
         Path<Product> product = pvJoin.get("product");
+        Path<Order> orderPath = root.get("order");
 
         query.where(cb.equal(product.get("id"), productId));
+        query.select(orderPath);
 
-        return entityManager.createQuery(query).getResultList();
+        TypedQuery<Order> typedQuery = entityManager.createQuery(query);
+
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+        typedQuery.setMaxResults(dataOnPage);
+
+        List<Order> opvList = typedQuery.getResultList();
+
+        long elementsCount =  ServicesUtils.countProductsOrVariantsOrders(entityManager, productId, Product.class);
+
+        return new PageImpl<>(opvList, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
     @Override

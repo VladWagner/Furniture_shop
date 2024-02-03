@@ -47,8 +47,8 @@ public class ProductVariantsController {
         return productVariants.stream().map(ProductVariantPreviewRespDto::new).toList();
     }
 
-    //Выборка варианта для конкретного товара
-    //Возвращаем список DTO вариантов товаров
+    // Выборка варианта для конкретного товара
+    // Возвращаем список DTO вариантов товаров
     @GetMapping(value = "/by_product/detailed/{product_id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ProductVariantDetailsRespDto> getProductVariantsDetailed(@PathVariable @Min(1) long product_id){
 
@@ -58,13 +58,6 @@ public class ProductVariantsController {
         List<ProductVariant> productVariants = Services.productVariantsService.getByProductId(product_id);
 
         //Создаём из вариантов товаров список объектов DTO для вариантов товаров + формируем список изображений
-        /*return productVariants.stream()
-                .map(pv -> new ProductVariantDetailsRespDto(
-                        pv,
-                        Services.productImagesService.getByProductVariantId(pv.getId())
-                                .stream()
-                                .map(ProductImageRespDto::new).toList())
-                ).toList();*/
         return productVariants.stream()
                 .map(ProductVariantDetailsRespDto::new).toList();
     }
@@ -82,13 +75,7 @@ public class ProductVariantsController {
         //Формируем DTO из самого конкретного варианта продукта и изображений под его id
         //При этом формируем ещё список DTO для изображений варианта товара,
         // поскольку там будут заданы ссылка на изображение + порядковый номер
-        return new ProductVariantDetailsRespDto(productVariant/*,
-                Services.productImagesService
-                        .getByProductVariantId(productVariant.getId())
-                        .stream()
-                        .map(ProductImageRespDto::new)
-                        .toList()*/
-        );
+        return new ProductVariantDetailsRespDto(productVariant);
     }
 
     //Добавить вариант товара
@@ -271,7 +258,7 @@ public class ProductVariantsController {
 
     }
 
-    // Удалить вариант товара
+    // Восстановить вариант товара
     @PutMapping(value = "/recover_by_id/{id}")
     public ResponseEntity<String> recoverPvById(@PathVariable @Min(1) long id){
 

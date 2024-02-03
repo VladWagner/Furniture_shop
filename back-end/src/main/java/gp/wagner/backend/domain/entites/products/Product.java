@@ -8,7 +8,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
-//import org.hibernate.search.mapper.pojo.mapping.definition.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,12 +27,12 @@ public class Product {
 
     //Наименование товара
     @Column(name = "product_name")
-    //@FullTextField
+    //@FullTextField(analyzer = "product_analyzer")
     private String name;
 
     //Описание товара
     @Column(name = "description")
-    //@FullTextField
+    //@FullTextField(analyzer = "product_analyzer")
     private String description;
 
     //Связующие свойство категории товара (Многие товары к 1 категории)

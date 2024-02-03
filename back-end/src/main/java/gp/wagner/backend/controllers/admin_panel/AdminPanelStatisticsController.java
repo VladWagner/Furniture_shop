@@ -1,4 +1,4 @@
-package gp.wagner.backend.controllers;
+package gp.wagner.backend.controllers.admin_panel;
 
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeAndValRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
@@ -11,10 +11,9 @@ import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.exporters.implementations.ProductsVariantsOrdersCount.ProductsVariantsOrdersCountXlsExporter;
 import gp.wagner.backend.exporters.implementations.TopProductsVariantsInBaskets.TopProductsVariantsInBasketsXlsExporter;
-import gp.wagner.backend.exporters.interfaces.ExcelExporter;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
-import gp.wagner.backend.infrastructure.enums.StatisticsObjectEnum;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.persistence.Tuple;
 import jakarta.validation.Valid;
@@ -159,7 +158,7 @@ public class AdminPanelStatisticsController {
             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit) {
 
-        Page<Tuple> resultPage = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, pageNum, limit, StatisticsObjectEnum.PRODUCTS);
+        Page<Tuple> resultPage = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, pageNum, limit, ProductsOrVariantsEnum.PRODUCTS);
 
         return new PageDto<>(resultPage, () -> resultPage.getContent().stream().map(ProductsOrdersCountRespDto::new).toList());
     }
@@ -171,7 +170,7 @@ public class AdminPanelStatisticsController {
             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit) {
 
-        Page<Tuple> resultPage = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, pageNum, limit, StatisticsObjectEnum.VARIANTS);
+        Page<Tuple> resultPage = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, pageNum, limit, ProductsOrVariantsEnum.VARIANTS);
 
         return new PageDto<>(resultPage, () -> resultPage.getContent().stream().map(ProductsVariantsOrdersCountRespDto::new).toList());
     }
@@ -194,7 +193,7 @@ public class AdminPanelStatisticsController {
     public ResponseEntity<Resource> getProductsVariantsOrdersCountCsv(
             @Valid @RequestBody OrdersAndBasketsCountFiltersRequestDto filtersRequestDto) {
 
-        List<Tuple> tupleList = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, StatisticsObjectEnum.VARIANTS);
+        List<Tuple> tupleList = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, ProductsOrVariantsEnum.VARIANTS);
         List<ProductsVariantsOrdersCountRespDto> dtoList = tupleList.stream().map(ProductsVariantsOrdersCountRespDto::new).toList();
 
         ProductsVariantsOrdersCountXlsExporter exporter = new ProductsVariantsOrdersCountXlsExporter(dtoList,"Orders of products variants");
@@ -234,10 +233,9 @@ public class AdminPanelStatisticsController {
                 .body(file);
     }
 
-
+    // Так же стоит добавить сохранение в CSV, как это делать показано здесь: https://springhow.com/spring-boot-export-to-csv/#google_vignette
 
     // Выборка определённых просмотренных товаров покупателем
-    // P.s. после реализации нужно будет сделать commit на git и удалить данный комментарий
     @GetMapping(value = "/viewed_products_by_customer", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<ProductViewRespDto> getCustomerViewedProducts(
             @Valid @RequestBody CustomerRequestDto customerDto,

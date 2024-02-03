@@ -1,6 +1,5 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.dto.response.filters.FilterValueDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.domain.entites.products.Product;
 import jakarta.annotation.Nullable;
@@ -11,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -82,6 +80,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
         select
             av.attribute_id as attributeId,
             prod_attr.attr_name as attributeName,
+            prod_attr.priority,
         
             MIN(av.int_value) as 'min',
             MAX(av.int_value) as 'max',
@@ -111,6 +110,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
         select
             av.attribute_id as attributeId,
             prod_attr.attr_name as attributeName,
+            prod_attr.priority,
         
             MIN(av.int_value) as 'min',
             MAX(av.int_value) as 'max',
@@ -145,6 +145,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
         select
             av.attribute_id as attributeId,
             prod_attr.attr_name as attributeName,
+            prod_attr.priority,
         
             MIN(av.int_value) as 'min',
             MAX(av.int_value) as 'max',

@@ -12,9 +12,9 @@ import gp.wagner.backend.services.interfaces.products.ProductsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-//Класс-агрегатор всех статических объектов сервисов,
+// Класс-агрегатор всех статических объектов сервисов,
 // что бы не нужно было каждый раз создавать объект бина при необходимости использовать сервис
-//Совсем упрощённый посредник, который просто предоставляет доступ к бинам
+// Совсем упрощённый посредник, который просто предоставляет доступ к бинам
 @Component("Services")
 public class Services {
 
@@ -123,12 +123,28 @@ public class Services {
         Services.searchService = searchService;
     }
 
-    //Сервис статистики в админ-панели
+    // Сервис статистики в админ-панели
     public static AdminPanelStatisticsService adminPanelStatisticsService ;
 
     @Autowired
     public void setProductViewService(AdminPanelStatisticsService adminPanelService){
         Services.adminPanelStatisticsService = adminPanelService;
+    }
+
+    // Сервис для работы с пользователями
+    public static UsersService usersService ;
+
+    @Autowired
+    public void setUsersService(UsersService service){
+        Services.usersService = service;
+    }
+
+    // Сервис для отправки сообщений на email
+    public static EmailService emailService ;
+
+    @Autowired
+    public void setEmailService(EmailService service){
+        Services.emailService = service;
     }
 
     //Сервис для инициализации hibernate search

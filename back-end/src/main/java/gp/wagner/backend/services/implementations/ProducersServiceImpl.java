@@ -70,7 +70,7 @@ public class ProducersServiceImpl implements ProducersService {
 
         // Если производитель был удалён
         if(oldDeletedAtValue == null && producer.getDeletedAt() != null)
-            Services.productsService.deleteByProducerId(oldProducer.getId());
+            Services.productsService.deleteByProducerId(oldProducer);
 
     }
 
@@ -102,7 +102,7 @@ public class ProducersServiceImpl implements ProducersService {
 
         // Если производитель был удалён
         if(oldDeletedAtValue == null && foundProducer.getDeletedAt() != null)
-            Services.productsService.deleteByProducerId(foundProducer.getId());
+            Services.productsService.deleteByProducerId(foundProducer);
 
     }
 
@@ -114,9 +114,9 @@ public class ProducersServiceImpl implements ProducersService {
         if (foundProducer.getDeletedAt() != null)
             throw  new ApiException(String.format("Производитель с id: %d уже удалён!", id));
 
-        Services.productsService.deleteByProducerId(id);
-
         foundProducer.setDeletedAt(new Date());
+
+        Services.productsService.deleteByProducerId(foundProducer);
 
         producersRepository.saveAndFlush(foundProducer);
 
@@ -130,10 +130,10 @@ public class ProducersServiceImpl implements ProducersService {
         if (foundProducer.getDeletedAt() == null)
             throw  new ApiException(String.format("Производитель с id: %d не был удалён!", id));
 
-        if (recoverHeirs)
-            Services.productsService.recoverDeletedByProducerId(id);
-
         foundProducer.setDeletedAt(null);
+
+        if (recoverHeirs)
+            Services.productsService.recoverDeletedByProducerId(foundProducer);
 
         producersRepository.saveAndFlush(foundProducer);
 

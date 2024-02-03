@@ -5,11 +5,13 @@ import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductVariantsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductVariantsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -120,7 +122,6 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         }
 
         return pv;
-
     }
 
     @Override
@@ -182,6 +183,8 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
     @Transactional
     public void updatePreview(long productVariantId, String previewImg) {
         productVariantsRepository.updateProductVariantPreview(productVariantId, previewImg);
+
+        // Очистить кэш. Иначе в моменте запись может не изменится, что повлияет на замену или удалиение
         entityManager.flush();
         entityManager.clear();
     }
@@ -250,7 +253,6 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
             Services.basketsService.updateBasketsOnPvDelete(null, changedPv);
             Services.ordersService.updateOrdersOnPvDelete(null, changedPv);
         }
-
     }
 
     @Override
@@ -264,10 +266,9 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         if (productsIds == null || productsIds.isEmpty())
             throw new ApiException("Не удалось удалить товары по списку. Список некорректен!");
 
-        productVariantsRepository.deleteVariantsByProduct(null, productsIds);
+        productVariantsRepository.deleteVariantsByProductIdList(productsIds);
+        //ServicesUtils.deleteOrRecoverVariant(entityManager,null, productsIds, true);
         List<ProductVariant> productVariants = productVariantsRepository.findProductVariantsByProductIdList(productsIds);
-
-        //productVariants.forEach(pv -> pv.setIsDeleted(true));
 
         // Убрать все удалённые варианты из корзин и заказов
         if (!productVariants.isEmpty()){
@@ -283,7 +284,7 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         if (productsIds == null || productsIds.isEmpty())
             throw new ApiException("Не удалось восстановить товары по списку. Список некорректен!");
 
-        productVariantsRepository.recoverVariantsByProduct(null, productsIds);
+        productVariantsRepository.recoverVariantsByProductIdList(productsIds);
 
     }
 
@@ -298,11 +299,28 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         // Произвести перерасчёт сумм в незавершенных заказах и корзинах
         Services.basketsService.updateBasketsOnPvHidden(null, pvList);
         Services.ordersService.updateOrdersOnPvHidden  (null, pvList);
-
     }
 
     @Override
-    public void recoverHidenByProductsList(List<Product> products) {
+    public void hideByProductId(Product product) {
+
+        // Если товар не был скрыт
+        if (product.getShowProduct())
+            return;
+
+        List<ProductVariant> pvList = getByProductId(product.getId());
+
+        pvList.forEach(pv -> pv.setShowVariant(product.getShowProduct()));
+
+        productVariantsRepository.saveAllAndFlush(pvList);
+
+        // Произвести перерасчёт сумм в незавершенных заказах и корзинах
+        Services.basketsService.updateBasketsOnPvHidden(null, pvList);
+        Services.ordersService.updateOrdersOnPvHidden  (null, pvList);
+    }
+
+    @Override
+    public void recoverHiddenByProductsList(List<Product> products) {
 
         List<ProductVariant> pvList = productVariantsRepository.findProductVariantsByProductIdList(products.stream().map(Product::getId).toList());
 
@@ -313,6 +331,56 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         // Произвести перерасчёт сумм в незавершенных заказах и корзинах
         Services.basketsService.updateBasketsOnPvDisclosure(null, pvList);
         Services.ordersService.updateOrdersOnPvDisclosure(null, pvList);
+    }
+
+    @Override
+    public void recoverHiddenByProductId(Product product) {
+
+        // Если товар скрыт
+        if (!product.getShowProduct())
+            return;
+
+        List<ProductVariant> pvList = getByProductId(product.getId());
+
+        pvList.forEach(pv -> pv.setShowVariant(product.getShowProduct()));
+
+        productVariantsRepository.saveAllAndFlush(pvList);
+
+        // Произвести перерасчёт сумм в незавершенных заказах и корзинах
+        Services.basketsService.updateBasketsOnPvDisclosure(null, pvList);
+        Services.ordersService.updateOrdersOnPvDisclosure(null, pvList);
+    }
+
+    @Override
+    @Transactional
+    public void deleteOrRecoverVariant(Long id, List<Long> idList, boolean deletionFlag) {
+        if (id == null && idList == null)
+            throw new ApiException("В методе удаления/восстановления варианта оба параметра id и idList равны Null!");
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaUpdate<ProductVariant> update = cb.createCriteriaUpdate(ProductVariant.class);
+        Root<ProductVariant> root = update.from(ProductVariant.class);
+        Path<Product> product = root.get("product");
+
+        // Условие для определения обновляемых вариантов
+        Predicate predicate;
+
+        if (id != null && idList != null)
+            predicate = cb.or(
+                    cb.equal(product.get("id"), id),
+                    product.get("id").in(idList)
+            );
+        else if (idList == null)
+            predicate = cb.equal(product.get("id"), id);
+        else
+            predicate = product.get("id").in(idList);
+
+        update.set(root.get("isDeleted"), deletionFlag)
+              .where(predicate);
+
+        entityManager.createQuery(update).executeUpdate();
+
     }
 
 }

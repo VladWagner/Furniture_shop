@@ -77,29 +77,33 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
     """)
     void updateProductVariantPreview(@Param("productVariantId") long productVariantId, @Param("previewImg") String previewImg);
 
-    //Удалить варианты по id товара или по списку id-шников
+
+    //((coalesce(:product_id, -1) > 0) and :products_id_list is null and pv.product.id = :product_id) or
+    //((coalesce(:product_id, -1) <= 0) and :products_id_list is not null and pv.product.id in :products_id_list) or
+    //((coalesce(:product_id, -1) > 0) and :products_id_list is not null and (pv.product.id = :product_id or pv.product.id in :products_id_list))
+
     @Transactional
     @Modifying
-    @Query(nativeQuery = true,
+    @Query(
             value = """
-        update variants_product set
-                                    is_deleted = true
-        -- where product_id = :product_id
-        -- where if(:product_id is not null and :products_id_list is null, product_id = :product_id,
-        -- :product_id is null and :products_id_list is not null, product_id in :products_id_list,
-        -- :product_id is not null and :products_id_list is not null, product_id = :product_id and product_id in :products_id_list)
+        update ProductVariant pv set
+            pv.isDeleted = true
         where
-         case
-            when (:product_id is not null and :product_id > 0) and :products_id_list is null
-                then product_id = :product_id
-            when (:product_id is null or :product_id <= 0) and :products_id_list is not null
-                then product_id in :products_id_list
-            when :product_id is not null and :products_id_list is not null
-                then product_id = :product_id or product_id in :products_id_list
-            else 1 < 0
-         end
+            ((:product_id is not null and :product_id > 0) and :products_id_list is null and pv.product.id = :product_id) or
+            ((:product_id is null or :product_id <= 0) and :products_id_list is not null and pv.product.id in :products_id_list) or
+            ((:product_id is not null and :product_id > 0) and :products_id_list is not null and (pv.product.id = :product_id or pv.product.id in :products_id_list))
     """)
     void deleteVariantsByProduct(@Param("product_id") Long productId, @Param("products_id_list") List<Long> productIdsList);
+    @Transactional
+    @Modifying
+    @Query(
+            value = """
+        update ProductVariant pv set
+            pv.isDeleted = true
+        where
+            pv.product.id in :products_id_list
+    """)
+    void deleteVariantsByProductIdList(@Param("products_id_list") List<Long> productIdsList);
 
     //Восстановить варианты по id товара
     @Transactional
@@ -121,6 +125,17 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
          end
     """)
     void recoverVariantsByProduct(@Param("product_id") Long productId, @Param("products_id_list") List<Long> productIdsList);
+
+    @Transactional
+    @Modifying
+    @Query(
+            value = """
+        update ProductVariant pv set
+            pv.isDeleted = false
+        where
+            pv.isDeleted = true and pv.product.id in :products_id_list
+    """)
+    void recoverVariantsByProductIdList(@Param("products_id_list") List<Long> productIdsList);
 
     //Получение максимального id
     @Query(value = """

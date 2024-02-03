@@ -35,18 +35,15 @@
 		</dependency>
 
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-
-		<!-- Hibernate-Core -->
-		<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-core -->
-		<!--<dependency>
-			<groupId>org.hibernate</groupId>
-			<artifactId>hibernate-core</artifactId>
-			<version>5.4.30.Final</version>
-		</dependency>-->
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -85,6 +82,12 @@
 			<version>0.11.2</version>
 		</dependency>
 
+		<!--Отправка сообщений на email-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!--Валидация получаемых данных-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -118,12 +121,8 @@
 			<version>5.2.2</version>
 		</dependency>
 
-		<!--Подключение elasticsearch-->
-		<!--<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
-		</dependency>-->
 
+		<!-- https://mvnrepository.com/artifact/org.hibernate/hibernate-search-orm -->
 		<!--<dependency>
 			<groupId>org.hibernate.search</groupId>
 			<artifactId>hibernate-search-mapper-orm</artifactId>

@@ -1,6 +1,7 @@
 package gp.wagner.backend.domain.dto.response.product_variant;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.dto.response.product.ProductImageRespDto;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import lombok.AllArgsConstructor;
@@ -20,21 +21,27 @@ public class ProductVariantDetailsRespDto {
 
     private Long id;
 
+    @JsonProperty("product_id")
+    private Long productId;
+
     //Наименование варианта товара
     private String title;
     //Стоимость варианта товара
 
     private int price;
 
-
     //Ссылка на превью
+    @JsonProperty("preview_img_link")
     private String previewImgLink;
 
     //Ссылки на изображения для галереи
     private List<ProductImageRespDto> productImages;
 
+    @JsonProperty("show_variant")
     private boolean showVariant;
 
+
+    @JsonProperty("is_deleted")
     private boolean isDeleted;
 
 
@@ -50,6 +57,7 @@ public class ProductVariantDetailsRespDto {
 
     public ProductVariantDetailsRespDto(ProductVariant variant) {
         this.id = variant.getId();
+        this.productId = variant.getProduct().getId();
 
         this.previewImgLink = variant.getPreviewImg();
         this.title = variant.getTitle();
