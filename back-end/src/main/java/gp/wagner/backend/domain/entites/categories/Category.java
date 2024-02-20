@@ -2,15 +2,14 @@ package gp.wagner.backend.domain.entites.categories;
 
 import gp.wagner.backend.domain.entites.eav.ProductAttribute;
 import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entites.visits.Visitor;
 import jakarta.annotation.Nullable;
 import lombok.*;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 //Категории
 @Entity
@@ -49,21 +48,29 @@ public class Category {
     private List<Product> products;
 
     //Атрибуты под конкретную категорию - названия характеристик
-    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    /*@ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinTable(name = "attributes_categories",
             joinColumns = {@JoinColumn(name = "category_id")},
-            inverseJoinColumns = {@JoinColumn(name = "attribute_id")})
-    private Set<ProductAttribute> productAttributes = new HashSet<>();
+            inverseJoinColumns = {@JoinColumn(name = "attribute_id")})*/
+    @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST, mappedBy = "categories")
+    private List<ProductAttribute> productAttributes = new ArrayList<>();
 
     // Флаг вывода товаров категории
     @Column(name = "is_shown")
-    private Boolean isShown;
+    private Boolean isShown = true;
 
-    public Category(Long id, @NonNull String name, RepeatingCategory repeatingCategory, Category parentCategory) {
+    public Category(Long id, String name, RepeatingCategory repeatingCategory, Category parentCategory) {
         this.id = id;
         this.name = name;
         this.repeatingCategory = repeatingCategory;
         this.parentCategory = parentCategory;
     }
+
+    public Category(Long id, String name, RepeatingCategory repeatingCategory, Category parentCategory, boolean isShown) {
+        this(id, name, repeatingCategory, parentCategory);
+        this.isShown = isShown;
+    }
+
 }
+
 

@@ -4,7 +4,7 @@ import gp.wagner.backend.domain.dto.request.crud.BasketRequestDto;
 import gp.wagner.backend.domain.dto.response.BasketRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -87,7 +87,7 @@ public class BasketsController {
 
     //Добавление ещё товаров в корзину
     @PutMapping(value = "/add_product_variants", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> addProductVariants(@Valid @RequestBody(/*value = "basket"*/) BasketRequestDto basketRequestDto){
+    public ResponseEntity<String> addProductVariants(@Valid @RequestBody() BasketRequestDto basketRequestDto){
 
         try {
 

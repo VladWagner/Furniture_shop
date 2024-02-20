@@ -4,19 +4,20 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.product.ProductDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
-import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.dto.response.product_attributes.AttributeValueRespDto;
+import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.domain.entites.products.Product;
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -64,26 +65,26 @@ public class ProductsController {
 
     //Выборка всех товаров по категории с пагинацией
     @GetMapping(value = "/by_category",produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map.Entry<Long, List<ProductPreviewRespDto>>  getProductsByCategoryPaged(
+    public PageDto<ProductPreviewRespDto> getProductsByCategoryPaged(
                                              @RequestParam(value = "category_id", defaultValue = "1") long categoryId,
                                              @RequestParam(value = "fingerprint") String fingerprint,
                                              @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
                                              @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
-                                             @RequestParam(value = "sort", defaultValue = "price_desc") String sortType){
+                                             @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                             @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
-        Category requiredCategory = Services.categoriesService.getById(categoryId);
+        if (categoryId > 0)
+                Services.categoryViewsService.createOrUpdate(fingerprint, categoryId);
+        else if (categoryId < 0)
+            Services.categoryViewsService.createOrUpdateRepeatingCategory(fingerprint, categoryId);
 
-        //Совершить подсчёт кол-а просмотров, только если это не общая категория
-        if (requiredCategory.getParentCategory() == null)
-            throw new ApiException("I can't look for products by general category!");
+        Page<Product> productsPage = Services.productsService.getByCategory(categoryId,pageNum, limit,
+                ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
-        Services.categoryViewsService.createOrUpdate(fingerprint, categoryId);
 
-        Page<Product> productsPage = Services.productsService.getByCategory(categoryId,pageNum - 1, limit);
-
-        List<ProductPreviewRespDto> productsDto = ControllerUtils.getProductsPreviewsList(productsPage.getContent());
-
-        return new AbstractMap.SimpleEntry<>(productsPage.getTotalElements(), productsDto);
+        return new PageDto<>(
+                productsPage, () -> productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList()
+        );
     }
 
     //Выборка всех товаров по производителю
@@ -92,10 +93,12 @@ public class ProductsController {
                                              @RequestParam(value = "producer_id", defaultValue = "1") long producerId,
                                              @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
                                              @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
-                                             @RequestParam(value = "sort", defaultValue = "price_desc") String sortType){
+                                             @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                             @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
 
-        Page<Product> productsPage = Services.productsService.getByProducerPaged(producerId,pageNum - 1, limit);
+        Page<Product> productsPage = Services.productsService.getByProducerPaged(producerId,pageNum, limit,
+                ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         return new PageDto<>(
                 productsPage, () -> productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList()
@@ -122,22 +125,39 @@ public class ProductsController {
 
         return new PageDto<>(productsPage, () -> productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList())/*new AbstractMap.SimpleEntry<>(productsTuple.getValue2().longValue(), productsDto)*/;
     }
+
+    // Фильтрация товаров, где учитываются не только цены самих товаров, но и их вариантов
+    // На фронте нужно будет отправлять
     @GetMapping(value = "/filter_new",produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<ProductPreviewRespDto> getProductsPagedAndFiltered2(
             @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
             @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit") @Max(80) int limit,
             @RequestParam(value = "category_id", defaultValue = "0")  Long categoryId,
-            @RequestParam(value = "price_range", defaultValue = "") String priceRange){
+            @RequestParam(value = "price_range", defaultValue = "") String priceRange,
+            @Nullable @RequestParam(value = "fingerprint") String fingerprint,
+            @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+            @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
 
         SimpleTuple<Integer, Integer> prices = Utils.parseTwoNumericValues(priceRange);
 
+        categoryId =  categoryId == 0 ? null : categoryId;
+
         // Container - список DTO с условиями фильтрации и логическими операциями (or/and)
-        Page<Product> productsPage = Services.productsService.getAllWithCorrectPrices(container, categoryId < 1 ? null : categoryId,
-                prices != null ? priceRange : null, pageNum, limit);
+        Page<Product> productsPage = Services.productsService.getAllWithCorrectPrices(container, categoryId,
+                prices != null ? priceRange : null, pageNum, limit, ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        // Засчитать просмотр категории, если его ещё не было в эти сутки
+        if (fingerprint != null && categoryId != null) {
+            if (categoryId > 0)
+                Services.categoryViewsService.createOrUpdate(fingerprint, categoryId);
+            else if (categoryId < 0)
+                Services.categoryViewsService.createOrUpdateRepeatingCategory(fingerprint, categoryId);
+        }
 
         return new PageDto<>(productsPage, () -> {
+            // Если диапазон цен был задан, значит происходила выборка по ценам вариантов товаров
             if (prices == null)
                 return productsPage.getContent().stream().map(ProductPreviewRespDto::new).toList();
             else
@@ -167,12 +187,13 @@ public class ProductsController {
         //Увеличить значение в счётчике просмотров каждого продукта
         if (product != null && fingerPrint != null)
             Services.productViewService.createOrUpdate(fingerPrint, product.getId());
+
         else if (product == null)
             throw new ApiException(String.format("Не удалось выбрать товар с id: %d", id));
         return ProductDetailsRespDto.factory(product);
     }
 
-    //Добаление товара и его базового варианта (для которого будут задаваться начальные характеристики и изображения)
+    //Добавление товара и его базового варианта (для которого будут задаваться начальные характеристики и изображения)
     @PostMapping()
     public String createProduct(@Valid @RequestPart(value = "product") ProductDto productDto,
                                 @RequestPart(value = "files") List<MultipartFile> files){

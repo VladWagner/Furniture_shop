@@ -3,20 +3,28 @@ package gp.wagner.backend.services.implementations.categories;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.SortingUtils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.VisitorAndViewsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.categories.CategoryViewsRepository;
 import gp.wagner.backend.services.interfaces.categories.CategoryViewsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CategoryViewsServiceImpl implements CategoryViewsService {
@@ -71,22 +79,24 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         if (visitor == null) {
 
             Visitor v = new Visitor(null, "", fingerPrint, new Date());
-
-            /*Services.visitorsService.create("", fingerPrint);
-            createdVisitorId = Services.visitorsService.getMaxId();*/
-
             createdVisitorId = Services.visitorsService.create(v);
         }
 
-        //Проверить наличие записи просмотра категории для конкретного посетителя по конкретной категории
+        //Проверить наличие записи просмотра категории для конкретного посетителя
         CategoryViews categoryViews = getByVisitorAndCategoryId(visitor != null ?
                 visitor.getId() :
                 createdVisitorId, categoryId);
+
 
         //Если запись не существует, тогда создаём, если запись имеется, тогда увеличить счетчик
         if (categoryViews == null)
             repository.insertCategoryView(visitor == null ? createdVisitorId : visitor.getId(), categoryId, 1);
         else{
+
+            // Если за эти сутки уже был просмотр - не учитываем его
+            if (!categoryViews.goneMoreThan(24))
+                return;
+
             categoryViews.setCount(categoryViews.getCount()+1);
             update(categoryViews);
 
@@ -95,6 +105,61 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         /*if (category.getParentCategory() != null)
             //Рекурсивный вызов для увеличения просмотров родительских категорий
             createOrUpdate(fingerPrint, category.getParentCategory().getId());*/
+    }
+
+    @Override
+    public void createOrUpdateRepeatingCategory(String fingerPrint, long categoryId) {
+        if (categoryId >= 0 || fingerPrint.isBlank())
+            return;
+
+        categoryId = Math.abs(categoryId);
+
+        Services.categoriesService.getRepeatingCategoryById(categoryId);
+
+        //Найти с заданным отпечатком браузера
+        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint);
+
+        //Найти категорию по заданному id
+        List<Long> categoriesIdsList = Services.categoriesService.getRepeatingCategoryChildren(categoryId);
+        List<Category> categories = Services.categoriesService.getByIdList(categoriesIdsList);
+
+
+        // Найти существующие записи о просмотрах категорий по списку категорий + посетителю
+        Map<Long,CategoryViews> categoryViewsMap = repository.findCategoryViewsByCategoryIds(categoriesIdsList)
+                .stream()
+                .collect(Collectors.toMap(
+                        (cv) -> cv.getCategory().getId(),
+                        (cv) -> cv,
+                        (oldVal, newVal) -> oldVal,
+                        HashMap::new
+                ));
+
+        // Пройти по всем найденным категориям
+        for (Category category : categories) {
+
+            long existingCategoryId = category.getId();
+            CategoryViews cv;
+
+            // Запись в таблице существует
+            if (categoryViewsMap.containsKey(existingCategoryId)){
+                cv = categoryViewsMap.get(existingCategoryId);
+
+                // Если заданная категория была просмотрена <= суток назад
+                if (!cv.goneMoreThan(24))
+                    continue;
+
+                cv.setCount(cv.getCount()+1);
+                categoryViewsMap.replace(existingCategoryId, cv);
+                continue;
+            }
+
+            cv = new CategoryViews(null, visitor, category, 1);
+            categoryViewsMap.put(existingCategoryId, cv);
+        }
+
+        // Сохранить список изменённых/созданных записей
+        repository.saveAllAndFlush(categoryViewsMap.values());
+
     }
     //endregion
 
@@ -164,7 +229,6 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
     @Override
     public CategoryViews getSimpleCVByCategoryId(long id) {
 
-
         //Найти категорию по заданному id
         Category category = Services.categoriesService.getById(id);
 
@@ -178,7 +242,7 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         return new CategoryViews(null, null, category,generalViews != null ? generalViews : 0);
     }
 
-    //Получить просмотры категорий по конкрентому пользователю
+    //Получить просмотры категорий по конкретному посетителю
     @Override
     public CategoryViews getByVisitorFingerPrint(String fingerPrint) {
 
@@ -229,5 +293,38 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
             return categoryViews.get(0);
         else
             return null;
+    }
+    @Override
+    public Page<Tuple> getVisitorsAndCategoriesViews(int pageNum, int dataOnPage,
+                                                     VisitorAndViewsSortEnum sortEnum, GeneralSortEnum sortType) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
+        Root<Visitor> root = query.from(Visitor.class);
+
+        // Присоединения таблиц нужны для сортировки
+        Join<Visitor, CategoryViews> categoriesViewsJoin = root.join("categoriesViewsList");
+
+        Expression<Long> countViewsExpression = cb.count(categoriesViewsJoin.get("id"));
+        Expression<Integer> viewsSumExpression = cb.sum(categoriesViewsJoin.get("count"));
+
+        SortingUtils.createSortQueryForVisitorsAndViews(cb, query, root, countViewsExpression, viewsSumExpression, sortEnum, sortType);
+
+        query.multiselect(
+                root.get("id"),
+                countViewsExpression,
+                viewsSumExpression
+             ).groupBy(root.get("id"));
+
+        TypedQuery<Tuple> typedQuery = entityManager.createQuery(query);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+        typedQuery.setMaxResults(dataOnPage);
+
+        Long elementsCount = PaginationUtils.countVisitorsWithProductsViews(entityManager);
+
+        return new PageImpl<>(typedQuery.getResultList(), PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 }

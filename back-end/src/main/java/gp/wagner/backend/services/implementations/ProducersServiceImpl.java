@@ -2,7 +2,7 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.ProducersRepository;

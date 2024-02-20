@@ -1,4 +1,4 @@
-package gp.wagner.backend.domain.dto.response;
+package gp.wagner.backend.domain.dto.response.product_attributes;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;

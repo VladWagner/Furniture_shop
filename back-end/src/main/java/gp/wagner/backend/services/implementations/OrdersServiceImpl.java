@@ -10,11 +10,11 @@ import gp.wagner.backend.domain.entites.orders.OrderState;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.visits.Visitor;
-import gp.wagner.backend.domain.exception.ApiException;
-import gp.wagner.backend.infrastructure.Constants;
-import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.SimpleTuple;
-import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.*;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.CustomersRepository;
 import gp.wagner.backend.repositories.orders.OrdersAndProductVariantsRepository;
@@ -73,11 +73,6 @@ public class OrdersServiceImpl implements OrdersService {
     @PersistenceContext
     private EntityManager entityManager;
     //endregion
-
-    @Override
-    public Page<Order> getAll(int pageNum, int dataOnPage) {
-        return ordersRepository.findAll(PageRequest.of(pageNum-1, dataOnPage));
-    }
 
     @Override
     public SimpleTuple<Long, Long> create(Order order) {
@@ -153,6 +148,7 @@ public class OrdersServiceImpl implements OrdersService {
         ProductVariant productVariant;
 
         int orderSum = 0;
+        int productsAmount = 0;
 
         for (Map.Entry<Integer,Integer> entry : dto.getProductVariantIdAndCount().entrySet()) {
 
@@ -164,11 +160,13 @@ public class OrdersServiceImpl implements OrdersService {
             opvList.add(new OrderAndProductVariant(null, entry.getValue(), productVariant, createdOrder));
 
             orderSum += productVariant.getPrice();
+            productsAmount += entry.getValue();
 
         }
 
-        // Установить сумму заказа
+        // Установить сумму заказа и общее кол-во единиц вариантов товара
         createdOrder.setSum(orderSum);
+        createdOrder.setGeneralProductsAmount(productsAmount);
 
         update(createdOrder);
 
@@ -311,6 +309,7 @@ public class OrdersServiceImpl implements OrdersService {
                         (e.getProductVariant().getIsDeleted() == null || !e.getProductVariant().getIsDeleted())
                 ).toList();
 
+        // Задаём список
         ServicesUtils.countSumInOrders(ordersToChange, opvAll);
 
         ordersRepository.saveAll(ordersToChange);
@@ -376,14 +375,29 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     @Override
+    public Page<Order> getAll(int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        return ordersRepository.findAll(PageRequest.of(pageNum-1, dataOnPage, SortingUtils.createSortForOrders(sortEnum, sortType)));
+    }
+
+    @Override
     public Order getById(Long id) {
         return ordersRepository.findById(id).orElse(null);
     }
 
-    // Дневная статистика
+    // Дневная статистика по товарам
     @Override
-    public SimpleTuple<String, Integer> getDailyOrdersStatistics(OrderReportDto reportDto) {
-        return null;
+    public Page<Tuple> getDailyOrdersStatistics(OrderReportDto reportDto, int pageNum, int dataOnPage
+            , OrdersStatisticsSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        if(reportDto == null || reportDto.getMinDate() == null || !reportDto.getMinDate().before(reportDto.getMaxDate()))
+            throw new ApiException("Переданный DTO для отчёта по товарам задан некорректно!");
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        return ordersRepository.getDailyOrdersStatistics(reportDto.getMinDate(), reportDto.getMaxDate(), reportDto.getStateId(),
+                PageRequest.of(pageNum, dataOnPage, SortingUtils.createSortForOrdersStatistics(sortEnum, sortType)));
     }
 
     @Override
@@ -397,7 +411,7 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     @Override
-    public List<Order> getOrdersByEmail(String email) {
+    public List<Order> getOrdersByEmail(String email, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -415,6 +429,8 @@ public class OrdersServiceImpl implements OrdersService {
 
         query.where(predicate);
 
+        SortingUtils.createSortQueryForOrders(cb, query, orderRoot, sortEnum, sortType);
+
         return entityManager.createQuery(query).getResultList();
     }
 
@@ -430,7 +446,7 @@ public class OrdersServiceImpl implements OrdersService {
 
     // Получение всех заказов для определённого товара
     @Override
-    public Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage) {
+    public Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
 
         if (pageNum > 0)
             pageNum -= 1;
@@ -446,10 +462,12 @@ public class OrdersServiceImpl implements OrdersService {
         // Присоединение сущности productVariant
         Join<OrderAndProductVariant, ProductVariant> pvJoin = root.join("productVariant");
         Path<Product> product = pvJoin.get("product");
-        Path<Order> orderPath = root.get("order");
+        Join<OrderAndProductVariant, Order> orderJoin = root.join("order");
 
         query.where(cb.equal(product.get("id"), productId));
-        query.select(orderPath);
+        query.select(orderJoin);
+
+        SortingUtils.createSortQueryForOrders(cb, query, orderJoin, sortEnum, sortType);
 
         TypedQuery<Order> typedQuery = entityManager.createQuery(query);
 

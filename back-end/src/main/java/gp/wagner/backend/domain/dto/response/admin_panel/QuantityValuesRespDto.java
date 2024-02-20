@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.response.admin_panel;
 
+import jakarta.persistence.Tuple;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -30,6 +31,14 @@ public class QuantityValuesRespDto {
         this.min = ((BigDecimal) rawTuple[0]).floatValue();
         this.avg = ((BigDecimal) rawTuple[1]).doubleValue();
         this.max = ((BigDecimal) rawTuple[2]).floatValue();
+
+    }
+
+    public QuantityValuesRespDto(Tuple tuple) {
+
+        this.min = tuple.get(0, Integer.class).floatValue();
+        this.avg = tuple.get(1, BigDecimal.class).doubleValue();
+        this.max = tuple.get(2, Integer.class).floatValue();
 
     }
 

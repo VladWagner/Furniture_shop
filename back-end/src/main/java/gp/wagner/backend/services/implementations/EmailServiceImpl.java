@@ -59,4 +59,22 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(passwordResetMail);
     }
+
+    @Override
+    public void sendConfirmationTokenMime(String email, String token, String userLogin) throws MessagingException {
+        MimeMessage passwordResetMail = mailSender.createMimeMessage();
+
+        MimeMessageHelper helper = new MimeMessageHelper(passwordResetMail);
+        helper.setFrom(env.getProperty("spring.mail.mail_from"));
+        helper.setTo(email);
+        helper.setSubject(String.format("Подтверждение почты для пользователя %s", userLogin));
+        String content = String.format("""
+                <p>Для подтверждение перейдите по ссылке ниже ↓:</p>
+                <a href='http://localhost:8080/confirm?token=%1$s'>Подтвердить аккаунт</a>
+                <p>Токен: <b>%1$s</b></p>
+                """, token);
+        helper.setText(content, true);
+
+        mailSender.send(passwordResetMail);
+    }
 }

@@ -1,5 +1,6 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
@@ -7,6 +8,7 @@ import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.baskets.Basket;
 import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.entites.eav.ProductAttribute;
 import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
@@ -14,13 +16,13 @@ import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entites.visits.DailyVisits;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
-import gp.wagner.backend.domain.specifications.ProductSpecifications;
-import gp.wagner.backend.domain.specifications.UsersSpecifications;
 import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
-import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
+import gp.wagner.backend.middleware.Services;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
@@ -117,11 +119,14 @@ public class ServicesUtils {
 
         // Доп.фильтрация по категории
         if (categoryId != null) {
-            //Присоединить сущность категорий
+            // Присоединить сущность категорий
             Join<Product, Category> categoryJoin = root.join("category");
 
-            //Задать доп. условие выборки - по категориям
-            predicates.add(cb.equal(categoryJoin.get("id"), categoryId));
+            // Получить id дочерних категорий
+            List<Long> childCategoriesIds = getChildCategoriesList(categoryId);
+
+            // Выбрать товары, которые содержатся в дочерних категориях, если задана родительская
+            predicates.add(categoryJoin.get("id").in(childCategoriesIds));
         }
 
         // Доп.фильтрация по производителям
@@ -151,37 +156,50 @@ public class ServicesUtils {
         return predicates;
     }
 
-    public static List<Predicate> collectProductsPredicatesForFilter(CriteriaBuilder cb, From<?, ?> root, CriteriaQuery<?> query,
-                                                            ProductFilterDtoContainer container, Long categoryId, SimpleTuple<Integer, Integer> priceRange){
-        Class<?> rootType = root.getJavaType();
+    public static List<Long> getChildCategoriesList(Long categoryId){
 
-        if (rootType != Product.class)
+        // Если задана id обычной категории (по договоренности значения < 0 могут быть id повторяющихся категорий)
+        if (categoryId > 0)
+            return Services.categoriesService.getAllChildCategories(categoryId);
+
+        categoryId = Math.abs(categoryId);
+
+        // Получить id категорий, использующих данную повторяющуюся категорию
+        List<Long> categoriesIds = Services.categoriesService.getRepeatingCategoryChildren(categoryId);
+
+        // Результирующая рекурсивная выборка id дочерних категорий
+        List<Long> resultCategoriesList = new ArrayList<>(Services.categoriesService.getAllChildCategories(categoriesIds));
+
+        return resultCategoriesList;
+    }
+
+    public static List<Long> getChildCategoriesList(List<Long> categoryIds){
+
+        if (categoryIds == null || categoryIds.isEmpty())
             return null;
 
-        List<Predicate> predicates = new ArrayList<>();
+        List<Long> simpleCategoriesIds = categoryIds.stream().filter(e -> e > 0).toList();
 
-        //Доп.фильтрация по категории
-        if (categoryId != null) {
-            //Присоединить сущность категорий
-            Join<Product, Category> categoryJoin = root.join("category");
+        // Оставить только id повторяющихся категорий (по договоренности их id < 0)
+        List<Long> repeatingCategoriesIds = categoryIds.stream().filter(e -> e < 0).collect(Collectors.toCollection(ArrayList::new));
 
-            //Задать доп. условие выборки - по категориям
-            predicates.add(cb.equal(categoryJoin.get("id"), categoryId));
+        List<Long> resultCategoriesList = new ArrayList<>();
+
+        // Если не пуст список обычных категорий
+        if (!simpleCategoriesIds.isEmpty())
+            resultCategoriesList.addAll(Services.categoriesService.getAllChildCategories(simpleCategoriesIds));
+
+        // Если в основном списке остались категории <= 0 - id записей из таблицы повторяющихся категорий
+        if (!repeatingCategoriesIds.isEmpty()) {
+            repeatingCategoriesIds.replaceAll(Math::abs);
+
+            // Получить категории, использующие найденные повторяющиеся категории + дочерние категории данных категорий
+            resultCategoriesList.addAll(Services.categoriesService.getRepeatingCategoriesChildrenWithHeirs(repeatingCategoriesIds));
         }
 
-        //Доп.фильтрация по производителям
-        if (container != null && container.getProducersNames() != null && container.getProducersNames().size() > 0){
-            Join<Product, Producer> producerJoin = root.join("producer");
-
-            predicates.add(producerJoin.get("producerName").in(container.getProducersNames()));
-        }
-
-        //Доп.фильтрация по ценам
-        if (priceRange != null)
-            predicates.add(getProductVariantPricePredicate(priceRange, root, query, cb));
-
-        return predicates;
+        return resultCategoriesList;
     }
+
 
     // Сформировать все предикаты для заказов
     public static List<Predicate> collectOrdersPredicates(CriteriaBuilder cb, OrdersAndBasketsCountFiltersRequestDto dto,
@@ -410,20 +428,28 @@ public class ServicesUtils {
                 continue;
 
             // Собственно пересчёт суммы
-            int newSum = opvList.stream()
+            /*int newSum = opvList.stream()
                     .map(e -> e.getProductVariant().getPrice() * e.getProductsAmount())
-                    .reduce(0, Integer::sum);
+                    .reduce(0, Integer::sum);*/
+            int newSum = 0;
+            int newProductsAmount = 0;
+
+            for (OrderAndProductVariant opv : opvList) {
+                newSum += opv.getProductVariant().getPrice() * opv.getProductsAmount();
+                newProductsAmount += opv.getProductsAmount();
+            }
 
             order.setSum(newSum);
+            order.setGeneralProductsAmount(newProductsAmount);
 
         }// for
     }
 
     // Пересчёт суммы в одном заказе
-    public static void countSumInOrder(Order order, List<OrderAndProductVariant> opvList, boolean filtrateList){
+    public static void countSumInOrder(Order order, List<OrderAndProductVariant> opvList, boolean filtrateOpvList){
 
         // Если задан флаг фильтрации
-        if (filtrateList)
+        if (filtrateOpvList)
             opvList = opvList.stream()
                     .filter(e ->
                             e.getProductVariant().getShowVariant() &&
@@ -434,11 +460,20 @@ public class ServicesUtils {
             return;
 
         // Собственно пересчёт суммы
-        int newSum = opvList.stream()
-                .map(e -> e.getProductVariant().getPrice() * e.getProductsAmount())
-                .reduce(0, Integer::sum);
+            /*int newSum = opvList.stream()
+                    .map(e -> e.getProductVariant().getPrice() * e.getProductsAmount())
+                    .reduce(0, Integer::sum);*/
+        int newSum = 0;
+        int newProductsAmount = 0;
+
+        // Посчитать
+        for (OrderAndProductVariant opv : opvList) {
+            newSum += opv.getProductVariant().getPrice() * opv.getProductsAmount();
+            newProductsAmount += opv.getProductsAmount();
+        }
 
         order.setSum(newSum);
+        order.setGeneralProductsAmount(newProductsAmount);
 
     }
 
@@ -739,7 +774,7 @@ public class ServicesUtils {
     // Сформировать и отсортировать ассоциативную коллекцию фильтров по убыванию приоритетов
     public static Map<String, List<FilterValuesDto<Integer>>> createAndSortFilterMap(List<FilterValuesDto<Integer>> filterValuesDtoList){
 
-        // Сформироват начальную ассоциативную коллекцию без сортировки по приоритетам
+        // Сформировать начальную ассоциативную коллекцию без сортировки по приоритетам
         Map<String, List<FilterValuesDto<Integer>>> groupedFilters = filterValuesDtoList.stream()
                 .collect(Collectors.groupingBy(FilterValuesDto::getAttributeName));
 
@@ -754,5 +789,80 @@ public class ServicesUtils {
                         LinkedHashMap::new
                 ));
     }
+
+    // Подсчёт количества записей о посещении магазина за определённый период
+    public static long countDailyVisitsInPeriod(EntityManager entityManager, DatesRangeRequestDto datesRangeDto){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<DailyVisits> root = query.from(DailyVisits.class);
+
+        Predicate selectionPredicate = cb.between(root.get("date"), datesRangeDto.getMin(), datesRangeDto.getMax());
+
+        query.where(selectionPredicate);
+
+        query.select(cb.count(root.get("id")));
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
+    // Подсчёт количества записей о посещении магазина за определённый период с максимальным количеством самих посещений
+    public static long countTopDailyVisitsInPeriod(EntityManager entityManager, DatesRangeRequestDto datesRangeDto, int maxViewsCount){
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<DailyVisits> root = query.from(DailyVisits.class);
+
+        // Сформировать предикат для выборки записей посещений за определеённый период и кол-во самих посещений близко к максимальному
+        Predicate selectionPredicate = cb.between(root.get("date"), datesRangeDto.getMin(), datesRangeDto.getMax());
+        selectionPredicate = cb.and(
+                selectionPredicate,
+                cb.ge(root.get("countVisits"), maxViewsCount)
+        );
+
+        query.where(selectionPredicate)
+             .select(cb.count(root.get("id")));
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
+    // Подсчёт количества записей о посещении магазина за определённый период с максимальным количеством самих посещений
+    public static long countProductAttributesByCategory(EntityManager entityManager, long categoryId){
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<ProductAttribute> root = query.from(ProductAttribute.class);
+
+        Predicate predicate = cb.equal(root.get("categories").get("id"), categoryId);
+
+        query.select(cb.count(root.get("id"))).where(predicate);
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
+    // Подсчёт количества товаров для определённого производителя
+    public static long countProductsByProducerOrCategory(EntityManager entityManager, long requiredId, Class<?> searchingType){
+
+        // Проверить, по чём будет происходить выборка
+        if (!searchingType.isAssignableFrom(Producer.class) || !searchingType.isAssignableFrom(Producer.class))
+            return 0;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<Long> query = cb.createQuery(Long.class);
+        Root<Product> root = query.from(Product.class);
+
+        // Определить, по чём будет происходить поиск - производитель или категории
+        Path<?> path = searchingType.isAssignableFrom(Producer.class) ? root.get("producer") : root.get("category");
+
+        Predicate predicate = cb.equal(path.get("id"), requiredId);
+
+        query.select(cb.count(root.get("id"))).where(predicate);
+
+        return entityManager.createQuery(query).getResultList().get(0);
+    }
+
 
 }

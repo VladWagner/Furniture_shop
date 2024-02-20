@@ -66,7 +66,7 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
     @Modifying
     void deleteByIdIn(List<Long> ids);
 
-    //Получить значения атрибутов и их диапазоны для фильтрации
+    // Получить значения атрибутов и их диапазоны для фильтрации
     @Query(nativeQuery = true,value = """
         with products_in_category as(
             select
@@ -91,13 +91,14 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
         where
              av.product_id in (select pic.id from products_in_category pic) and
-             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != '')) and
+             prod_attr.is_shown is true
         group by
             prod_attr.attr_name, av.attribute_id, av.txt_values;
     """)
     List<Object[]> getAttributeValuesByCategory(@Param("categoryId") long categoryId);
 
-    //Получить значения атрибутов и их диапазоны для фильтрации
+    // Получить значения атрибутов и их диапазоны для фильтрации
     @Query(nativeQuery = true,value = """
         with products_in_category as(
             select
@@ -121,7 +122,8 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
         where
              av.product_id in (select pic.id from products_in_category pic) and
-             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != '')) and
+             prod_attr.is_shown is true
         group by
             prod_attr.attr_name, av.attribute_id, av.txt_values;
     """)
@@ -156,11 +158,27 @@ public interface AttributeValuesRepository extends JpaRepository<AttributeValue,
             attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
         where
              av.product_id in (select pic.id from products_in_category pic) and
-             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != '')) and
+             prod_attr.is_shown is true
         group by
             prod_attr.attr_name, av.attribute_id, av.txt_values;
     """)
     List<Object[]> getAttributeValuesByKeyword(@Param("keyword") String key);
+
+    // Получить значения атрибутов по id самого атрибута
+    @Query(nativeQuery = true,value = """ 
+        select
+            av.txt_values as 'str_value',
+            av.int_value as 'int_value'
+        from
+            attributes_values av join products_attributes prod_attr on av.attribute_id = prod_attr.id
+        where
+             av.product_id = :prod_attr_id and
+             (av.int_value is not null or (av.txt_values is not null and av.txt_values != ''))
+        group by
+            av.txt_values, av.int_value;
+    """)
+    List<Object[]> getAttributeValuesByAttrId(@Param("prod_attr_id") long attrId);
 
 }
 

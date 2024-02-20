@@ -1,4 +1,4 @@
-package gp.wagner.backend.infrastructure.enums;
+package gp.wagner.backend.infrastructure.enums.sorting;
 
 //Тип сортировки по цене
 public enum GeneralSortEnum {

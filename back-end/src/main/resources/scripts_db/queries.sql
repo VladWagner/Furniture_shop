@@ -256,7 +256,7 @@ from categories_views cw join (categories c
 where c.id = 2 or parent_id = 2;
 
 -- Выборка всех дочерних категорий
-set @categoryId = 1;
+set @categoryId = (4,5,6);
 with recursive category_tree as (
                 -- Выборка родительской категории (базовый узел) НА КАЖДОМ УРОВНЕ РЕКУРСИИ
                 select
@@ -266,7 +266,7 @@ with recursive category_tree as (
                     parent_id
                 from
                     categories
-                where categories.id = @categoryId
+                where categories.id in (4,5,6)
                 union all
                 -- Выборка дочерних категорий - рекурсивная часть (дочерние узлы и листья)
                 -- Т.е. здесь будут выбираться все дочерние категории родительской категории на каждом уровне рекурсии (в глубину и в ширину)
@@ -543,7 +543,7 @@ select
 from visitors join (products_views pv join products p on pv.product_id = p.id) on visitors.id = pv.visitor_id
 group by visitors.id, visitors.fingerprint, p.id, p.product_name, price;
 
--- Количество посещений за
+-- Количество посещений за период
 with visistors_in_dates as (select
     v.last_visit_at,
     COUNT(*) as visits_amount
@@ -621,7 +621,7 @@ from orders o left join (orders_products_variants opv join
                             (variants_product vp join products p on vp.product_id = p.id)
                             on opv.product_variant_id = vp.id)
         on o.id = opv.order_id
-where o.order_date between '2023-09-25' and '2024-01-17' and
+where o.order_date between '2023-10-13' and '2024-02-10' and
     ((@product_id is not null and @product_id > 0 and p.id = @product_id)
         or @product_id is null or @product_id < 0)
 group by order_date_alias, visits)
@@ -816,6 +816,178 @@ from
 where u.login = 'user1')
 from users;
 
--- Выборка характеристик товаров по категории
-delete from password_reset_token prt
-where prt.expiry_date <= now()
+-- Выборка посещений магазина по дням
+select
+    dv.date,
+    sum(dv.count) as visits_amount
+from
+    daily_visits dv
+where dv.date between '2023-12-28' and '2024-02-01'
+group by dv.date;
+select
+    count(dv.id)
+from
+    daily_visits dv
+where dv.date between '2023-12-28' and '2024-02-01'
+group by dv.date;
+
+-- Общая сумма посещений магазина за период
+select
+    sum(dv.count) as visits_amount
+from
+    daily_visits dv
+where dv.date between '2023-12-28' and '2024-02-01';
+
+-- Максимальное кол-во посещений магазина за период
+select
+    max(dv.count) as max_visits_amount
+from
+    daily_visits dv
+where dv.date between '2023-12-28' and '2024-02-01';
+
+
+select
+    min(dv.count) as min_visits_amount,
+    avg(dv.count) as avg_visits_amount,
+    max(dv.count) as max_visits_amount
+from
+    daily_visits dv
+where dv.date between '2023-12-28' and '2024-02-01';
+
+-- Выборка дней с максимальным кол-вом посещений магазина
+set @date_lo = '2023-12-28', @date_hi = '2024-02-01';
+select
+    dv.date,
+    sum(dv.count) as visits_amount
+from
+    daily_visits dv
+where dv.date between @date_lo and @date_hi
+group by dv.date
+having visits_amount >= (select
+                             max(dv.count) as max_visits_amount
+                         from
+                             daily_visits dv
+                         where dv.date between @date_lo and @date_hi) * (1 - 0.1);
+-- Через использование CTE (common table expression)
+set @date_lo = '2023-12-28', @date_hi = '2024-02-01';
+with max_visits_amount as (
+    select
+        max(dv.count) as max_visits_amount
+    from
+        daily_visits dv
+    where dv.date between @date_lo and @date_hi
+)
+
+select
+    dv.date,
+    sum(dv.count) as visits_amount
+from
+    daily_visits dv
+where dv.date between @date_lo and @date_hi
+group by dv.date
+having visits_amount >= (select * from max_visits_amount) * (1 - 0.1);
+
+-- Конверсии через использование daily_visits
+set @product_id = null;
+select
+    bdc.add_date_alias,
+    bdc.addings_amount,
+    bdc.visits,
+    coalesce(bdc.addings_amount/visits*100, 0) as cvr
+from (select
+          DATE(b.added_date) as add_date_alias,
+          coalesce((select sum(dv.count) from daily_visits dv where dv.date = add_date_alias), 0) as visits,
+          COUNT(DISTINCT(b.id)) as addings_amount
+      from baskets b left join (baskets_products_variants bpv join
+          (variants_product vp join products p on vp.product_id = p.id)
+                                on bpv.product_variant_id = vp.id)
+                               on b.id = bpv.basket_id
+      where b.added_date between '2023-09-25' and '2024-01-30' and
+          ((@product_id is not null and @product_id > 0 and p.id = @product_id)
+              or @product_id is null or @product_id <= 0)
+      group by add_date_alias, visits) as bdc;
+
+-- Получить возможные значения по product_attribute_id
+select
+    repeating_c.sub_name,
+    c.id,
+    c.parent_id
+from
+    subcategories repeating_c join categories c on repeating_c.id = c.subcategory_id
+where
+    repeating_c.id in (2,3,4);
+
+-- Сортировка заказов по цене товара
+select
+    p.id,
+    p.category_id,
+    (select pv.price from variants_product pv join products prod on pv.product_id = p.id order by pv.id limit 1) as price
+from
+    products p
+order by (select variant.price
+          from variants_product variant where variant.id = (select min(vp.id) from variants_product vp join products ps on vp.product_id = p.id)) desc;
+
+-- Дневная статистика по заказам + cte для сортировки
+with date_and_orders_count as (
+    select
+        DATE(o.order_date) as order_date_alias,
+        coalesce((select sum(dv.count)
+                  from daily_visits dv where dv.date = order_date_alias group by dv.date), 0) as visits,
+        COUNT(DISTINCT(o.id)) as orders_amount,
+        SUM(o.sum) as orders_sum
+    from orders o
+    where o.order_date between '2023-12-01' and '2024-02-15'
+    group by order_date_alias, visits)
+,doc_with_cvr as (
+    select
+        *,
+        doc.order_date_alias as order_date,
+        coalesce(doc.orders_amount/visits, 0) as cvr
+    from
+        date_and_orders_count doc
+    where
+        doc.visits >= doc.orders_amount)
+
+select
+    dwc.order_date,
+    dwc.orders_amount,
+    dwc.visits,
+    dwc.cvr,
+    dwc.orders_sum
+from
+    doc_with_cvr dwc;
+
+with products_views_frequency as (select
+                                      c.id as category_id,
+                                      p_categ.id as patent_id,
+                                      coalesce(c.category_name, sub_c.sub_name) as categ_name,
+                                      (select coalesce(sum(pviews.count),0) from products_views pviews join products p on p.id = pviews.product_id
+                                       where p.category_id = c.id) as views_amount,
+                                      (select count(pviews.visitor_id) from products_views pviews join products p on p.id = pviews.product_id
+                                       where p.category_id = c.id) as visitors_amount,
+                                      (select coalesce(sum(pviews.count)/count(pviews.visitor_id),0) from products_views pviews join products p on p.id = pviews.product_id
+                                       where p.category_id = c.id) as frequency
+
+                                  from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
+                                                    join categories as p_categ on c.parent_id = p_categ.id)
+select
+    *
+from products_views_frequency;
+
+-- Посетители + просмотренные ими категории
+select
+    v.id,
+    v.fingerprint,
+    v.created_at,
+    v.last_visit_at,
+    count(pv.id) as views_count,
+    sum(pv.count) as views_sum
+from visitors v join (products_views pv join products p on pv.product_id = p.id)
+    on  v.id = pv.visitor_id
+group by v.id, v.fingerprint;
+
+select
+    count(DISTINCT (v.id))
+from visitors v join (categories_views cv join (categories c left join subcategories rc on c.subcategory_id = rc.id)
+                      on cv.category_id = c.id)
+                     on  v.id = cv.visitor_id

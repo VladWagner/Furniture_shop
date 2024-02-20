@@ -23,6 +23,11 @@ public class ViewsFrequencyRespDto {
     @JsonProperty(value = "category_name")
     private String categoryName;
 
+    // Id родительской категории
+    @NonNull
+    @JsonProperty(value = "parent_category")
+    private Integer parentId;
+
     // Сумма просмотров
     @NonNull
     @JsonProperty(value = "views_sum")
@@ -40,8 +45,9 @@ public class ViewsFrequencyRespDto {
     public ViewsFrequencyRespDto(Object[] rawTuple) {
         category_id = (Integer) rawTuple[0];
         categoryName = rawTuple[1].toString();
-        viewsSum = ((BigDecimal) rawTuple[2]).intValue();
-        visitorsCount = (Long) rawTuple[3];
-        frequency = ((BigDecimal) rawTuple[4]).floatValue();
+        parentId = (Integer) rawTuple[2];
+        viewsSum = ((BigDecimal) rawTuple[3]).intValue();
+        visitorsCount = (Long) rawTuple[4];
+        frequency = ((BigDecimal) rawTuple[5]).floatValue();
     }
 }

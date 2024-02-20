@@ -147,6 +147,22 @@ public class Services {
         Services.emailService = service;
     }
 
+    // Сервис для работы с daily visits
+    public static DailyVisitsService dailyVisitsService ;
+
+    @Autowired
+    public void setDailyVisitsService(DailyVisitsService service){
+        Services.dailyVisitsService = service;
+    }
+
+    // Сервис для работы с product attributes
+    public static ProductAttributesService productAttributesService ;
+
+    @Autowired
+    public void setDailyVisitsService(ProductAttributesService service){
+        Services.productAttributesService = service;
+    }
+
     //Сервис для инициализации hibernate search
     public static Indexer indexer;
 

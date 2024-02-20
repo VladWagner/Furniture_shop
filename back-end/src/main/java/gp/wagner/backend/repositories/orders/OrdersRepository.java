@@ -1,6 +1,9 @@
 package gp.wagner.backend.repositories.orders;
 
 import gp.wagner.backend.domain.entites.orders.Order;
+import jakarta.persistence.Tuple;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -85,6 +89,41 @@ public interface OrdersRepository extends JpaRepository<Order,Long> {
     where order.customer.email = :email
     """)
     List<Order> getOrdersByEmail(@Param("email") String email);
+
+    // Статистика по заказам по дням
+    @Query(nativeQuery = true, value = """
+    with date_and_orders_count as (
+        select
+            DATE(o.order_date) as order_date_alias,
+            coalesce((select sum(dv.count)
+                      from daily_visits dv where dv.date = order_date_alias group by dv.date), 0) as visits,
+            COUNT(DISTINCT(o.id)) as orders_amount,
+            SUM(o.sum) as orders_sum
+        from orders o
+        where o.order_date between :date_lo and :date_hi and
+                ((:state is not null and :state > 0 and o.order_state_id = :state)
+                      or :state is null or :state <= 0)
+        group by order_date_alias, visits),
+       doc_with_cvr as (
+        select
+            *,
+            doc.order_date_alias as order_date,
+            coalesce(doc.orders_amount/visits, 0) as cvr
+        from
+            date_and_orders_count doc
+        where
+            doc.visits >= doc.orders_amount)
+  
+        select
+            dwc.order_date,
+            dwc.orders_amount,
+            dwc.visits,
+            dwc.cvr,
+            dwc.orders_sum
+        from
+            doc_with_cvr dwc
+    """)
+    Page<Tuple> getDailyOrdersStatistics(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("state") Integer orderStateId, Pageable pageable);
 
     //Получить maxId
     @Query(value = """

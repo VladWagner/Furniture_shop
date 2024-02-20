@@ -1,9 +1,7 @@
 package gp.wagner.backend.validation.producer_request_dto.validators;
 
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
-import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.validation.producer_request_dto.annotations.ValidProducerRequestDto;
-import gp.wagner.backend.validation.producer_request_dto.exceptions.ProducerDisclosureException;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

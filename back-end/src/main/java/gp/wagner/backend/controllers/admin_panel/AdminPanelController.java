@@ -1,6 +1,6 @@
 package gp.wagner.backend.controllers.admin_panel;
 
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.middleware.Services;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

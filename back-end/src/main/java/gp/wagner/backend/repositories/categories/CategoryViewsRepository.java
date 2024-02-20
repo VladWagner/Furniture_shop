@@ -54,6 +54,15 @@ public interface CategoryViewsRepository extends JpaRepository<CategoryViews,Lon
     //Выбрать просмотры категорий по id
     List<CategoryViews> findCategoryViewsByCategoryId(long categoryId);
 
+    //Выбрать просмотры категорий по списку id
+    @Query(value = """
+    select
+    cv
+    from CategoryViews cv
+    where cv.category.id in :categories_ids
+""")
+    List<CategoryViews> findCategoryViewsByCategoryIds(@Param("categories_ids") List<Long> categoryIds);
+
     @Query(value = """
     select
         p
@@ -65,7 +74,7 @@ public interface CategoryViewsRepository extends JpaRepository<CategoryViews,Lon
     List<CategoryViews> findCategoryViewsByCategory(@Param("category_id")long categoryId);
 
 
-    //Получить сумму просмотров всех дочерних категорий в родительской категории
+    // Получить сумму просмотров всех дочерних категорий в родительской категории
     @Query(nativeQuery = true,
     value = """
     with recursive category_tree as (
@@ -91,5 +100,5 @@ public interface CategoryViewsRepository extends JpaRepository<CategoryViews,Lon
         sum(ct.count)
     from category_tree ct;
     """)
-    Integer countCategoryTreeViews(@Param("category_id")long parentCategoryId);
+    Integer countCategoryTreeViews(@Param("category_id") long parentCategoryId);
 }

@@ -1,12 +1,11 @@
-package gp.wagner.backend.domain.exception;
+package gp.wagner.backend.domain.exceptions;
 
-import gp.wagner.backend.validation.producer_request_dto.exceptions.ProducerDisclosureException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.UserNotConfirmedException;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.ValidationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,9 +14,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import java.util.Arrays;
 import java.util.List;
 
-//Перехватчик и обработчик исключения для последующей отправки его клиенту
+// Перехватчик и обработчик исключения для последующей отправки его клиенту
 @ControllerAdvice
-public class ApiExceptionHandler  {
+public class ExceptionsHandler {
 
     //Обработка общего исключения
     @ExceptionHandler(value = {Exception.class})
@@ -46,6 +45,22 @@ public class ApiExceptionHandler  {
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(exceptionDto);
+    }
+
+
+    //Обработка исключения при регистрации/авторизации пользователя
+    @ExceptionHandler(value = {UserNotConfirmedException.class})
+    public ResponseEntity<ExceptionDto> handleUserNotConfirmedException(UserNotConfirmedException e){
+
+        ExceptionDto exceptionDto = ExceptionDto.getBuilder()
+                .exceptionType(UserNotConfirmedException.class)
+                .message(e.getMessage())
+                .stackTrace(Arrays.toString(e.getStackTrace()))
+                .build();
+
+        return ResponseEntity
+                .status(e.getErrorType())
                 .body(exceptionDto);
     }
 

@@ -5,7 +5,7 @@ import gp.wagner.backend.domain.entites.baskets.Basket;
 import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.repositories.baskets.BasketsAndProductVariantsRepository;
 import gp.wagner.backend.repositories.baskets.BasketsRepository;
@@ -18,7 +18,6 @@ import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.*;

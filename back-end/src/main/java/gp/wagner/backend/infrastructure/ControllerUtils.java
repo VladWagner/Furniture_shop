@@ -1,28 +1,18 @@
 package gp.wagner.backend.infrastructure;
 
-import gp.wagner.backend.configurations.StaticContextAccessor;
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
-import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
-import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
 import gp.wagner.backend.middleware.Services;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.*;
 
 public class ControllerUtils {
@@ -170,12 +160,12 @@ public class ControllerUtils {
         CategoriesViewsWithChildrenDto categoriesViewsDto = new CategoriesViewsWithChildrenDto(categoryViews);
 
         //Найти дочерние элементы на одном уровне рекурсии
-        List<Long> childCategories = Services.categoriesService.getChildCategories((int) categoryId);
+        List<Long> childCategories = Services.categoriesService.getChildCategories(categoryId);
 
         //Для каждого дочернего элемента, найти его дочерние элементы, пока не дойдём до последней
 
-        if(!childCategories.isEmpty())
-            categoriesViewsDto.childCategories.add(findSubCategoryViews(childCategories.get(0)));
+        for (Long id : childCategories)
+            categoriesViewsDto.childCategories.add(findSubCategoryViews(id));
 
         return categoriesViewsDto;
     }

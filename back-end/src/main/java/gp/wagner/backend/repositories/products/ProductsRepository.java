@@ -88,10 +88,10 @@ public interface ProductsRepository extends JpaRepository<Product,Long>, JpaSpec
     select
     p
     from Product p
-    where p.category.id = :category_id and
+    where p.category.id in :category_id_list and
         p.isDeleted = false and p.showProduct = true
 """)
-    Page<Product> findProductsByCategoryId(@Param("category_id") Long categoryId, Pageable pageable);
+    Page<Product> findProductsByCategoryId(@Param("category_id_list") List<Long> categoryId, Pageable pageable);
 
     //Найти все товары определённого производителя
     @Query(value = """

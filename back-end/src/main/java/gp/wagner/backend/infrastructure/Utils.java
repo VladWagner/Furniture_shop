@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.security.SecureRandom;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Random;
@@ -164,6 +165,19 @@ public class Utils {
         else
             // Получит просто первый символ строки
             return String.valueOf(str.charAt(0));
+    }
+
+    // Генерация случайного шестнадцатеричного числа для токена верификации
+    public static String generateVerificationToken(){
+
+        SecureRandom random = new SecureRandom();
+        long mask = 0xffffffffffffffffL;
+
+        long part1 = random.nextLong() & mask;
+        long part2 = random.nextLong() & mask;
+        long part3 = random.nextLong() & mask;
+
+        return Long.toHexString(part1) + Long.toHexString(part2) /*+ Long.toHexString(part3)*/;
     }
 
 }

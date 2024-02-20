@@ -8,6 +8,9 @@ import lombok.Setter;
 
 import jakarta.persistence.*;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+
 //Количество просмотров товара
 @Entity
 @Table(name = "products_views")
@@ -34,5 +37,24 @@ public class ProductViews {
     @Column(name = "count")
     private int count;
 
+    // Дата последнего обновления
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    public ProductViews(Long id, Visitor visitor, Product product, int count) {
+        this.id = id;
+        this.visitor = visitor;
+        this.product = product;
+        this.count = count;
+    }
+
+    // Проверка на кол-во пройденного времени с момента последнего добавления записи <= заданного
+    public boolean goneMoreThan(long hours){
+
+        LocalDateTime now = LocalDateTime.now();
+
+        Duration duration = Duration.between(updatedAt, now);
+        return duration.toHours() >= hours;
+    }
 
 }

@@ -71,7 +71,7 @@ public class ProductPreviewRespDto {
 
     // Стоимость одного или нескольких вариантов товара - то есть базовая стоимость может быть вне диапазона, но стоимость варианта может быть в нём
 
-    @JsonProperty("mathcing_variant_price")
+    @JsonProperty("matching_variant_price")
     @Nullable
     private int variantPrice;
 

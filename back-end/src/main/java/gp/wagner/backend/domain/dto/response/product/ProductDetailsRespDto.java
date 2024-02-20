@@ -1,9 +1,8 @@
 package gp.wagner.backend.domain.dto.response.product;
 
-import gp.wagner.backend.domain.dto.response.AttributeValueRespDto;
+import gp.wagner.backend.domain.dto.response.product_attributes.AttributeValueRespDto;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.middleware.Services;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

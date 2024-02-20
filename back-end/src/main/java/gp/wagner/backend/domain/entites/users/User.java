@@ -6,6 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.Date;
@@ -18,6 +21,7 @@ import java.util.Date;
 @NoArgsConstructor
 @AllArgsConstructor
 @Cacheable(value = false)
+@EntityListeners(AuditingEntityListener.class)
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,12 +58,13 @@ public class User {
 
     // Дата регистрации
     @Column(name = "created_at")
+    @CreatedDate
     private Instant createdAt;
 
     // Дата изменения пользователя
     @Column(name = "updated_at")
+    @LastModifiedDate
     private Instant updatedAt;
-
 
     public User(Long id, String userLogin, String name, String email, UserRole userRole) {
         this.id = id;

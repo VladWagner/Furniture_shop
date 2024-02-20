@@ -124,17 +124,20 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
         return dtoList;
     }
 
-
     // Получить значения характеристик
     @Override
     public Map<String, List<FilterValuesDto<Integer>>> getFiltersValuesByCategory(long categoryId) {
 
-        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategory(categoryId);
+        // Получить все дочерние категории
+        List<Long> childCategoriesIds = ServicesUtils.getChildCategoriesList(categoryId);
+
+        //List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategory(categoryId);
+        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategories(childCategoriesIds);
 
         List<FilterValuesDto<Integer>> dtoList = createDtoList(resultSet);
 
         // Добавить список производителей
-        dtoList.addAll(Services.producersService.getProducersByCategory(categoryId)
+        dtoList.addAll(Services.producersService.getProducersInCategories(childCategoriesIds)
                 .stream()
                 .map(element -> new FilterValuesDto<Integer>(null,"Производители", element.getProducerName(), null, null))
                 .toList());
@@ -145,19 +148,17 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
         if (pricesRange != null && pricesRange.getMin() != null)
             dtoList.add(pricesRange);
 
-        // Группировка по названию характеристики
-        Map<String, List<FilterValuesDto<Integer>>> groupedFilters = dtoList.stream()
-                                                                    .sorted(Comparator.comparing(FilterValuesDto::getPriority))
-                                                                    .collect(Collectors.groupingBy(FilterValuesDto::getAttributeName));
-
-
         return ServicesUtils.createAndSortFilterMap(dtoList);
     }
 
     // Получить те же значения для фильтрации из списка id категорий
     @Override
     public java.util.Map<String, List<FilterValuesDto<Integer>>> getFiltersValuesByCategories(List<Long> categoriesIds) {
-        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategories(categoriesIds);
+
+        // Получить все дочерние категории переданных категорий
+        List<Long> childCategoriesIds = ServicesUtils.getChildCategoriesList(categoriesIds);
+
+        List<Object[]> resultSet = attributeValuesRepository.getAttributeValuesByCategories(childCategoriesIds);
 
         List<FilterValuesDto<Integer>> dtoList = createDtoList(resultSet);
 

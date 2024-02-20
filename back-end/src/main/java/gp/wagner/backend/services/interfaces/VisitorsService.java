@@ -35,4 +35,5 @@ public interface VisitorsService {
     //Получение максимального id - последнее добавленное значение
     long getMaxId();
 
+    List<Visitor> getByIdList(List<Long> idsList);
 }

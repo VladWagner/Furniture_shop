@@ -6,12 +6,13 @@ import gp.wagner.backend.domain.dto.response.orders.OrderRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -30,9 +31,12 @@ public class OrdersController {
     // {{host}}/api/orders?offset=1&limit=20
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<OrderRespDto> getOrderAllOrders(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
-                                                   @Valid @RequestParam(value = "limit") @Max(80) int limit){
+                                                   @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                   @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                   @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
-        Page<Order> orderPage = Services.ordersService.getAll(pageNum, limit);
+        Page<Order> orderPage = Services.ordersService.getAll(pageNum, limit,
+                OrdersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         return new PageDto<>(
                 orderPage, () -> orderPage.getContent().stream().map(OrderRespDto::new).toList()
@@ -99,11 +103,14 @@ public class OrdersController {
     //Получение заказов по id товара
     @GetMapping(value = "/orders_for_product", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<OrderRespDto> getOrderForProduct(@RequestParam(value = "productId") long productId,
-                                                            @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
-                                                            @Valid @RequestParam(value = "limit") @Max(80) int limit){
+                                                    @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                    @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                    @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                    @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
         // Если вариант товара будет show == false, тогда на фронте нужно будет отображать эту информацию и упоминать, что сумма пересчитана
-        Page<Order> opvListPage = Services.ordersService.getOrdersByProductId(productId, pageNum, limit);
+        Page<Order> opvListPage = Services.ordersService.getOrdersByProductId(productId, pageNum, limit,
+                OrdersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         if (opvListPage.getContent().isEmpty())
             throw new ApiException(String.format("Не удалось найти заказы для товара с id: %d", productId));

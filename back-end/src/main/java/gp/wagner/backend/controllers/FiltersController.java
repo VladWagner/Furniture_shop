@@ -3,7 +3,8 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
@@ -42,7 +43,7 @@ public class FiltersController {
     ){
 
         long result = Services.productsService.countData(filtersContainer, categoryId < 1 ? null : categoryId,
-                priceRange.isEmpty() ? null : priceRange);
+                priceRange.isEmpty() ? null : priceRange, ProductsOrVariantsEnum.PRODUCTS);
 
         return result;
     }

@@ -6,7 +6,10 @@ import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
-import org.aspectj.weaver.ast.Or;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
+import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
 
 import java.util.Date;
@@ -17,7 +20,7 @@ public interface OrdersService {
 
 
     //Выборка всех записей
-    Page<Order> getAll(int pageNum, int dataOnPage);
+    Page<Order> getAll(int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
 
     // Добавление записи. Возвращает: id созданного заказа в таблице + его код
     SimpleTuple<Long, Long> create(Order order);
@@ -52,7 +55,8 @@ public interface OrdersService {
     Order getById(Long id);
 
     //Получить статистику заказов по дням за определённый период
-    SimpleTuple<String, Integer> getDailyOrdersStatistics(OrderReportDto reportDto);
+    Page<Tuple> getDailyOrdersStatistics(OrderReportDto reportDto, int pageNum, int dataOnPage,
+                                         OrdersStatisticsSortEnum sortEnum, GeneralSortEnum sortType);
 
     // Выборка заказа по его коду
     Order getByOrderCode(long code);
@@ -61,13 +65,13 @@ public interface OrdersService {
     List<Order> getByOrdersByCodes(List<Long> ordersCodes);
 
     //Получить все заказы по email покупателя
-    List<Order> getOrdersByEmail(String email);
+    List<Order> getOrdersByEmail(String email, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Получить заказы для определённого варианта товара по id
     Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage);
 
     //Получить заказы для определённого ТОВАРА по его id
-    Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage);
+    Page<Order> getOrdersByProductId(long productId, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Получение максимального id - последнее добавленное значение
     long getMaxId();

@@ -1,6 +1,6 @@
-package gp.wagner.backend.domain.exception.suppliers;
+package gp.wagner.backend.domain.exceptions.suppliers;
 
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

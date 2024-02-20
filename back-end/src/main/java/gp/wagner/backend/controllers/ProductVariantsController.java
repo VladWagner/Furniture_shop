@@ -1,23 +1,19 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
-import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
-import gp.wagner.backend.domain.dto.response.product.ProductImageRespDto;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.exception.ApiException;
-import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;

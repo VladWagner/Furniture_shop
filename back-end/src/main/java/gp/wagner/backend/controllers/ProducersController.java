@@ -4,7 +4,7 @@ import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.ProducerRespDto;
 import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.validation.producer_request_dto.exceptions.ProducerDisclosureException;

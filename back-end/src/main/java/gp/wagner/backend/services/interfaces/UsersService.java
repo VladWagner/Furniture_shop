@@ -20,11 +20,14 @@ public interface UsersService {
     //Выборка записи под id
     User getById(Long id);
 
-    void confirmEmail(long userId);
+    User confirmEmail(String token);
 
     // Добавление записи
     long create(User visitor);
-    User create(UserRequestDto userDto);
+    User create(UserRequestDto userDto) throws MessagingException;
+
+    // Повторная отправка сообщения для
+    User resendConfirmationMessage(String email) throws MessagingException;
 
     // Изменение записи
     void updatePassword(PasswordUpdateRequestDto passwordUpdateDto);

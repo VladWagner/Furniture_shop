@@ -12,3 +12,6 @@ where is_deleted is null;
 update products
 set products.is_deleted = false
 where is_deleted is null;
+
+-- Временные скрипты для создания FK constraint'ов
+

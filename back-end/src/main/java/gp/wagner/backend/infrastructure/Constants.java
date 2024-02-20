@@ -23,4 +23,7 @@ public class Constants {
     // Id статуса mutable заказа
     public static int MutableOrderStateId = 1;
 
+    // Id статуса mutable заказа
+    public static float PRODUCT_ATTR_PRIORITY_INCREMENT = 0.1f;
+
 }

@@ -78,6 +78,7 @@ public interface UsersRepository extends JpaRepository<User,Long> {
     """)
     Object[][] getRegistrationDatesRange();
 
+    // Получить роли заданные у всех пользователей для фильтрации
     @Query(value = """
     select
         u.userRole
@@ -87,6 +88,19 @@ public interface UsersRepository extends JpaRepository<User,Long> {
     
     """)
     List<UserRole> getPossibleRoles();
+
+    // Найти пользователя по логину или email
+    @Query(value = """
+    select
+        u
+    from
+        User u
+    where
+        ((:email is not null and :login is null) and u.email = :email) or
+        ((:login is not null and :email is null) and u.email = :email) or
+        ((:email is not null and :login is not null) and (u.email = :email and u.userLogin = :login))
+    """)
+    Optional<User> getUserByEmailOrLogin(@Param("email") String email, @Param("login") String login);
 
     // Проверка существования записей с заданным логином
     boolean existsUsersByUserLogin(String login);

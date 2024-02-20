@@ -6,10 +6,13 @@ import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
+import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductsService;
@@ -158,7 +161,8 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public Page<Product> getAllWithCorrectPrices(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange, int pageNum, int dataOnPage) {
+    public Page<Product> getAllWithCorrectPrices(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange,
+                                                 int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType) {
 
         List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(filtersContainer);
 
@@ -183,6 +187,9 @@ public class ProductsServiceImpl implements ProductsService {
         else
             query.where(filterPredicate);
 
+        // Задать сортировку
+        SortingUtils.createSortQueryForProducts(cb, query, root, sortEnum, sortType);
+
         if (pageNum > 0)
             pageNum -= 1;
 
@@ -200,7 +207,7 @@ public class ProductsServiceImpl implements ProductsService {
 
     @Override
     // Метод для подсчёта кол-ва данных полученных после выборки по определённым фильтрам.
-    public long countData(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange){
+    public long countData(ProductFilterDtoContainer filtersContainer, Long categoryId, String priceRange, ProductsOrVariantsEnum countProductsOrVariants){
 
         //Объект для формирования запросов - построитель запроса
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -213,8 +220,7 @@ public class ProductsServiceImpl implements ProductsService {
         List<Specification<Product>> specifications = ProductSpecifications.createSubQueriesProductSpecifications(filtersContainer);
 
         // Собираем предикаты по диапазону цен (варианты товара) и категории
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, filtersContainer, categoryId, priceRange,
-                ProductsOrVariantsEnum.VARIANTS);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, filtersContainer, categoryId, priceRange,countProductsOrVariants);
 
         // Получить предикат для выборки по заданным фильтрам
         Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
@@ -256,19 +262,81 @@ public class ProductsServiceImpl implements ProductsService {
     }
 
     @Override
-    public Page<Product> getByCategory(long categoryId, int pageNum, int dataOnPage) {
+    public Page<Product> getByCategory(long categoryId, int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType) {
 
-        return productsRepository.findProductsByCategoryId(categoryId, PageRequest.of(pageNum, dataOnPage));
+        List<Long> childCategoriesIds = ServicesUtils.getChildCategoriesList(categoryId);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        // Если простые поля - тогда запрос сортировкой через репозиторий
+        if (sortEnum != ProductsSortEnum.PRICE)
+            return productsRepository.findProductsByCategoryId(childCategoriesIds, PageRequest.of(pageNum, dataOnPage,
+                    SortingUtils.createSortForProducts(sortEnum, sortType)));
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Используется установка флага distinct для корректной пагинации, иначе выбирается несоответствующее реальности количество записей
+        CriteriaQuery<Product> query = cb.createQuery(Product.class).distinct(true);
+        Root<Product> root = query.from(Product.class);
+
+        query.where(root.get("category").get("id").in(childCategoriesIds));
+
+        // Задать сортировку
+        SortingUtils.createSortQueryForProducts(cb, query, root, sortEnum, sortType);
+
+        TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+        typedQuery.setMaxResults(dataOnPage);
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+
+        List<Product> products = typedQuery.getResultList();
+
+        // Пагинация готовой коллекции
+        long elementsCount = ServicesUtils.countProductsByProducerOrCategory(entityManager, categoryId, Category.class);
+
+        return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
     @Override
-    public Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage) {
-        return productsRepository.findProductsByProducerId(producerId, PageRequest.of(pageNum, dataOnPage));
+    public Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        // Если простые поля - тогда запрос через репозиторий
+        if (sortEnum != ProductsSortEnum.PRICE)
+            return productsRepository.findProductsByProducerId(producerId, PageRequest.of(pageNum, dataOnPage,
+                    SortingUtils.createSortForProducts(sortEnum, sortType)));
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Используется установка флага distinct для корректной пагинации, иначе выбирается несоответствующее реальности количество записей
+        CriteriaQuery<Product> query = cb.createQuery(Product.class).distinct(true);
+        Root<Product> root = query.from(Product.class);
+        query.where(cb.equal(root.get("producer").get("id"), producerId));
+
+        // Задать сортировку
+        SortingUtils.createSortQueryForProducts(cb, query, root, sortEnum, sortType);
+
+        TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+        typedQuery.setMaxResults(dataOnPage);
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+
+        List<Product> products = typedQuery.getResultList();
+
+        // Пагинация готовой коллекции
+        long elementsCount = ServicesUtils.countProductsByProducerOrCategory(entityManager, producerId, Producer.class);
+
+        return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
     // Посчитать, сколько записей в каждой категории
     @Override
     public int countByCategory(long categoryId) {
+
+        // Id всех дочерних категорий для заданной категории по id.
+        // Если категория по id не найдена, тогда выборка id категорий, которые используют повторяющуюся категорию. Id повторяющуюся категории задан в метод, в виде отрицательного значения
+        List<Long> childCategoriesIds = ServicesUtils.getChildCategoriesList(categoryId)/*Services.categoriesService.getAllChildCategories(categoryId)*/;
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -281,10 +349,11 @@ public class ProductsServiceImpl implements ProductsService {
         Join<Product, Category> categoryJoin = root.join("category");
 
         //Посчитать кол-во товаров, где id категории = заданному
-        query.select(cb.count(root)).where(cb.equal(categoryJoin.get("id"), categoryId));
+        query.select(cb.count(root)).where(categoryJoin.get("id").in(childCategoriesIds));
 
         return entityManager.createQuery(query).getSingleResult().intValue();
     }
+
 
     // Сформировать объект для выборки пограничных значений цены за товар (для фильтра)
     private FilterValuesDto<Integer> getFilterValueDto(Object rawResult){
@@ -485,44 +554,6 @@ public class ProductsServiceImpl implements ProductsService {
             Services.productVariantsService.recoverHiddenByProductId(product);
 
         productsRepository.saveAndFlush(product);
-    }
-
-    // Найти товары по производителю и флагу удаления
-    private List<Product> findProductsByProducerByIdAndIsDeletedFlag(long producerId, Boolean isDeleted, Boolean isShown){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Product> query = cb.createQuery(Product.class);
-
-        Root<Product> root = query.from(Product.class);
-
-        // Присоединить производителя
-        Path<Producer> producerPath = root.get("producer");
-
-        // Удалённые/Неудалённые товары с определённым производителем
-        Predicate predicate = isShown == null && isDeleted == null? cb.equal(producerPath.get("id"), producerId) : null ;
-
-        if (isDeleted != null && isShown != null)
-            predicate = cb.and(
-                    cb.equal(producerPath.get("id"), producerId),
-                    cb.equal(root.get("isDeleted"), isDeleted),
-                    cb.equal(root.get("showProduct"), isShown)
-            );
-        else if (isDeleted != null) {
-            predicate = cb.and(
-                    cb.equal(producerPath.get("id"), producerId),
-                    cb.equal(root.get("isDeleted"), isDeleted)
-            );
-        }else if (isShown != null) {
-            predicate = cb.and(
-                    cb.equal(producerPath.get("id"), producerId),
-                    cb.equal(root.get("showProduct"), isShown)
-            );
-        }
-
-        query.where(predicate);
-
-        return entityManager.createQuery(query).getResultList();
-
     }
 
     // Найти товары по производителю и флагу удаления

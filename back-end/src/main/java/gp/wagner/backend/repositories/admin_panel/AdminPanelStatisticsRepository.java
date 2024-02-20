@@ -1,15 +1,13 @@
 package gp.wagner.backend.repositories.admin_panel;
 
-import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
+import jakarta.annotation.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -20,30 +18,31 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     // Подсчёт кол-ва посещений по дням за определённый период
     @Query(nativeQuery = true, value = """
             select
-                v.last_visit_at,
-                COUNT(*) as visits_amount
+               dv.date,
+               sum(dv.count) as visits_amount
             from
-                visitors v
+                daily_visits dv
             where
-                v.last_visit_at between :date_lo and :date_hi
-            group by v.last_visit_at
+                dv.date between :date_lo and :date_hi
+            group by dv.date
             """)
     Page<Object[]> getDailyVisitsBetweenDates(@Param("date_lo") Date dateLo,@Param("date_hi") Date dateHi, Pageable pageable);
 
     // Общая сумма посещений за определённый период
     @Query(nativeQuery = true, value = """
-            with visistors_in_dates as (select
-                v.last_visit_at,
-                COUNT(*) as visits_amount
+            with visits_in_dates as (select
+               dv.date,
+               sum(dv.count) as visits_amount
             from
-                visitors v
-            where v.last_visit_at between :date_lo and :date_hi
-            group by v.last_visit_at
+                daily_visits dv
+            where
+                dv.date between :date_lo and :date_hi
+            group by dv.date
             )
             
             select
                 coalesce(sum(vid.visits_amount), 0) as visits_sum
-            from visistors_in_dates vid;
+            from visits_in_dates vid;
             """)
     long getSumDailyVisitsBetweenDates(@Param("date_lo") Date dateLo,@Param("date_hi") Date dateHi);
 
@@ -72,17 +71,21 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
 
     // Подсчёт кол-ва заказов по дням за определённый период
     @Query(nativeQuery = true, value = """
-            select
-                DATE(o.order_date),
-                COUNT(o.id),
-                SUM(o.sum)
+            with orders_count as (select
+                DATE(o.order_date) as order_date,
+                COUNT(o.id) as orders_count,
+                SUM(o.sum) as orders_sum
             from
                 orders o
             where
                 o.order_date between :date_lo and :date_hi and
                 ((:state is not null and :state > 0 and o.order_state_id = :state)
                       or :state is null or :state <= 0)
-            group by o.order_date
+            group by o.order_date)
+        
+            select
+            *
+            from orders_count oc
             """)
     Page<Object[]> getOrdersByDaysBetweenDates(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("state") Long orderStateId, Pageable pageable);
 
@@ -91,36 +94,85 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     @Query(nativeQuery = true, value = """
     with date_and_orders_count as (select
         DATE(o.order_date) as order_date_alias,
-        coalesce((select count(v.id)
-            from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
-        COUNT(DISTINCT(o.id)) as orders_amount
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias), 0) as visits,
+        COUNT(DISTINCT(o.id)) as orders_amount,
+        SUM(o.sum) as orders_sum
     from orders o left join (orders_products_variants opv join
                                 (variants_product vp join products p on vp.product_id = p.id)
                                 on opv.product_variant_id = vp.id)
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
-        ((:category_id is not null and :category_id > 0 and p.category_id = :category_id)
-            or :category_id is null or :category_id <= 0 )
-    group by order_date_alias, visits)
+    ((:category_id is not null and :category_id > 0 and p.category_id = :category_id)
+        or :category_id is null or :category_id <= 0 )
+    group by order_date_alias, visits),
     
-    select
-        doc.order_date_alias,
-        doc.orders_amount,
-        doc.visits,
-        coalesce(doc.orders_amount/visits, 0) as cvr
-    from date_and_orders_count doc
-    where doc.visits >= doc.orders_amount;
+       doc_with_cvr as (
+        select
+            *,
+            doc.order_date_alias as order_date,
+            coalesce(doc.orders_amount/visits, 0) as cvr
+        from
+            date_and_orders_count doc
+        where
+            doc.visits >= doc.orders_amount)
+  
+        select
+            dwc.order_date,
+            dwc.orders_amount,
+            dwc.visits,
+            dwc.cvr,
+            dwc.orders_sum
+        from
+            doc_with_cvr dwc
+    
 """)
     Page<Object[]> getCvrToOrdersBetweenDatesInCategory(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_id") Long categoryId,
+                                               Pageable pageable);
+    @Query(nativeQuery = true, value = """
+    with date_and_orders_count as (select
+        DATE(o.order_date) as order_date_alias,
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias), 0) as visits,
+        COUNT(DISTINCT(o.id)) as orders_amount,
+        SUM(o.sum) as orders_sum
+    from orders o left join (orders_products_variants opv join
+                                (variants_product vp join products p on vp.product_id = p.id)
+                                on opv.product_variant_id = vp.id)
+            on o.id = opv.order_id
+    where o.order_date between :date_lo and :date_hi and
+        p.category_id in :category_ids
+    group by order_date_alias, visits),
+    
+       doc_with_cvr as (
+        select
+            *,
+            doc.order_date_alias as order_date,
+            coalesce(doc.orders_amount/visits, 0) as cvr
+        from
+            date_and_orders_count doc
+        where
+            doc.visits >= doc.orders_amount)
+  
+        select
+            dwc.order_date,
+            dwc.orders_amount,
+            dwc.visits,
+            dwc.cvr,
+            dwc.orders_sum
+        from
+            doc_with_cvr dwc
+    
+""")
+    Page<Object[]> getCvrToOrdersBetweenDatesInCategoriesIds(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_ids") List<Long> categoryIds,
                                                Pageable pageable);
 
     // Конверсия из просмотра в заказ определённого товара в диапазоне дат – так же стоит переделать в Criteria API
     @Query(nativeQuery = true, value = """
     with date_and_orders_count as (select
         DATE(o.order_date) as order_date_alias,
-        coalesce((select count(v.id)
-            from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
-        COUNT(DISTINCT(o.id)) as orders_amount
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias)/*(select count(v.id)
+            from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at)*/, 0) as visits,
+        COUNT(DISTINCT(o.id)) as orders_amount,
+        SUM(o.sum) as orders_sum
     from orders o left join (orders_products_variants opv join
                                 (variants_product vp join products p on vp.product_id = p.id)
                                 on opv.product_variant_id = vp.id)
@@ -128,31 +180,43 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     where o.order_date between :date_lo and :date_hi and
         ((:product_id is not null and :product_id > 0 and p.id = :product_id)
                 or :product_id is null or :product_id <= 0)
-    group by order_date_alias, visits)
+    group by order_date_alias, visits),
     
+   doc_with_cvr as (
     select
-        doc.order_date_alias,
-        doc.orders_amount,
-        doc.visits,
+        *,
+        doc.order_date_alias as order_date,
         coalesce(doc.orders_amount/visits, 0) as cvr
-    from date_and_orders_count doc
-    where doc.visits >= doc.orders_amount;
+    from
+        date_and_orders_count doc
+    where
+        doc.visits >= doc.orders_amount)
+
+    select
+        dwc.order_date,
+        dwc.orders_amount,
+        dwc.visits,
+        dwc.cvr,
+        dwc.orders_sum
+    from
+        doc_with_cvr dwc
 """)
     Page<Object[]> getCvrToOrdersBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId,
                                                Pageable pageable);
 
     // Конверсия из просмотра в добавление в корзину для конкретного товара
     @Query(nativeQuery = true, value = """
-    select
-        bdc.add_date_alias,
+    with baskets_count as (select
+        bdc.add_date_alias as add_date,
         bdc.addings_amount,
         bdc.visits,
-        coalesce(bdc.addings_amount/visits*100, 0) as cvr
+        coalesce(bdc.addings_amount/visits, 0) as cvr,
+        bdc.baskets_sum
     from (select
               DATE(b.added_date) as add_date_alias,
-              coalesce((select count(v.id)
-                        from visitors v where v.last_visit_at = add_date_alias group by v.last_visit_at), 0) as visits,
-              COUNT(DISTINCT(b.id)) as addings_amount
+              coalesce((select sum(dv.count) from daily_visits dv where dv.date = add_date_alias), 0) as visits,
+              COUNT(DISTINCT(b.id)) as addings_amount,
+              SUM(b.sum) as baskets_sum
           from baskets b left join (baskets_products_variants bpv join
               (variants_product vp join products p on vp.product_id = p.id)
                               on bpv.product_variant_id = vp.id)
@@ -160,7 +224,10 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
           where b.added_date between :date_lo and :date_hi and
         ((:product_id is not null and :product_id > 0 and p.id = :product_id)
                 or :product_id is null or :product_id <= 0)
-          group by add_date_alias, visits) as bdc;
+          group by add_date_alias, visits) as bdc)
+    select
+        *
+    from baskets_count
 """)
     Page<Object[]> getCvrToBasketsBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId,
                                                         Pageable pageable);
@@ -169,8 +236,7 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     @Query(nativeQuery = true, value = """
     with date_and_orders_count as (select
         DATE(o.order_date) as order_date_alias,
-        coalesce((select count(v.id)
-            from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias), 0) as visits,
         COUNT(DISTINCT(o.id)) as orders_amount
     from orders o join (orders_products_variants opv join
                                 (variants_product vp join products p on vp.product_id = p.id)
@@ -194,8 +260,7 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     @Query(nativeQuery = true, value = """
     with date_and_orders_count as (select
         DATE(o.order_date) as order_date_alias,
-        coalesce((select count(v.id)
-            from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias), 0) as visits,
         COUNT(DISTINCT(o.id)) as orders_amount
     from orders o left join (orders_products_variants opv join
                                 (variants_product vp join products p on vp.product_id = p.id)
@@ -215,36 +280,52 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
 """)
     Object[][] getQuantityValuesForOrdersBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId);
 
-    // Частота просмотров товаров в разных категориях
+    // Частота просмотров товаров в разных категориях - обрати внимание на countQuery, без него такое количество подзапросов не работает
     @Query(nativeQuery = true, value = """
-    select
+     with products_views_frequency as (select
         c.id as category_id,
         coalesce(c.category_name, sub_c.sub_name) as categ_name,
+        p_categ.id as patent_id,
         (select coalesce(sum(pviews.count),0) from products_views pviews join products p on p.id = pviews.product_id
-                  where p.category_id = c.id) as products_views,
+            where p.category_id = c.id) as views_amount,
         (select count(pviews.visitor_id) from products_views pviews join products p on p.id = pviews.product_id
-                  where p.category_id = c.id) as visitors_amount,
+            where p.category_id = c.id) as visitors_amount,
         (select coalesce(sum(pviews.count)/count(pviews.visitor_id),0) from products_views pviews join products p on p.id = pviews.product_id
-                  where p.category_id = c.id) as frequecny
+            where p.category_id = c.id) as frequency
     
     from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
+                      join categories as p_categ on c.parent_id = p_categ.id)
+    select
+        *
+    from products_views_frequency
+""", countQuery = """
+    select
+        count(*)
+    from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
                       join categories as p_categ on c.parent_id = p_categ.id
-    order by frequecny desc
 """)
-    Page<Object[]> getProwViewsFrequencyInCategories(Pageable pageable);
+    Page<Object[]> getProdViewsFrequencyInCategories(Pageable pageable);
 
     // Частота просмотров категорий относительно уникальных пользователей
     @Query(nativeQuery = true, value = """
-    select
+    with products_views_frequency as (select
         c.id as category_id,
         coalesce(c.category_name, sub_c.sub_name) as categ_name,
-        (select coalesce(sum(cviews.count),0) from categories_views cviews where cviews.category_id = c.id) as products_views,
+        p_categ.id as patent_id,
+        (select coalesce(sum(cviews.count),0) from categories_views cviews where cviews.category_id = c.id) as views_amount,
         (select count(cviews.visitor_id) from categories_views cviews where cviews.category_id = c.id) as visitors_amount,
-        (select coalesce(sum(cviews.count)/count(cviews.visitor_id),0) from categories_views cviews where cviews.category_id = c.id) as frequecny
+        (select coalesce(sum(cviews.count)/count(cviews.visitor_id),0) from categories_views cviews where cviews.category_id = c.id) as frequency
     
     from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
+                      join categories as p_categ on c.parent_id = p_categ.id)
+    select
+        *
+    from products_views_frequency pvf
+""", countQuery = """
+    select
+        count(*)
+    from categories c left join subcategories sub_c on c.subcategory_id = sub_c.id
                       join categories as p_categ on c.parent_id = p_categ.id
-    order by frequecny desc
 """)
     Page<Object[]> getCategoriesViewsFrequency(Pageable pageable);
 

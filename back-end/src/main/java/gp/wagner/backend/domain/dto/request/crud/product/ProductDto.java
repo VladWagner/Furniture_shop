@@ -33,6 +33,7 @@ public class ProductDto {
     @Nullable
     private Long variantId = null;
 
+    // Данный атрибуты будут заваться под определённую категорию на фронте
     @NotNull
     private List<AttributeValueDto> attributes;
 

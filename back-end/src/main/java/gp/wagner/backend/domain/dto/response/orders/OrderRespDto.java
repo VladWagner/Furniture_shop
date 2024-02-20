@@ -17,16 +17,26 @@ import java.util.List;
 @AllArgsConstructor
 public class OrderRespDto {
 
+    @JsonProperty(index = 1)
     private long id;
 
     // Код заказа
     private long code;
+
+    // Количество товаров в заказе
+    @JsonProperty(value = "general_products_amount", index = 3)
+    private int generalProductsAmount;
+
+    //Сумма заказа
+    @JsonProperty(index = 4)
+    private int sum;
 
     // Покупатель
     @JsonProperty(value = "customer_dto")
     private CustomerRespDto customerDto;
 
     // Статус заказа
+    @JsonProperty(value = "order_stateId", index = 5)
     private long orderStateId;
 
     // Список заказываемых вариантов товаров
@@ -48,17 +58,15 @@ public class OrderRespDto {
     // Дата создания заказа
     private Date createdAt;
 
-    //Сумма заказа
-    private int sum;
 
     public OrderRespDto(Order order) {
         this.id = order.getId();
         this.code = order.getCode();
         this.customerDto = new CustomerRespDto(order.getCustomer());
         this.orderStateId = order.getOrderState().getId();
-        //this.productVariantPreview = order.getOrderAndPVList().stream().map(opv -> new ProductVariantPreviewRespDto(opv.getProductVariant())).toList();
         this.productVariantsAndCount = order.getOrderAndPVList().stream().map(ProductVariantAndCount::new).toList();
         this.createdAt = order.getOrderDate();
         this.sum = order.getSum();
+        this.generalProductsAmount = order.getGeneralProductsAmount();
     }
 }

@@ -1,10 +1,7 @@
 package gp.wagner.backend.domain.entites.visits;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -49,9 +46,15 @@ public class Visitor {
 
     // Просмотры товаров
     @JsonIgnore
-    @OneToMany(mappedBy = "visitor")
+    @OneToMany(mappedBy = "visitor", fetch = FetchType.LAZY)
     @BatchSize(size = 256)
     private List<ProductViews> productViewsList;
+
+    // Просмотры категорий
+    @JsonIgnore
+    @OneToMany(mappedBy = "visitor", fetch = FetchType.LAZY)
+    @BatchSize(size = 256)
+    private List<CategoryViews> categoriesViewsList;
 
     // Покупатели
     @JsonIgnore

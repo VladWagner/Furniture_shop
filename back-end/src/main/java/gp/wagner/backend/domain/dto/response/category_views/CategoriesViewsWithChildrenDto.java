@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.response.category_views;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
 import jakarta.validation.constraints.Min;
@@ -15,16 +16,18 @@ import java.util.List;
 @AllArgsConstructor
 public class CategoriesViewsWithChildrenDto {
 
-    //Наименование категории
+    @JsonProperty("category_name")
     private String categoryName;
-    @Min(1)
-    //id категории
+
+    @JsonProperty("category_id")
     private long categoryId;
 
-    //Общее кол-во просмотров всех дочерних категорий или текущей категории
+    // Общее кол-во просмотров текущей категории или всех дочерних категорий + текущей (родительской категории)
+    @JsonProperty("general_views_amount")
     private int generalViewsAmount;
 
-    //Список посмотров дочерних категорий
+    // Список просмотров дочерних категорий
+    @JsonProperty("child_categories_views")
     public List<CategoriesViewsWithChildrenDto> childCategories;
 
     public CategoriesViewsWithChildrenDto(CategoryViews categoryViews) {

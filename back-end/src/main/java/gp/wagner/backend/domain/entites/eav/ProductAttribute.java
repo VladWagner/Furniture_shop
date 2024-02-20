@@ -8,13 +8,9 @@ import lombok.Setter;
 
 import jakarta.persistence.*;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
-//Атрибуты (характеристики товаров)
-//Данная сущность "хранит" все наименования атрибутов + по идее должна соединятся с категориями (м к м),
-//чтобы было проще находить доступные характеристики для определённой категории или подкатегории
+// Атрибуты (характеристики товаров)
 @Entity
 @Table(name = "products_attributes")
 @Getter
@@ -34,11 +30,22 @@ public class ProductAttribute {
     @Column(name = "priority")
     private Float priority;
 
+    // Флаг показа атрибута
+    @Column(name = "is_shown")
+    private Boolean isShown;
 
-    //Атрибуты под конкретную категорию
+
+    // Атрибуты под категории
     @ManyToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
     @JoinTable(name = "attributes_categories",
             joinColumns = {@JoinColumn(name = "attribute_id")},
             inverseJoinColumns = {@JoinColumn(name = "category_id")})
-    private List<Category> productAttributes = new ArrayList<>();
+    private List<Category> categories = new ArrayList<>();
+
+    public ProductAttribute(Long id, String attributeName, Float priority, Boolean isShown) {
+        this.id = id;
+        this.attributeName = attributeName;
+        this.priority = priority;
+        this.isShown = isShown;
+    }
 }

@@ -3,9 +3,8 @@ package gp.wagner.backend.services.implementations.products;
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
-import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductVariantsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductVariantsService;
@@ -115,7 +114,7 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
             Services.ordersService.updateOrdersOnPvDisclosure(pv, null);
 
         }
-        //Скрытие варианта товара (текущее состояние отличается от прошлого)
+        // Скрытие варианта товара (текущее состояние отличается от прошлого)
         else if (!pv.getShowVariant() && oldShowState){
             Services.basketsService.updateBasketsOnPvHidden(pv, null);
             Services.ordersService.updateOrdersOnPvHidden(pv, null);

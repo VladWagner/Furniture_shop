@@ -7,7 +7,7 @@ import lombok.*;
 
 import java.util.Date;
 
-// DTO для передачи кол-ва посещений за каждый день
+// DTO для передачи кол-ва заказов для каждого товара
 @Data
 @Getter
 @Setter

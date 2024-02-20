@@ -1,4 +1,4 @@
-package gp.wagner.backend.domain.exception;
+package gp.wagner.backend.domain.exceptions.classes;
 
 import gp.wagner.backend.infrastructure.Utils;
 

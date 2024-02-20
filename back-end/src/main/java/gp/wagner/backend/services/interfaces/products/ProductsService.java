@@ -7,6 +7,9 @@ import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -43,20 +46,21 @@ public interface ProductsService {
     /**
      * Выборка товаров с фильтрацией и изменённой выборкой по цене. Теперь, если у товара есть вариант с ценой в диапазоне - данный товар будет выбран
      * */
-    Page<Product> getAllWithCorrectPrices(ProductFilterDtoContainer container, Long categoryId, String priceRange, int pageNum, int dataOnPage);
+    Page<Product> getAllWithCorrectPrices(ProductFilterDtoContainer container, Long categoryId, String priceRange,
+                                          int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType);
 
     // Метод для подсчёта кол-ва данных по определённому фильтру - для фронта
-    long countData(ProductFilterDtoContainer container, Long categoryId, String priceRange);
+    long countData(ProductFilterDtoContainer container, Long categoryId, String priceRange, ProductsOrVariantsEnum countProductsOrVariants);
 
     // Выборка записи под id
     Product getById(Long id);
     List<Product> getByIdList(List<Long> id);
 
     //Выборка по категории
-    Page<Product> getByCategory(long categoryId,int pageNum, int dataOnPage);
+    Page<Product> getByCategory(long categoryId,int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Выборка по производителю
-    Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage);
+    Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Подсчет количества товаров по категории
     int countByCategory(long categoryId);

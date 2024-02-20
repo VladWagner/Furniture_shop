@@ -1,12 +1,9 @@
 package gp.wagner.backend.validation.user_request_dto.validators;
 
 import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
-import gp.wagner.backend.domain.exception.ApiException;
 import gp.wagner.backend.validation.user_request_dto.annotations.ValidUserRequestDto;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.ValidationException;
 
 public class UserRequestDtoValidator implements ConstraintValidator<ValidUserRequestDto, UserRequestDto> {
 

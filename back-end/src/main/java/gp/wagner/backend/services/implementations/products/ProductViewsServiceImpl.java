@@ -5,12 +5,14 @@ import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
-import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.VisitorAndViewsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.products.ProductViewsRepository;
 import gp.wagner.backend.services.interfaces.products.ProductViewsService;
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -67,28 +70,24 @@ public class ProductViewsServiceImpl implements ProductViewsService {
             return;
 
         //Найти или создать посетителя с заданным отпечатком браузера
-        Visitor visitor = Services.visitorsService.getByFingerPrint(fingerPrint);
-
-        long createdVisitor = 0;
-
-        if (visitor == null) {
-            Services.visitorsService.create("", fingerPrint);
-            createdVisitor = Services.visitorsService.getMaxId();
-        }
-        // Если посетитель существует, тогда обновить дату последнего посещения
-        else
-            Services.visitorsService.updateLastVisitDate(visitor.getId(), new Date());
+        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint);
 
         //Проверить наличие записи просмотра товара для конкретного посетителя по конкретному товару
-        ProductViews productView = getByVisitorAndProductId(visitor != null ? visitor.getId() : createdVisitor, productId);
+        ProductViews productView = getByVisitorAndProductId(visitor.getId(), productId);
 
         //Если запись не существует, тогда создаём, если запись имеется, тогда увеличить счетчик
         if (productView == null)
-            repository.insertProductView(visitor == null ? createdVisitor : visitor.getId(), productId, 1);
+            repository.insertProductView(visitor.getId(), productId, 1);
         else{
+
+            // Если прошло < 24ч, тогда просмотр не учитывать
+            if (!productView.goneMoreThan(24))
+                return;
+
             productView.setCount(productView.getCount()+1);
             update(productView);
         }
+
     }
     //endregion
 
@@ -196,7 +195,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
     }
 
     @Override
-    public Page<SimpleTuple<Long, Double>>getAvgProductsViews(int pageNum, int offset,Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+    public Page<SimpleTuple<Long, Double>> getAvgProductsViews(int pageNum, int offset, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
 
         TypedQuery<Tuple> typedQuery = ServicesUtils.getTypedQueryProductsViews(AggregateOperationsEnum.AVG, entityManager, categoryId, priceRange, sortEnum);
 
@@ -285,10 +284,11 @@ public class ProductViewsServiceImpl implements ProductViewsService {
     }
 
     @Override
-    public  Page<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>>getVisitorsAndProductsViews(int pageNum, int offset, Long categoryId, String priceRange, GeneralSortEnum sortEnum) {
+    public  Page<Tuple>getVisitorsAndProductsViews(int pageNum, int offset, Long categoryId, String priceRange,
+                                                    VisitorAndViewsSortEnum sortEnum, GeneralSortEnum sortType) {
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Visitor> query = cb.createQuery(Visitor.class);
+        CriteriaQuery<Tuple> query = cb.createQuery(Tuple.class);
         Root<Visitor> root = query.from(Visitor.class);
 
         Join<Visitor, ProductViews> productViewsJoin = root.join("productViewsList");
@@ -296,14 +296,24 @@ public class ProductViewsServiceImpl implements ProductViewsService {
 
         // Сформировать запрос
 
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
+        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
+                ProductsOrVariantsEnum.PRODUCTS);
 
         if (predicates != null && !predicates.isEmpty())
             query.where(predicates.toArray(new Predicate[0]));
 
-        //query.orderBy(sortEnum == GeneralSortEnum.ASC ? cb.asc(productViewsJoin.get("count")) : cb.desc(productViewsJoin.get("count")));
+        Expression<Long> countViewsExpression = cb.count(productViewsJoin.get("id"));
+        Expression<Integer> viewsSumExpression = cb.sum(productViewsJoin.get("count"));
 
-        TypedQuery<Visitor> typedQuery = entityManager.createQuery(query);
+        SortingUtils.createSortQueryForVisitorsAndViews(cb, query, root, countViewsExpression, viewsSumExpression, sortEnum, sortType);
+
+        query.multiselect(
+                root.get("id"),
+                countViewsExpression,
+                viewsSumExpression
+        ).groupBy(root.get("id"));
+
+        TypedQuery<Tuple> typedQuery = entityManager.createQuery(query);
 
         if (pageNum > 0)
             pageNum -= 1;
@@ -311,24 +321,10 @@ public class ProductViewsServiceImpl implements ProductViewsService {
         typedQuery.setFirstResult(pageNum*offset);
         typedQuery.setMaxResults(offset);
 
-        List<Visitor> visitors = typedQuery.getResultList();
-
-        List<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>> resultList = new ArrayList<>();
-
-        //ProductViewRespDto viewRespDto;
-        // Формирование пар ключ-значение. Цикл в наихудшем случае будет иметь вмененную сложность O(N^2)
-        List<ProductViewRespDto> viewRespDtoList = new ArrayList<>();
-        for (Visitor visitor : visitors){
-
-            visitor.getProductViewsList().forEach(pview -> viewRespDtoList.add(new ProductViewRespDto(pview.getProduct(), pview.getCount())));
-
-            resultList.add(new SimpleTuple<>(new VisitorRespDto(visitor), new ArrayList<>(viewRespDtoList)));
-            viewRespDtoList.clear();
-        }
-
         Long elementsCount = ServicesUtils.countVisitorsWithProductsViews(entityManager, categoryId, priceRange);
 
-        return new PageImpl<>(resultList, PageRequest.of(pageNum, offset), elementsCount);
+        return new PageImpl<>(typedQuery.getResultList(), PageRequest.of(pageNum, offset), elementsCount);
 
     }
+
 }

@@ -3,9 +3,12 @@ package gp.wagner.backend.services.interfaces.products;
 import gp.wagner.backend.domain.dto.response.VisitorRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
-import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.sorting.VisitorAndViewsSortEnum;
+import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
+import org.springframework.scheduling.annotation.Async;
 
 import java.util.List;
 
@@ -15,6 +18,9 @@ public interface ProductViewsService {
     // Добавление записи
     void create(ProductViews productView);
     void create(long visitorId, long productId, int count);
+
+
+    @Async
     void createOrUpdate(String fingerPrint, long productId);
 
     // Изменение записи
@@ -47,6 +53,6 @@ public interface ProductViewsService {
     Page<SimpleTuple<Long, Integer>> getProductsWithMaxViews(int pageNum, int limit, Long categoryId, String priceRange, float percentage, GeneralSortEnum sortEnum);
 
     // Количественная выборка просмотров по товарам
-    Page<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>> getVisitorsAndProductsViews(int pageNum, int limit, Long categoryId, String priceRange, GeneralSortEnum sortEnum);
-
+    Page<Tuple>getVisitorsAndProductsViews(int pageNum, int offset, Long categoryId, String priceRange,
+                                            VisitorAndViewsSortEnum sortEnum, GeneralSortEnum sortType);
 }

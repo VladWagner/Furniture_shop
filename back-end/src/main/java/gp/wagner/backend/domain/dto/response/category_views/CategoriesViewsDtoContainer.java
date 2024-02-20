@@ -38,9 +38,6 @@ public class CategoriesViewsDtoContainer {
 
         //Подсчитать общую сумму просмотров
         generalAmountOfViews = categoryViewsList.stream().mapToInt(CategoryViews::getCount).sum();
-        /*generalAmountOfViews = categoryViewsList.stream()
-                .mapToInt(CategoryViews::getCount)
-                .reduce(0, (generalAmountOfViews, count) -> generalAmountOfViews + count);*/
     }
 
     //Просмотры родительской категории

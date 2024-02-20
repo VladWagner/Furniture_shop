@@ -4,19 +4,19 @@ import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoCon
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.AbstractMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/api/search")
@@ -29,18 +29,29 @@ public class SearchController {
             @Valid @RequestPart(value = "filter", required = false) ProductFilterDtoContainer filterContainer,
             @RequestParam(value = "price_range", defaultValue = "") String priceRange,
             @RequestParam(value = "offset") int page,
-            @RequestParam(value = "limit") int limit
+            @RequestParam(value = "limit") int limit,
+            @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+            @RequestParam(value = "sort_type", defaultValue = "asc") String sortType
     ){
 
         Page<Product> resultPage = Services.searchService.getProductsByKeyword(key.toLowerCase(),
                 filterContainer,
                 priceRange.isEmpty() ? null : priceRange,
-                page, limit);
+                page, limit,
+                ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         if (resultPage.isEmpty())
             throw new ApiException(String.format("Товары с заданным ключевым словом '%s' не найдены. Not found!", key.length() > 10 ? key.substring(0,10).trim() : key));
 
-        return new PageDto<>(resultPage, () -> resultPage.getContent().stream().map(ProductPreviewRespDto::new).toList());
+
+        SimpleTuple<Integer, Integer> prices = Utils.parseTwoNumericValues(priceRange);
+
+        return new PageDto<>(resultPage, () -> {
+            if (prices == null)
+                return resultPage.getContent().stream().map(ProductPreviewRespDto::new).toList();
+            else
+                return resultPage.getContent().stream().map(p -> new ProductPreviewRespDto(p, prices)).toList();
+        });
     }
 
     //Получение предосмотра товаров по вводимому ключевому слову

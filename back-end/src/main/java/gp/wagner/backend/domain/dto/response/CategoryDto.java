@@ -6,12 +6,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Map;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class CategoryDto {
 
-    private int id;
+    private long id;
 
     private String categoryName;
 
@@ -22,7 +24,7 @@ public class CategoryDto {
     private int productsAmount;
 
     public CategoryDto(Category category, int productsAmount) {
-        this.id = category.getId().intValue();
+        this.id = category.getId();
         this.categoryName = category.getName();
         this.parentCategoryId = category.getParentCategory() != null ? category.getParentCategory().getId().intValue() : 0;
         this.productsAmount = productsAmount;
@@ -32,5 +34,25 @@ public class CategoryDto {
     public static CategoryDto factory(Category category){
 
         return new CategoryDto(category, Services.productsService.countByCategory(category.getId()));
+    }
+
+    //  Перегруженный фабричный метод
+    public static void factory(Category category, Map<Long, CategoryDto> categoryDtoMap){
+
+        long categoryId = category.getRepeatingCategory() != null ? category.getRepeatingCategory().getId() * -1 : category.getId();
+
+        // Если такая категория не была задана в ассоциативную коллекцию
+        if (!categoryDtoMap.containsKey(categoryId)) {
+
+            CategoryDto dto = new CategoryDto(category, Services.productsService.countByCategory(categoryId));
+
+            // Если полученный id < 0, тогда это id повторяющейся категории (по договоренности для идентификации он должен быть отрицательным)
+            if (categoryId < 0) {
+                dto.setId(categoryId);
+                dto.setParentCategoryId(0);
+            }
+
+            categoryDtoMap.put(categoryId, dto);
+        }
     }
 }

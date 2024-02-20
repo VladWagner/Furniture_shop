@@ -1,7 +1,7 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ProfileImageGenerator;
 import gp.wagner.backend.infrastructure.Utils;

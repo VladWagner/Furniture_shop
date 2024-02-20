@@ -6,19 +6,24 @@ import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
 import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
+import gp.wagner.backend.domain.entites.tokens.VerificationToken;
 import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.entites.users.UserPassword;
 import gp.wagner.backend.domain.entites.users.UserRole;
-import gp.wagner.backend.domain.exception.ApiException;
-import gp.wagner.backend.domain.exception.suppliers.UserNotFound;
-import gp.wagner.backend.domain.exception.suppliers.UserRoleNotFound;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.UserNotConfirmedException;
+import gp.wagner.backend.domain.exceptions.suppliers.TokenExpired;
+import gp.wagner.backend.domain.exceptions.suppliers.UserNotFound;
+import gp.wagner.backend.domain.exceptions.suppliers.UserRoleNotFound;
 import gp.wagner.backend.domain.specifications.UsersSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.PasswordResetTokenRepository;
 import gp.wagner.backend.repositories.UsersRepository;
 import gp.wagner.backend.repositories.UsersRolesRepository;
+import gp.wagner.backend.repositories.VerificationTokenRepository;
 import gp.wagner.backend.services.interfaces.UsersService;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityManager;
@@ -32,15 +37,15 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
 @Service
-public class UserServiceImpl implements UsersService {
+public class UsersServiceImpl implements UsersService {
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -69,6 +74,14 @@ public class UserServiceImpl implements UsersService {
         this.prtRepository = repository;
     }
 
+    // Репозиторий токенов подтверждения почты
+    private VerificationTokenRepository vfRepository;
+
+    @Autowired
+    public void setUsersRepository(VerificationTokenRepository repository) {
+        this.vfRepository = repository;
+    }
+
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -78,14 +91,22 @@ public class UserServiceImpl implements UsersService {
 
     // Подтверждение почты пользователя - пока что просто mock-метод
     @Override
-    public void confirmEmail(long userId) {
-        User userToConfirm = usersRepository.findById(userId).orElseThrow(() -> new ApiException(
-                String.format("Пользователь с id: %d не найден. Подтвердить пользователя не удалось!", userId)
-        ));
+    public User confirmEmail(String token) {
+        Date nowDate = new Date();
 
-        userToConfirm.setIsConfirmed(true);
+        // Сначала удалить все просроченные токены
+        vfRepository.deleteExpiredTokens(nowDate);
 
-        usersRepository.saveAndFlush(userToConfirm);
+        VerificationToken vft = vfRepository.findByToken(token).orElseThrow(new TokenExpired(VerificationToken.class));
+
+        User user = vft.getUser();
+
+        user.setIsConfirmed(true);
+
+        // Удалить использованный токен
+        vfRepository.delete(vft);
+
+        return usersRepository.saveAndFlush(user);
     }
 
     @Override
@@ -97,13 +118,27 @@ public class UserServiceImpl implements UsersService {
         return usersRepository.save(user).getId();
     }
 
+    // Регистрация пользователя
     @Override
-    public User create(UserRequestDto userDto) {
+    @Transactional
+    public User create(UserRequestDto userDto) throws MessagingException {
 
         if (userDto == null || userDto.getPassword() == null)
             throw new ApiException("Создать пользователя не удалось. Dto задан некорректно!");
 
-        // Проверка на уникальность логина и пароля
+        // Проверка на уникальность логина и пароля (пользователей с таким email || login не должно существовать)
+        if(userWithEmailExists(userDto.getEmail()) || userWithLoginExists(userDto.getLogin())) {
+
+            // Найти пользователя с заданной почтой
+            User existingUser = usersRepository.getUserByEmail(userDto.getEmail()).orElse(null);
+
+            // Если пользователь с таким email не подтверждён, то предложить повторную отправку
+            if (existingUser != null && !existingUser.getIsConfirmed())
+                throw new UserNotConfirmedException();
+
+            throw new ApiException(String.format("Пользователь с почтой %s или логином %s уже существует!",
+                    userDto.getEmail(), userDto.getLogin()));
+        }
 
         // При регистрации пользователю будет присвоена базовая роль, которую впоследствии сможет поменять админ
         String encryptedPassword = passwordEncoder.encode(userDto.getPassword());
@@ -115,7 +150,59 @@ public class UserServiceImpl implements UsersService {
 
         newUser.setUserPassword(userPassword);
 
-        return usersRepository.saveAndFlush(newUser);
+        newUser = usersRepository.saveAndFlush(newUser);
+
+        // Отправить сообщение с подтверждением почты
+
+        try {
+            generateAndSendVerificationToken(newUser);
+        } catch (Exception e) {
+
+            // Удалить созданного пользователя и его токен, поскольку отправить письмо со ссылкой для подтверждения не получилось
+            vfRepository.deleteAllByUserId(newUser.getId());
+            usersRepository.delete(newUser);
+
+            throw e;
+        }
+
+        // Получить полную запись со всеми полями, которые задаются после добавления в триггерах
+        return newUser;
+    }
+
+    @Override
+    public User resendConfirmationMessage(String email) throws MessagingException {
+        User user = getByEmail(email);
+
+        // Создать и отправить токен ещё раз
+        generateAndSendVerificationToken(user);
+
+        return user;
+    }
+
+    // Создать и отправить на почту токен для подтверждения
+    public void generateAndSendVerificationToken(User user) throws MessagingException {
+
+        // Сформировать токен
+        String token = Utils.generateVerificationToken();
+
+        VerificationToken vft = vfRepository.findByUserId(user.getId()).orElse(null);
+
+        // Если токен для пользователя создан не был создан для пользователя или срок действия токена истёк
+        if (vft == null || vft.isExpired()){
+
+            // Удалить токен с истёкшим сроком действия
+            if (vft != null)
+                vfRepository.delete(vft);
+
+            vft = vfRepository.saveAndFlush(new VerificationToken(token, user));
+
+        }
+
+        // Отправить сообщение - тестовая почта. После проверки оставить user.
+        //String emailForTest = "saabnakyul@yandex.ru";
+
+        Services.emailService.sendConfirmationTokenMime(user.getEmail(), vft.getToken(), user.getUserLogin());
+
     }
 
     // Сменить пароль пользователя
@@ -260,7 +347,6 @@ public class UserServiceImpl implements UsersService {
 
     }
 
-
     @Override
     public User getById(Long id) {
         return usersRepository.findById(id).orElse(null);
@@ -268,7 +354,7 @@ public class UserServiceImpl implements UsersService {
 
     @Override
     public User getByEmail(String email) {
-        return usersRepository.getUserByEmail(email).orElse(null);
+        return usersRepository.getUserByEmail(email).orElseThrow(new UserNotFound(email,null));
     }
 
     @Override
@@ -343,7 +429,7 @@ public class UserServiceImpl implements UsersService {
         Date nowDate = new Date();
 
         // Сначала удалить все просроченные токены
-        prtRepository.deleteExpiredTokens(nowDate/*new Date()*/);
+        prtRepository.deleteExpiredTokens(nowDate);
 
         String token = resetDto.getToken();
         PasswordResetToken prt = prtRepository.findByToken(token)

@@ -6,7 +6,10 @@ import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import gp.wagner.backend.repositories.products.ProductsRepository;
 import gp.wagner.backend.services.interfaces.SearchService;
 import jakarta.persistence.EntityManager;
@@ -41,16 +44,17 @@ public class SearchServiceImpl implements SearchService {
     // Поиск по ключевому слову вместе с фильтрацией результатов
     @Override
     public Page<Product> getProductsByKeyword(String key, ProductFilterDtoContainer filterContainer,
-                                                                    String priceRange, int page, int limit) {
+                                              String priceRange, int page, int limit,
+                                              ProductsSortEnum sortEnum, GeneralSortEnum sortType) {
 
         if (page > 0)
             page -= 1;
 
         // Если фильтр будет не задан, тогда просто выборка по ключевому слову
-        if (filterContainer == null){
+        /*if (filterContainer == null){
             Page<Product> products = productsRepository.findProductsByKeyword(key, PageRequest.of(page, limit));
             return products;
-        }
+        }*/
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -88,6 +92,9 @@ public class SearchServiceImpl implements SearchService {
         else
             query.where(cb.and( cb.or(searchPredicates.toArray(new Predicate[0])), featuresPredicate));
 
+        // Задать сортировку
+        SortingUtils.createSortQueryForProducts(cb, query, root, sortEnum, sortType);
+
         TypedQuery<Product> typedQuery = entityManager.createQuery(query);
 
         typedQuery.setMaxResults(limit);
@@ -95,16 +102,9 @@ public class SearchServiceImpl implements SearchService {
 
         List<Product> products = typedQuery.getResultList();
 
-        //Пагинация готовой коллекции
+        // Подсчёт общего кол-ва элементов без пагинации
         long elementsCount = ServicesUtils.countProductsByKeyword(preparedKey, entityManager, specifications, filterContainer, priceRange);
 
-        //Начало списка
-        //int startIdx = Math.min(page*limit, elementsCount);
-
-        //Конец списка (offset + dataOnMage)
-        //int endIdx = Math.min(startIdx + limit, elementsCount);
-
-        //  return new PageImpl<>(products.subList(startIdx, endIdx), PageRequest.of(page, limit), elementsCount);
         return new PageImpl<>(products, PageRequest.of(page, limit), elementsCount);
     }
 

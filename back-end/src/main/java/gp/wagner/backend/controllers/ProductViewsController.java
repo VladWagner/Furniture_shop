@@ -3,10 +3,14 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.VisitorRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
-import gp.wagner.backend.domain.dto.response.product_views.VisitorProductViewRespDto;
-import gp.wagner.backend.infrastructure.enums.GeneralSortEnum;
+import gp.wagner.backend.domain.dto.response.product_views.VisitorAndProductViewRespDto;
+import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.enums.sorting.VisitorAndViewsSortEnum;
 import gp.wagner.backend.middleware.Services;
+import jakarta.persistence.Tuple;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import org.springframework.data.domain.Page;
@@ -71,22 +75,33 @@ public class ProductViewsController {
 
     // Выборка посетителей и просмотренных ими товаров
     @GetMapping(value = "/visitors_views", produces = MediaType.APPLICATION_JSON_VALUE)
-    public PageDto<VisitorProductViewRespDto> getAllVisitorsProductsViews(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
-                                                                          @Valid @RequestParam(value = "limit") @Max(80) int limit,
-                                                                          @RequestParam(value = "sort", defaultValue = "desc", required = false) String sortType,
-                                                                          @RequestParam(value = "category_id", defaultValue = "0") Long categoryId,
-                                                                          @RequestParam(value = "price_range", defaultValue = "") String priceRange) {
+    public PageDto<VisitorAndProductViewRespDto> getAllVisitorsProductsViews(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                                             @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                                             @RequestParam(value = "category_id", defaultValue = "0") Long categoryId,
+                                                                             @RequestParam(value = "price_range", defaultValue = "") String priceRange,
+                                                                              @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                                              @RequestParam(value = "sort_type", defaultValue = "asc") String sortType) {
 
-        Page<SimpleTuple<VisitorRespDto, List<ProductViewRespDto>>> prodViewsPaged = Services.productViewService.getVisitorsAndProductsViews(pageNum, limit,
-                categoryId < 1 ? null : categoryId, priceRange.isEmpty() ? null : priceRange,
-                GeneralSortEnum.getSortType(sortType));
+        categoryId =  categoryId == 0 ? null : categoryId;
+        Page<Tuple> prodViewsPaged = Services.productViewService.getVisitorsAndProductsViews(pageNum, limit,
+                categoryId, priceRange.isEmpty() ? null : priceRange,
+                VisitorAndViewsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
+        Map<Long, Visitor> visitors = Services.visitorsService.getByIdList(prodViewsPaged.getContent()
+                .stream()
+                .map(t -> t.get(0, Long.class))
+                .toList()
+        ).stream().collect(Collectors.toMap(
+                Visitor::getId,
+                v -> v));
 
+        SimpleTuple<Integer, Integer> pricesRange = Utils.parseTwoNumericValues(priceRange);
+        Long finalCategoryId = categoryId;
         return new PageDto<>(prodViewsPaged, () -> prodViewsPaged.getContent().stream()
-                .map(t -> new VisitorProductViewRespDto(t.getValue1(), t.getValue2()))
+                .map(t -> new VisitorAndProductViewRespDto(t, visitors, pricesRange, finalCategoryId))
                 .toList()
         );
-    }//getAllVisitorsProductsViews
+    }
 
     // Среднее кол-во просмотров для каждого товара
     @GetMapping(value = "/avg", produces = MediaType.APPLICATION_JSON_VALUE)

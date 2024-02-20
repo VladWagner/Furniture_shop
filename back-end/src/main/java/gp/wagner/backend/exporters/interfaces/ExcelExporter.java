@@ -1,6 +1,6 @@
 package gp.wagner.backend.exporters.interfaces;
 
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Row;
@@ -10,6 +10,9 @@ import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public abstract class ExcelExporter<T> {
@@ -58,22 +61,18 @@ public abstract class ExcelExporter<T> {
     public abstract ExcelExporter<T> writeTableRows();
 
     // Сформировать массив для экспорта
-    public Resource export(String fileName){
+    public Resource export(){
 
         if (workbook == null)
             return null;
 
         byte[] bytes;
 
-        try(ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            FileOutputStream fos = new FileOutputStream(fileName)){
+        try(ByteArrayOutputStream bos = new ByteArrayOutputStream()){
 
             workbook.write(bos);
 
             bytes = bos.toByteArray();
-
-            fos.write(bytes);
-            fos.flush();
 
         } catch (Exception e) {
             throw new ApiException(e.getMessage());
@@ -81,5 +80,6 @@ public abstract class ExcelExporter<T> {
 
         return new ByteArrayResource(bytes);
     }
+
 
 }

@@ -24,11 +24,12 @@ spring:
       name: name
       password: password
   mail:
-    mail_from: source@yandex.ru
+    mail_from: redaschyup@yandex.ru
     host: smtp.yandex.ru
     port: 587
-    username: userName
-    password: password
+    username: redaschyup
+    # Это сгенерированный пароль приложения, а не от яндекс-аккаунта
+    password: jduyjgcjwxptrerz
     properties:
       mail:
         smtp:

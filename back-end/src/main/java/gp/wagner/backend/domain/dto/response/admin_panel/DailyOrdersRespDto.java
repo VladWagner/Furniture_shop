@@ -1,6 +1,5 @@
 package gp.wagner.backend.domain.dto.response.admin_panel;
 
-import gp.wagner.backend.infrastructure.SimpleTuple;
 import lombok.*;
 
 import java.math.BigDecimal;

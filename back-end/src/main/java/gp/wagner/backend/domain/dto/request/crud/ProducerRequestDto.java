@@ -35,7 +35,7 @@ public class ProducerRequestDto {
     @Nullable
     private Boolean isShown;
 
-    // Был ли восстановлен товар из скрытия
+    // Был ли восстановлен производитель из скрытия
     @Nullable
     private Boolean isDisclosed = false;
 

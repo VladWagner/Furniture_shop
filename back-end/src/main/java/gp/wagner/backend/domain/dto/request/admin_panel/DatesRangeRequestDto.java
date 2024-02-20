@@ -1,7 +1,5 @@
 package gp.wagner.backend.domain.dto.request.admin_panel;
 
-import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.Min;
 import lombok.*;
 
 import java.util.Date;
@@ -23,7 +21,7 @@ public class DatesRangeRequestDto {
     private Date max;
 
     public boolean isCorrect(){
-        return  min.before(max);
+        return min.before(max);
     }
 
 }

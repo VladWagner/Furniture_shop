@@ -1,11 +1,12 @@
 package gp.wagner.backend.controllers;
 
+import gp.wagner.backend.domain.dto.request.crud.CategoryRequestDto;
 import gp.wagner.backend.domain.dto.response.CategoryDto;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsDtoContainer;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
-import gp.wagner.backend.domain.exception.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
@@ -18,8 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 
 @RestController
@@ -28,29 +28,7 @@ public class CategoriesController {
 
     //Выборка всех категорий
     @GetMapping(value = "/", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<CategoryDto> getCategories(){
-
-        /*String generatedStr = "generated_image";
-
-        char[] chars = generatedStr.toCharArray();
-
-        int sumAmount = 0;
-        int multiplicaionLast = 1;
-
-        for (int i = 0; i < chars.length; i++) {
-
-            int charNum = chars[i];
-
-            if (i < chars.length - 1)
-                sumAmount += charNum;
-
-            multiplicaionLast *= charNum > 0 ? charNum : 1;
-        }
-
-        sumAmount *= chars[chars.length-1];
-
-        if (sumAmount > 0)
-            throw new ApiException(String.format("Всё вроде далось посчитать. Сумму+умножение = %d & Умножение = %d", sumAmount, multiplicaionLast));*/
+    public List<CategoryDto> getCategories() {
 
         List<Category> categories = Services.categoriesService.getAll();
 
@@ -58,33 +36,53 @@ public class CategoriesController {
         return categories.stream().map(CategoryDto::factory).toList();
     }
 
+    // Выборка всех категорий с обобщением повторяющихся - для главной страницы с плиткой категорий
+    @GetMapping(value = "/get_all_with_repeating", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Collection<CategoryDto> getCategoriesWithRepeatingOnes() {
+
+        List<Category> categories = Services.categoriesService.getAll();
+
+        Map<Long, CategoryDto> categoryDtosMap = new HashMap<>();
+
+        // Добавить в map категории с обобщёнными повторяющимися категориям
+        categories.forEach(c -> CategoryDto.factory(c, categoryDtosMap));
+
+        //Создаём из вариантов товаров список объектов DTO для вариантов товаров
+        return categoryDtosMap.values();
+    }
+
     //Добавление категории
     @PostMapping()
-    public String createCategory(@RequestPart(value = "category_name") String categoryName,
-                                 @RequestPart(value = "parent_id") @Nullable Integer parentId){
+    public ResponseEntity<Long> createCategory(@RequestPart(value = "category_name") String categoryName,
+                                               @RequestPart(value = "parent_id") @Nullable Long parentId) {
 
-        int createdCategoryId = 0;
+        if (categoryName.isEmpty() || categoryName.isBlank())
+            throw new ApiException("Название категории не может быть пустым!");
 
-        try {
-            if (categoryName.isEmpty() || categoryName.isBlank())
-                throw new ApiException("Название категории не может быть пустым!");
+        if (!Utils.checkCharset(categoryName, StandardCharsets.UTF_8))
+            categoryName = new String(categoryName.getBytes(StandardCharsets.UTF_8));
 
-            if (!Utils.checkCharset(categoryName, StandardCharsets.UTF_8))
-                categoryName = new String(categoryName.getBytes(StandardCharsets.UTF_8));
+        //long createdCategoryId = Services.categoriesService.createAndCheckRepeating(categoryName, parentId);
+        long createdCategoryId = Services.categoriesService.createAndCheckRepeating(categoryName, parentId);
 
-            createdCategoryId = (int) Services.categoriesService.createAndCheckRepeating(categoryName, parentId);
-        } catch (ApiException e) {
-            throw new RuntimeException(e);
-        }
+        return ResponseEntity.ok(createdCategoryId);
+    }
 
-        return String.format("Товар с id: %d добавлен!", createdCategoryId);
+
+    //Изменение категории
+    @PutMapping(value = "/update")
+    public ResponseEntity<CategoryDto> updateCategory(@Valid @RequestBody CategoryRequestDto dto) {
+
+        Category upatedCategory = Services.categoriesService.updateAndCheckRepeating(dto);
+
+        return ResponseEntity.ok(CategoryDto.factory(upatedCategory));
     }
 
     //Получить просмотры каждой категории
     @GetMapping(value = "/category_views/{category_id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CategoriesViewsDtoContainer getCategoryViews(@PathVariable long category_id){
+    public CategoriesViewsDtoContainer getCategoryViews(@PathVariable long category_id) {
 
-        SimpleTuple<SimpleTuple<Boolean,Category>, List<CategoryViews>> categoryViewsTuple = Services.categoryViewsService.getByCategoryId(category_id);
+        SimpleTuple<SimpleTuple<Boolean, Category>, List<CategoryViews>> categoryViewsTuple = Services.categoryViewsService.getByCategoryId(category_id);
 
         //categoryViewsTuple.getValue1().getValue2() - получить кортеж с флагом родительская категория или нет -> получить саму найденную категорию
         CategoriesViewsDtoContainer dtoContainer = new CategoriesViewsDtoContainer(categoryViewsTuple.getValue1().getValue2());
@@ -103,13 +101,10 @@ public class CategoriesController {
 
     //Получить просмотры каждой категории
     @GetMapping(value = "/category_views/all", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<CategoriesViewsWithChildrenDto>/*List<CategoryViews>*/ getAllCategoryViews(){
+    public List<CategoriesViewsWithChildrenDto> getAllCategoryViews() {
 
-        //Получить все категории, где не указана родительская категория. То есть выборка родительских категорий.
-        List<Category> parentCategories = Services.categoriesService.getAll()
-                .stream()
-                .filter(c -> c.getParentCategory() == null)
-                .toList();
+        //Получить все категории, где не указана родительская категория. То есть выборка родительских категорий (корней).
+        List<Category> parentCategories = Services.categoriesService.getAllParentCategories();
 
         //Все дочерние категории на одном уровне рекурсии
         List<Long> childCategories;
@@ -118,15 +113,15 @@ public class CategoriesController {
         List<CategoriesViewsWithChildrenDto> dtoList = new ArrayList<>();
 
         //Пройти по всем начальным родительским категориям
-        for (Category c: parentCategories) {
-            childCategories = Services.categoriesService.getChildCategories(c.getId().intValue());
+        for (Category c : parentCategories) {
+            childCategories = Services.categoriesService.getChildCategories(c.getId());
 
             //Создать dto с подсчётом просмотров текущей и дочерних категорий на всех уровнях
             CategoriesViewsWithChildrenDto categoriesViewsDto = new CategoriesViewsWithChildrenDto(
                     Services.categoryViewsService.getSimpleCVByCategoryId(c.getId()));
 
             //Вложенный список, понятно, что не самое эффективное решение, но пока не понятно, как по-другому можно пройти по дочерним элементам
-            for (long id: childCategories) {
+            for (long id : childCategories) {
                 categoriesViewsDto.childCategories.add(ControllerUtils.findSubCategoryViews(id));
             }
 
@@ -142,7 +137,7 @@ public class CategoriesController {
 
     // Скрыть категорию
     @GetMapping(value = "/hide_category/{category_id}")
-    public ResponseEntity<Boolean> hideCategoryById(@Valid @PathVariable(value = "category_id") @Min(0) long categoryId){
+    public ResponseEntity<Boolean> hideCategoryById(@Valid @PathVariable(value = "category_id") @Min(0) long categoryId) {
 
         Services.categoriesService.hideById(categoryId);
 
@@ -153,7 +148,7 @@ public class CategoriesController {
     // Восстановить категорию из скрытия
     @GetMapping(value = "/recover_hidden_category")
     public ResponseEntity<Boolean> recoverHiddenCategoryById(@Valid @RequestParam(value = "category_id") @Min(0) long categoryId,
-                                                             @RequestParam(value = "recover_heirs", defaultValue = "true") boolean recoverHeirs){
+                                                             @RequestParam(value = "recover_heirs", defaultValue = "true") boolean recoverHeirs) {
 
         Services.categoriesService.recoverHiddenById(categoryId, recoverHeirs);
 

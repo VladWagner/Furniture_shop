@@ -61,4 +61,8 @@ public class Order {
     @Column(name = "sum")
     private int sum;
 
+    // Общее кол-во заказов сумма заказа
+    @Column(name = "general_products_amount")
+    private int generalProductsAmount;
+
 }
