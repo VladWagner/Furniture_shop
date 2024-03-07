@@ -4,7 +4,6 @@ import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
 import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.AttributeValuesRepository;
 import gp.wagner.backend.services.interfaces.AttributeValuesService;
@@ -12,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 //Сервис для работы  с таблицей значений характеристик и её сущностью
 @Service
@@ -148,7 +145,7 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
         if (pricesRange != null && pricesRange.getMin() != null)
             dtoList.add(pricesRange);
 
-        return ServicesUtils.createAndSortFilterMap(dtoList);
+        return ServicesUtils.createAndSortFiltersMap(dtoList);
     }
 
     // Получить те же значения для фильтрации из списка id категорий
@@ -174,7 +171,7 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
                 .map(element -> new FilterValuesDto<Integer>(0,"Producers",element.getProducerName(), null, null))
                 .toList());
 
-        return ServicesUtils.createAndSortFilterMap(dtoList);
+        return ServicesUtils.createAndSortFiltersMap(dtoList);
     }
 
     //Можно так же ещё сделать выборку значений фильтраци по ключевому слову.
@@ -196,6 +193,6 @@ public class AttributeValuesServiceImpl implements AttributeValuesService {
                 .map(element -> new FilterValuesDto<Integer>(0,"Producers",element.getProducerName(), null, null))
                 .toList());
 
-        return ServicesUtils.createAndSortFilterMap(dtoList);
+        return ServicesUtils.createAndSortFiltersMap(dtoList);
     }
 }

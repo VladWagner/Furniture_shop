@@ -1,16 +1,12 @@
 package gp.wagner.backend.domain.entites.products;
 
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import jakarta.annotation.Nullable;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import jakarta.persistence.*;
 import org.hibernate.annotations.BatchSize;
 
-import java.util.ArrayList;
 import java.util.List;
 
 //Варианты исполнения товара
@@ -25,22 +21,26 @@ public class ProductVariant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //Адрес изображения для предосмотра
+    // Адрес изображения для предосмотра
     @Column(name = "preview_img")
     private String previewImg;
 
-    //Описание варианта
+    // Наименование варианта
     @Column(name = "title")
     private String title;
 
-    //Связующие свойство категории товара (Многие варианты для 1 товара)
+    // Связующие свойство товара (Многие варианты для 1 товара)
     @ManyToOne()
     @JoinColumn(name = "product_id")
     private Product product;
 
-    //Стоимости данного варианта
+    // Стоимости данного варианта
     @Column(name = "price")
     private int price;
+
+    @ManyToOne()
+    @JoinColumn(name = "discount_id")
+    private Discount discount;
 
     //Стоимости данного варианта
     @Column(name = "show_variant")
@@ -68,6 +68,17 @@ public class ProductVariant {
         this.price = price;
         this.showVariant = showVariant;
         this.productImages = productImages;
+    }
+
+    // Получить цену со скидкой
+    public int getPriceWithDiscount(){
+
+        // Если скидка не задана или задана некорректно, или больше неактивна, тогда вернуть старую цену
+        if (discount == null || discount.getPercentage() == null || !discount.getIsActive() || discount.isExpired() || discount.getPercentage() > 0.999)
+            return this.price;
+
+        int discountPart = Math.round(this.price * discount.getPercentage());
+        return this.price - discountPart;
     }
 }
 

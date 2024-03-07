@@ -395,6 +395,25 @@ public class BasketsServiceImpl implements BasketsService {
     }
 
     @Override
+    public void recountSumsForVariants(Long pvId, List<Long> pvIdList) {
+        // Найти корзины с текущим вариантом для изменения суммы
+        List<Basket> basketsToChange = ServicesUtils.findByProdVariantIdAndUserIdGeneric(pvId, pvIdList, null, entityManager , List.class);
+
+        if (basketsToChange == null)
+            return;
+
+        // Найти записи BasketAndProductVariant для получения кол-ва единиц определённого варианта
+        List<BasketAndProductVariant> bpvListAll = bpvRepository.findBasketAndProductVariantsByBasketIdsList(basketsToChange.stream().map(Basket::getId).toList());
+
+        // Для каждой корзин изменить общую сумму
+
+        ServicesUtils.countSumInBaskets(basketsToChange, bpvListAll);
+
+        // Сохранить изменения в корзинах
+        basketsRepository.saveAllAndFlush(basketsToChange);
+    }
+
+    @Override
     public Page<Basket> getAll(int pageNumber, int dataOnPage) {
         return basketsRepository.findAll(PageRequest.of(pageNumber-1, dataOnPage));
     }

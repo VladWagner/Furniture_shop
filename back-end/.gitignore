@@ -21,7 +21,7 @@ target/
 .sts4-cache
 **/src/main/resources/scripts_db/create_functions.json
 **/furniture_shop_wagner.sql
-**/uploads/water-mark.png
+**/uploads/**
 
 ### IntelliJ IDEA ###
 .idea

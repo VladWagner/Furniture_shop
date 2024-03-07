@@ -11,7 +11,9 @@ import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
+import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
@@ -68,7 +70,6 @@ public class UsersController {
 
         User createdUser;
 
-        // TODO: нужно продумать, корректно ли проверять наличие зарегистрированного пользователя с заданными логином или почтой, если это будет проверятся ещё на форме фронта
         createdUser = Services.usersService.create(userDto);
 
         String fileName;
@@ -203,7 +204,10 @@ public class UsersController {
     // Проверка email пользователя на уникальность
     // Если возвращается true, тогда вывести сообщение о том, что пользователь с таким email уже зарегестрирован
     @GetMapping(value = "/check_email")
-    public ResponseEntity<Boolean> getEmailExists(@Valid @RequestParam(value = "val") String email) {
+    public ResponseEntity<Boolean> getEmailExists(@Valid @RequestParam(value = "val") String email)  {
+
+        if (Utils.emailIsValid(email))
+            throw new ConstraintViolationException("Email пользователя задан некорректно!", null);
 
         boolean result = Services.usersService.userWithEmailExists(email);
         return ResponseEntity.ok(result);

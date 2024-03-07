@@ -59,6 +59,10 @@ public interface ProductsService {
     //Выборка по категории
     Page<Product> getByCategory(long categoryId,int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType);
 
+    //Выборка по категории с фильтрацией по цене
+    Page<Product> getByCategoryAndPrice(long categoryId, String priceRange,int pageNum, int dataOnPage,
+                                        ProductsSortEnum sortEnum, GeneralSortEnum sortType, ProductsOrVariantsEnum povEnum);
+
     //Выборка по производителю
     Page<Product> getByProducerPaged(long producerId, int pageNum, int dataOnPage, ProductsSortEnum sortEnum, GeneralSortEnum sortType);
 

@@ -1,9 +1,12 @@
 package gp.wagner.backend.domain.dto.response.orders;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import gp.wagner.backend.domain.dto.response.product_variants.SimpleProductVariantRespDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.infrastructure.serializers.DateTimeJsonSerializer;
+import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -36,26 +39,41 @@ public class OrderRespDto {
     private CustomerRespDto customerDto;
 
     // Статус заказа
-    @JsonProperty(value = "order_stateId", index = 5)
+    @JsonProperty(value = "order_state_id", index = 5)
     private long orderStateId;
 
+    // Способ оплаты
+    @JsonProperty(value = "payment_method", index = 6)
+    private Long paymentMethodId;
+
+    // Способ оплаты
+    @JsonProperty(index = 9)
+    private String description;
+
     // Список заказываемых вариантов товаров
-    //private List<ProductVariantPreviewRespDto> productVariantPreview;
 
     private static class ProductVariantAndCount {
-        public ProductVariantPreviewRespDto productVariantDto;
+        public SimpleProductVariantRespDto productVariantDto;
 
         public int count;
 
+        @JsonProperty("unit_price")
+        public int unitPrice;
+
         public ProductVariantAndCount(OrderAndProductVariant opv) {
-            this.productVariantDto = new ProductVariantPreviewRespDto(opv.getProductVariant());
+            this.productVariantDto = new SimpleProductVariantRespDto(opv.getProductVariant());
             this.count = opv.getProductsAmount();
+            this.unitPrice = opv.getUnitPrice() != null ? opv.getUnitPrice() : 0;
         }
     }
 
+
+    @JsonProperty(value = "productVariantsAndCount", index = 7)
     private List<ProductVariantAndCount> productVariantsAndCount;
 
     // Дата создания заказа
+    @JsonProperty(value = "created_at", index = 8)
+    @JsonSerialize(using = DateTimeJsonSerializer.class)
     private Date createdAt;
 
 
@@ -68,5 +86,7 @@ public class OrderRespDto {
         this.createdAt = order.getOrderDate();
         this.sum = order.getSum();
         this.generalProductsAmount = order.getGeneralProductsAmount();
+        this.paymentMethodId = order.getPaymentMethod() != null ? order.getPaymentMethod().getId() : null;
+        this.description = order.getDescription();
     }
 }

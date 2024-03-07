@@ -72,22 +72,22 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     // Подсчёт кол-ва заказов по дням за определённый период
     @Query(nativeQuery = true, value = """
             with orders_count as (select
-                DATE(o.order_date) as order_date,
+                DATE(o.order_date) as order_date_alias,
                 COUNT(o.id) as orders_count,
                 SUM(o.sum) as orders_sum
             from
                 orders o
             where
                 o.order_date between :date_lo and :date_hi and
-                ((:state is not null and :state > 0 and o.order_state_id = :state)
-                      or :state is null or :state <= 0)
-            group by o.order_date)
+                ((:state_id is not null and :state_id > 0 and o.order_state_id = :state_id)
+                      or :state_id is null or :state_id <= 0)
+            group by order_date_alias)
         
             select
             *
             from orders_count oc
             """)
-    Page<Object[]> getOrdersByDaysBetweenDates(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("state") Long orderStateId, Pageable pageable);
+    Page<Object[]> getOrdersByDaysBetweenDates(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("state_id") Integer orderStateId, Pageable pageable);
 
     // Конверсия из просмотра в заказ в определённой категории и диапазоне дат – стоит переделать в Criteria API, потому что если сюда добавить
     // ещё и выборку по статусу
@@ -102,32 +102,33 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
                                 on opv.product_variant_id = vp.id)
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
-    ((:category_id is not null and :category_id > 0 and p.category_id = :category_id)
-        or :category_id is null or :category_id <= 0 )
+        ((:category_id is not null and :category_id > 0 and p.category_id = :category_id)
+            or :category_id is null or :category_id <= 0 ) and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
     group by order_date_alias, visits),
     
-       doc_with_cvr as (
-        select
-            *,
-            doc.order_date_alias as order_date,
-            coalesce(doc.orders_amount/visits, 0) as cvr
-        from
-            date_and_orders_count doc
-        where
-            doc.visits >= doc.orders_amount)
+    doc_with_cvr as (
+     select
+         *,
+         doc.order_date_alias as order_date,
+         coalesce(doc.orders_amount/visits, 0) as cvr
+     from
+         date_and_orders_count doc
+     where
+         doc.visits >= doc.orders_amount)
   
-        select
-            dwc.order_date,
-            dwc.orders_amount,
-            dwc.visits,
-            dwc.cvr,
-            dwc.orders_sum
-        from
-            doc_with_cvr dwc
+     select
+         dwc.order_date,
+         dwc.orders_amount,
+         dwc.visits,
+         dwc.cvr,
+         dwc.orders_sum
+     from
+         doc_with_cvr dwc
     
 """)
     Page<Object[]> getCvrToOrdersBetweenDatesInCategory(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_id") Long categoryId,
-                                               Pageable pageable);
+                                                        @Param("state_id") int orderStateId, Pageable pageable);
     @Query(nativeQuery = true, value = """
     with date_and_orders_count as (select
         DATE(o.order_date) as order_date_alias,
@@ -139,7 +140,8 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
                                 on opv.product_variant_id = vp.id)
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
-        p.category_id in :category_ids
+        p.category_id in :category_ids and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
     group by order_date_alias, visits),
     
        doc_with_cvr as (
@@ -163,7 +165,7 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     
 """)
     Page<Object[]> getCvrToOrdersBetweenDatesInCategoriesIds(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_ids") List<Long> categoryIds,
-                                               Pageable pageable);
+                                                             @Param("state_id") int orderStateId,  Pageable pageable);
 
     // Конверсия из просмотра в заказ определённого товара в диапазоне дат – так же стоит переделать в Criteria API
     @Query(nativeQuery = true, value = """
@@ -179,7 +181,8 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
         ((:product_id is not null and :product_id > 0 and p.id = :product_id)
-                or :product_id is null or :product_id <= 0)
+                or :product_id is null or :product_id <= 0) and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
     group by order_date_alias, visits),
     
    doc_with_cvr as (
@@ -202,7 +205,7 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
         doc_with_cvr dwc
 """)
     Page<Object[]> getCvrToOrdersBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId,
-                                               Pageable pageable);
+                                                        @Param("state_id") int orderStateId,  Pageable pageable);
 
     // Конверсия из просмотра в добавление в корзину для конкретного товара
     @Query(nativeQuery = true, value = """
@@ -244,7 +247,8 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
         ((:category_id is not null and :category_id > 0 and p.category_id = :category_id)
-            or :category_id is null or :category_id <= 0 )
+            or :category_id is null or :category_id <= 0 ) and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
     group by order_date_alias, visits)
     
     select
@@ -254,7 +258,33 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     from date_and_orders_count doc
     where doc.visits >= doc.orders_amount;
 """)
-    Object[][] getQuantityValuesForOrdersBetweenDatesInCategory(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_id") Long categoryId);
+    Object[][] getQuantityValuesForOrdersBetweenDatesInCategory(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_id") Long categoryId,
+                                                                @Param("state_id") int orderStateId);
+
+    // Максимальная, средняя и минимальная конверсия за период для списка категорий
+    @Query(nativeQuery = true, value = """
+    with date_and_orders_count as (select
+        DATE(o.order_date) as order_date_alias,
+        coalesce((select sum(dv.count) from daily_visits dv where dv.date = order_date_alias), 0) as visits,
+        COUNT(DISTINCT(o.id)) as orders_amount
+    from orders o join (orders_products_variants opv join
+                                (variants_product vp join products p on vp.product_id = p.id)
+                                on opv.product_variant_id = vp.id)
+            on o.id = opv.order_id
+    where o.order_date between :date_lo and :date_hi and
+        p.category_id in :category_ids_list and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
+    group by order_date_alias, visits)
+    
+    select
+        coalesce(min(doc.orders_amount/visits),0) as min_cvr,
+        coalesce(avg(doc.orders_amount/visits),0) as avg_cvr,
+        coalesce(max(doc.orders_amount/visits),0) as max_cvr
+    from date_and_orders_count doc
+    where doc.visits >= doc.orders_amount;
+""")
+    Object[][] getQuantityValuesForOrdersBetweenDatesInCategories(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("category_ids_list") List<Long> categoryIds,
+                                                                @Param("state_id") int orderStateId);
 
     // Максимальная, средняя и минимальная конверсия за период для товара
     @Query(nativeQuery = true, value = """
@@ -268,7 +298,8 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
             on o.id = opv.order_id
     where o.order_date between :date_lo and :date_hi and
         ((:product_id is not null and :product_id > 0 and p.id = :product_id)
-                or :product_id is null or :product_id <= 0)
+                or :product_id is null or :product_id <= 0) and
+        ((:state_id > 0 and o.order_state_id = :state_id) or :state_id <= 0)
     group by order_date_alias, visits)
     
     select
@@ -278,7 +309,8 @@ public interface AdminPanelStatisticsRepository extends JpaRepository<Visitor,Lo
     from date_and_orders_count doc
     where doc.visits >= doc.orders_amount;
 """)
-    Object[][] getQuantityValuesForOrdersBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId);
+    Object[][] getQuantityValuesForOrdersBetweenDatesForProduct(@Param("date_lo") Date dateLo, @Param("date_hi") Date dateHi, @Param("product_id") Long productId,
+                                                                @Param("state_id") int orderStateId);
 
     // Частота просмотров товаров в разных категориях - обрати внимание на countQuery, без него такое количество подзапросов не работает
     @Query(nativeQuery = true, value = """

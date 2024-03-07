@@ -3,10 +3,8 @@ package gp.wagner.backend.services.implementations;
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
 import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.orders.Customer;
+import gp.wagner.backend.domain.entites.orders.*;
 import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.entites.orders.OrderState;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.visits.Visitor;
@@ -30,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -134,6 +133,9 @@ public class OrdersServiceImpl implements OrdersService {
 
         long orderCode = Utils.generateOrderCode(customerId);
 
+        PaymentMethod paymentMethod = ordersRepository.getPaymentMethodById(dto.getPaymentMethodId())
+                .orElseThrow(() -> new ApiException(String.format("Способ оплаты с id: %d не найден!", dto.getPaymentMethodId())));
+
         // Добавить информацию о самом заказе
         ordersRepository.insertOrder(dto.getStateId(), customerId.intValue(), orderCode);
 
@@ -141,6 +143,10 @@ public class OrdersServiceImpl implements OrdersService {
 
         if (createdOrder == null)
             return new SimpleTuple<>(-1L, -1L);
+
+        // Добавить способ оплат
+        createdOrder.setPaymentMethod(paymentMethod);
+        createdOrder.setDescription(dto.getDescription());
 
         // Добавить список товаров
         List<OrderAndProductVariant> opvList = new LinkedList<>();
@@ -159,7 +165,7 @@ public class OrdersServiceImpl implements OrdersService {
 
             opvList.add(new OrderAndProductVariant(null, entry.getValue(), productVariant, createdOrder));
 
-            orderSum += productVariant.getPrice();
+            orderSum += productVariant.getPriceWithDiscount();
             productsAmount += entry.getValue();
 
         }
@@ -175,6 +181,41 @@ public class OrdersServiceImpl implements OrdersService {
         //TODO: реализовать асинхронную отправку уведомления || синхронное добавление в таблицу уведомлений
 
         return new SimpleTuple<>(createdOrder.getId(), createdOrder.getCode()) ;
+    }
+
+    @Override
+    public PaymentMethod createPaymentMethod(String methodName) {
+
+        PaymentMethod paymentMethod = getMethodByName(methodName);
+
+        if (paymentMethod != null)
+            throw new ApiException(
+                    String.format("Не получилось создать способ оплаты с названием %s, так как он уже существует!", methodName));
+
+        paymentMethod = new PaymentMethod(methodName);
+
+        ordersRepository.insertPaymentMethod(methodName);
+
+        return paymentMethod;
+    }
+
+    public PaymentMethod getMethodByName(String name){
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<PaymentMethod> query = cb.createQuery(PaymentMethod.class);
+
+        Root<PaymentMethod> root = query.from(PaymentMethod.class);
+
+        query.where(
+                cb.like(
+                        cb.lower(root.get("methodName")),
+                        name.toLowerCase()
+                )
+        );
+
+        List<PaymentMethod> paymentMethods = entityManager.createQuery(query).getResultList();
+
+        return !paymentMethods.isEmpty() ? paymentMethods.get(0) : null;
     }
 
     // Добавить/Изменить товары в заказе
@@ -371,7 +412,10 @@ public class OrdersServiceImpl implements OrdersService {
         if(getByOrderCode(orderCode) == null)
             throw new ApiException(String.format("Заказ с кодом %d не существует!", orderCode));
 
-        ordersRepository.updateOrderState(null, orderCode, orderStateId);
+        OrderState state = ordersRepository.getOrderStateById(orderStateId).orElseThrow(() ->
+                new ApiException(String.format("Не найден статус заказа с id: %d", orderStateId)));
+
+        ordersRepository.updateOrderState(null, orderCode, state.getId());
     }
 
     @Override
@@ -402,7 +446,10 @@ public class OrdersServiceImpl implements OrdersService {
 
     @Override
     public Order getByOrderCode(long code) {
-        return ordersRepository.findOrderByCode(code).orElse(null);
+
+
+        return ordersRepository.findOrderByCode(code)
+                .orElseThrow(() -> new ApiException(String.format("Товар с кодом %d не найден!", code)));
     }
 
     @Override
@@ -411,7 +458,13 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     @Override
-    public List<Order> getOrdersByEmail(String email, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
+    public Page<Order> getOrdersByCustomerEmail(String email, Long id, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        if ((email == null || email.isBlank()) && id == null)
+            throw new ApiException("Не удалось найти товары для покупателя. Параметры заданы некорректно!");
+
+        if (pageNum > 0)
+            pageNum -= 1;
 
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
@@ -425,13 +478,32 @@ public class OrdersServiceImpl implements OrdersService {
         Join<Order, Customer> orderCustomerJoin = orderRoot.join("customer");
 
         // Предикат для запроса
-        Predicate predicate = cb.equal(orderCustomerJoin.get("email"), email);
+        Predicate predicate;
+
+        if (email != null && id != null)
+            predicate = cb.and(
+                    cb.equal(orderCustomerJoin.get("id"), id),
+                    cb.equal(orderCustomerJoin.get("email"), email)
+            );
+        else if (email != null)
+            predicate = cb.equal(orderCustomerJoin.get("email"), email);
+        else
+            predicate = cb.equal(orderCustomerJoin.get("id"), id);
 
         query.where(predicate);
 
         SortingUtils.createSortQueryForOrders(cb, query, orderRoot, sortEnum, sortType);
 
-        return entityManager.createQuery(query).getResultList();
+        TypedQuery<Order> typedQuery = entityManager.createQuery(query);
+
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+        typedQuery.setMaxResults(dataOnPage);
+
+        List<Order> orders = typedQuery.getResultList();
+
+        long elementsCount = PaginationUtils.countOrdersByCustomerEmail(entityManager, email, id);
+
+        return new PageImpl<>(orders, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
     // Получение всех заказов для определённого варианта товара
@@ -484,6 +556,11 @@ public class OrdersServiceImpl implements OrdersService {
     @Override
     public long getMaxId() {
         return ordersRepository.getMaxId();
+    }
+
+    @Override
+    public List<PaymentMethod> getPaymentMethods() {
+        return ordersRepository.getAllPaymentMethods();
     }
 
     @Override
@@ -643,6 +720,28 @@ public class OrdersServiceImpl implements OrdersService {
         return new SimpleTuple<>(rawTuple.get(0, Date.class), rawTuple.get(1, Date.class));
     }
 
+    @Override
+    public void recountSumsForVariants(Long pvId, List<Long> pvIdList) {
+        if (pvId == null && pvIdList == null)
+            throw new ApiException("Не удалось пересчитать суммы заказов. Заданы некорректные параметры!");
+
+        // Найти заказы с заданным вариантом товара
+        List<Order> ordersToChange = findOrdersByPvIdAndStateId(pvId, pvIdList, Constants.MutableOrderStateId);
+
+        if (ordersToChange.isEmpty())
+            return;
+
+        // Найти все записи в таблице многие ко многим
+        List<OrderAndProductVariant> opvAll = opvRepository.findOrdersAndPvByIdListOrCodesList(ordersToChange.stream().map(Order::getId).toList());
+
+        // Пересчитать сумму для каждого заказа с учётом изменённого варианта товара
+
+        ServicesUtils.countSumInOrders(ordersToChange, opvAll);
+
+        // Сохранить заказы
+        ordersRepository.saveAll(ordersToChange);
+    }
+
     // Выборка товаров и определённым вариантом товара и статусом
     private List<Order> findOrdersByPvIdAndStateId(Long pvId, List<Long> pvIdList, long statusId){
 
@@ -684,6 +783,43 @@ public class OrdersServiceImpl implements OrdersService {
             );
 
         }
+
+        query.where(predicate);
+
+        return entityManager.createQuery(query).getResultList();
+    }
+
+
+    public List<Order> findOrdersByPvIdAndStateIdIsNot(List<Long> pvIdList, long statusId) {
+        if (pvIdList == null)
+            return null;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Для формирования запросов
+        CriteriaQuery<Order> query = cb.createQuery(Order.class);
+
+        // Таблица с заказываемыми товарами
+        Root<Order> root = query.from(Order.class);
+
+        // Присоединение сущности productVariant
+        Join<Order, OrderAndProductVariant> opvJoin = root.join("orderAndPVList");
+
+        // Таблица вариантов товаров
+        Path<ProductVariant> productVariantPath = opvJoin.get("productVariant");
+
+        // Присоединить таблицу состояний заказов
+        Path<OrderState> orderStatePath = root.get("orderState");
+
+        // Предикат выборки только по id или по списку значений
+        CriteriaBuilder.In<Long> cbIn = cb.in(productVariantPath.get("id"));
+
+        pvIdList.forEach(cbIn::value);
+
+        Predicate predicate = cb.and(
+                cb.notEqual(orderStatePath.get("id"), statusId),
+                cbIn
+        );
 
         query.where(predicate);
 

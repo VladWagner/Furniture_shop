@@ -22,7 +22,7 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
 """)
     List<ProductVariant> findProductVariantsByProductId(@Param("product_id") Long productId);
 
-    //Получение неудалённых вариантов товаров по их id
+    // Получение неудалённых вариантов товаров по id их товаров
     @Query(value = """
      select
      pv
@@ -39,6 +39,15 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
      where pv.product.id = :product_id and pv.isDeleted = true
 """)
     List<ProductVariant> findDeletedProductVariantsByProductId(@Param("product_id") Long productId);
+
+    // Получение неудалённых вариантов товаров по их id
+    @Query(value = """
+     select
+     pv
+     from ProductVariant pv
+     where pv.id in :pv_id_list and (pv.isDeleted is null  or pv.isDeleted = false)
+""")
+    List<ProductVariant> findProductVariantsByIdList(@Param("pv_id_list") List<Long> pvIdsList);
 
     //Добавление вариантов товара
     @Transactional
@@ -105,7 +114,7 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
     """)
     void deleteVariantsByProductIdList(@Param("products_id_list") List<Long> productIdsList);
 
-    //Восстановить варианты по id товара
+    // Восстановить варианты по id/списку id товара
     @Transactional
     @Modifying
     @Query(nativeQuery = true,
@@ -145,5 +154,55 @@ public interface ProductVariantsRepository extends JpaRepository<ProductVariant,
         ProductVariant pv
     """)
     long getMaxId();
+
+    // Получить список id вариантов в списке категорий
+    @Query(nativeQuery = true,
+            value = """
+        select
+        pv.id
+        from variants_product pv join products p on pv.product_id = p.id
+        where p.category_id in :categories_ids_list
+    """)
+    List<Long> getProductsVariantsIdsByCategoriesIdsList(@Param("categories_ids_list") List<Long> categoriesIds);
+
+    // Получить список id вариантов использующих заданную скидку, которые находятся в списке категорий
+    @Query(nativeQuery = true,
+            value = """
+        select
+        pv.id
+        from variants_product pv join products p on pv.product_id = p.id
+        where (pv.discount_id is not null and pv.discount_id = :discount_id) and
+         p.category_id in :categories_ids_list
+    """)
+    List<Long> getProductsVariantsIdsByCategoriesIdsListAndDiscount(@Param("discount_id") long discountId, @Param("categories_ids_list") List<Long> categoriesIds);
+
+    // Получить список id вариантов использующих заданную скидку
+    @Query(nativeQuery = true,
+            value = """
+        select
+        pv.id
+        from variants_product pv
+        where pv.discount_id = :discount_id
+    """)
+    List<Long> getProductsVariantsIdsWithDiscount(@Param("discount_id") long discountId);
+
+    // Получить список id вариантов использующих заданную скидку, id которых находится в заданном списке
+    @Query(nativeQuery = true,
+            value = """
+        select
+        pv.id
+        from variants_product pv
+        where pv.id in :pv_ids_list and pv.discount_id = :discount_id
+    """)
+    List<Long> getProductsVariantsIdsWithDiscount(@Param("discount_id") long discountId, @Param("pv_ids_list") List<Long> pvIds);
+
+    // Получить список вариантов использующих заданную скидку, id которых находится в заданном списке
+    @Query(value = """
+        select
+        pv
+        from ProductVariant pv
+        where pv.id in :pv_ids_list and (pv.discount is not null and pv.discount.id = :discount_id)
+    """)
+    List<ProductVariant> getProductsVariantsWithDiscountInIdsList(@Param("discount_id") long discountId, @Param("pv_ids_list") List<Long> pvIds);
 
 }

@@ -18,6 +18,7 @@ import jakarta.persistence.criteria.Root;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -386,12 +387,23 @@ public class CategoriesServiceImpl implements CategoriesService {
 
     // Получить дочерние категории на одном уровне дерева
     @Override
-    public List<Long> getChildCategories(long id) {
+    public List<Long> getChildCategoriesIds(long id) {
 
         if (id <= 0)
             throw new ApiException(String.format("Id %d is incorrect!", id));
 
         return categoriesRepository.getChildCategoriesIds(id).orElse(null);
+    }
+
+    @Override
+    public List<Category> getChildCategories(long parentId) {
+
+        if (parentId <= 0)
+            throw new ApiException(String.format("Id родительской категории %d задан неверно!", parentId));
+        List<Long> ids = getChildCategoriesIds(parentId);
+
+        // Если удалось найти дочерние категории на одном уровне рекурсии
+        return ids != null && !ids.isEmpty() ? getByIdList(ids) : new ArrayList<>();
     }
 
     @Override

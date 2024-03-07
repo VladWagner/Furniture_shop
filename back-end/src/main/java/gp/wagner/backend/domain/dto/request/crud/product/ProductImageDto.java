@@ -10,7 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 public class ProductImageDto {
 
-    //Для редактирования
+    // Для редактирования
     @Nullable
     private Long id;
 

@@ -14,6 +14,8 @@ spring:
           auto: none
         dialect: org.hibernate.dialect.MySQLDialect
         generate_statistics: false
+        jdbc:
+          time_zone: Europe/Moscow
         #search:
         #  backend:
         #    directory:

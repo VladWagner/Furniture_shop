@@ -111,6 +111,20 @@ public class AdminPanelStatisticsController {
         return new PageDto<>(dailyCvr, () -> dailyCvr.getContent().stream().map(DailyConversionsRespDto::new).toList());
     }
 
+    @GetMapping(value = "/get_daily_cvr_category_criteria", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<DailyConversionsRespDto> getOrdersCvrBetweenDatesInCategoryCriteria(
+            @Valid @RequestBody DatesRangeAndValRequestDto datesRangeDto,
+            @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
+            @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
+            @RequestParam(value = "sort_by", defaultValue = "date")  String sortBy,
+            @RequestParam(value = "sort_type", defaultValue = "asc") String sortType)  {
+
+        Page<Tuple> dailyCvr = Services.adminPanelStatisticsService.getConversionFromViewToOrderInCategoryCriteria(datesRangeDto, pageNum, limit,
+                OrdersStatisticsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        return new PageDto<>(dailyCvr, () -> dailyCvr.getContent().stream().map(DailyConversionsRespDto::new).toList());
+    }
+
     // Подсчёт конверсий по дням из просмотра в заказ в для определённого товара
     @GetMapping(value = "/get_daily_cvr_product", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<DailyConversionsRespDto> getOrdersCvrBetweenDatesForProduct(
@@ -241,7 +255,7 @@ public class AdminPanelStatisticsController {
 
     // Возврат CSV файла с количеством заказов каждого товара в категории + фильтр
     @GetMapping(value = "/products_variants_orders_count_xls")
-    public ResponseEntity<Resource> getProductsVariantsOrdersCountCsv(
+    public ResponseEntity<Resource> getProductsVariantsOrdersCountXlsx(
             @Valid @RequestBody OrdersAndBasketsCountFiltersRequestDto filtersRequestDto) {
 
         List<Tuple> tupleList = Services.adminPanelStatisticsService.getOrdersCountForEachProduct(filtersRequestDto, ProductsOrVariantsEnum.VARIANTS);
@@ -263,7 +277,7 @@ public class AdminPanelStatisticsController {
 
     // Возврат XLS файла с топом вариантов товаров по добавлениям в корзины
     @GetMapping(value = "/top_products_variants_baskets_count_xls")
-    public ResponseEntity<Resource> getTopProductsInBasketsCsv(
+    public ResponseEntity<Resource> getTopProductsInBasketsXlsx(
             @Valid @RequestBody OrdersAndBasketsCountFiltersRequestDto filtersRequestDto,
             @RequestParam(value = "percentage", defaultValue = "0.2") float percentage) {
 

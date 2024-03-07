@@ -27,11 +27,11 @@ public class Visitor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    //ip пользователя
+    // ip пользователя
     @Column(name = "ip_address")
     private String ipAddress;
 
-    //Отпечаток устройства пользователя
+    // Отпечаток устройства пользователя
     @NotEmpty(message = "Fingerprint of browser cant be empty")
     @Column(name = "fingerprint")
     private String fingerprint;

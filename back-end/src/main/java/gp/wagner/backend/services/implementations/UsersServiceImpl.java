@@ -39,10 +39,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class UsersServiceImpl implements UsersService {
@@ -152,7 +149,7 @@ public class UsersServiceImpl implements UsersService {
 
         newUser = usersRepository.saveAndFlush(newUser);
 
-        // Отправить сообщение с подтверждением почты
+        // Отправить сообщение с подтверждением почты. Отправка синхронная, поскольку если отправить не удалось, тогда ↓
 
         try {
             generateAndSendVerificationToken(newUser);
@@ -198,8 +195,7 @@ public class UsersServiceImpl implements UsersService {
 
         }
 
-        // Отправить сообщение - тестовая почта. После проверки оставить user.
-        //String emailForTest = "saabnakyul@yandex.ru";
+        // Отправить сообщение - тестовая почта. После проверки оставить user
 
         Services.emailService.sendConfirmationTokenMime(user.getEmail(), vft.getToken(), user.getUserLogin());
 
@@ -349,7 +345,10 @@ public class UsersServiceImpl implements UsersService {
 
     @Override
     public User getById(Long id) {
-        return usersRepository.findById(id).orElse(null);
+        if (id == null || id <= 0)
+            throw new ApiException("Id пользователя задан некорректно!");
+
+        return usersRepository.findById(id).orElseThrow(new UserNotFound(id));
     }
 
     @Override

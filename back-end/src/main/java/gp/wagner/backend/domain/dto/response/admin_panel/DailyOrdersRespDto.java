@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.response.admin_panel;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -19,10 +20,12 @@ public class DailyOrdersRespDto {
 
     // Кол-во заказов
     @NonNull
+    @JsonProperty("orders_count")
     private Long ordersCount;
 
     // Суммы всех заказов
     @NonNull
+    @JsonProperty("orders_sums")
     private Long ordersSums;
 
     public DailyOrdersRespDto(Object[] rawTuple) {

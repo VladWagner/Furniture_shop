@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.net.InetAddress;
 
@@ -18,6 +19,7 @@ import java.net.InetAddress;
 
 // JpaAuditing нужен для отслеживания времени изменения и создания некоторых сущностей
 @EnableJpaAuditing
+@EnableScheduling
 @EnableAsync
 public class BackEndGpApplication {
 

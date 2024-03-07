@@ -1,5 +1,6 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.entites.reviews.Review;
 import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
@@ -203,6 +204,48 @@ public class FileManageServiceImpl implements FileManageService {
         return new UrlResource(filePath.toUri());
     }
 
+    // Загрузить изображение в отзыве
+    @Override
+    public Resource saveReviewImg(String fileName, MultipartFile multipartFile, Review review) throws IOException {
+        if (review == null)
+            throw new ApiException("Невозможно сохранить файл для несуществующего отзыва!");
+
+        StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_REVIEWS.toString());
+
+        // Если в товаре задана категория, тогда добавить её в путь файла
+        if (review.getProduct() != null && review.getProduct().getCategory() != null)
+            sb.append(String.format("/category_%d", review.getProduct().getCategory().getId()));
+
+        // Если задан id товар, тогда тоже добавить его в путь файла
+        if (review.getProduct() != null)
+            sb.append(String.format("/%d", review.getProduct().getId()));
+
+        Path newPath = Paths.get(sb.toString());
+
+        if (!Files.exists(newPath))
+            Files.createDirectories(newPath);
+
+        String extension = fileName.substring(fileName.lastIndexOf("."));
+
+        // Имя файла без расширения
+        fileName = fileName.substring(0, fileName.lastIndexOf("."));
+
+        // Добавить случайный идентификатор
+        long fileId = new Date().getTime();
+
+        // Добавить к пути имя сгенерированное файла
+        Path filePath = newPath.resolve(String.format("%d-%s%s",fileId,
+                fileName.length() >= 2 ? fileName.substring(0,2) : fileName.charAt(0), extension));
+
+
+        // Записать файл
+        try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath.toFile()))) {
+            bos.write(multipartFile.getBytes());
+        }
+
+        return new UrlResource(filePath.toUri());
+    }
+
     @Override
     public Resource generateAndSaveUserImg(User user) throws IOException {
 
@@ -217,7 +260,7 @@ public class FileManageServiceImpl implements FileManageService {
         if (user.getName() != null && !user.getName().isBlank())
             symbols = Utils.getFistSymbols(user.getName());
         else
-            symbols = Utils.getFistSymbols(user.getUserLogin());
+            symbols = Utils.getFistSymbols(user.getUserLogin()).toUpperCase();
 
         // Сформировать изображение исходя из 1-х строк полей User
 

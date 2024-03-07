@@ -382,4 +382,23 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
 
     }
 
+    @Override
+    public List<ProductVariant> getByProductsIds(List<Long> productsIdsList) {
+
+        if (productsIdsList == null || productsIdsList.isEmpty())
+            throw new ApiException("Найти варианты товаров по списку id самих товаров не удалось. Список задан некорректно!");
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        CriteriaQuery<ProductVariant> query = cb.createQuery(ProductVariant.class);
+        Root<ProductVariant> root = query.from(ProductVariant.class);
+        Path<Product> productPath = root.get("product");
+
+        Predicate predicate = productPath.get("id").in(productsIdsList);
+
+        query.where(predicate);
+
+        return entityManager.createQuery(query).getResultList();
+    }
+
 }

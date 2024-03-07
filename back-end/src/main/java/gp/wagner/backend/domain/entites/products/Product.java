@@ -2,6 +2,7 @@ package gp.wagner.backend.domain.entites.products;
 
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import gp.wagner.backend.domain.entites.ratings.RatingStatistics;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -60,14 +61,19 @@ public class Product {
     @Column(name = "show_product")
     private Boolean showProduct;
 
-    //Характеристики товара (Многие характеристики к 1 товару)
+    // Характеристики товара (Многие характеристики к 1 товару)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
     @BatchSize(size = 256)
     private List<AttributeValue> attributeValues = new ArrayList<>();
 
-    //Варианты исполнения товара
+    // Варианты исполнения товара
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "product")
     @BatchSize(size = 256)
     private List<ProductVariant> productVariants = new ArrayList<>();
+
+    // Статистика по оценкам
+    @OneToOne(mappedBy = "product")
+    private RatingStatistics ratingStatistics;
+
 }

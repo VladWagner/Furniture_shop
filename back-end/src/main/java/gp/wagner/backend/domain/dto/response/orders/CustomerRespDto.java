@@ -1,19 +1,10 @@
 package gp.wagner.backend.domain.dto.response.orders;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
-import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.visits.Visitor;
-import gp.wagner.backend.infrastructure.Utils;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 //DTO для отправки на сторону клиента
 @Data

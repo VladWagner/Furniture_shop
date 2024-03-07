@@ -1,7 +1,10 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.domain.entites.orders.PaymentMethod;
+import gp.wagner.backend.domain.entites.products.Discount;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entites.ratings.RatingStatistics;
 import gp.wagner.backend.infrastructure.enums.sorting.*;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
@@ -19,27 +22,66 @@ public class SortingUtils {
         Expression<?> expression = switch (sortEnum) {
             case ID -> root.get("id");
             case AVAILABLE -> root.get("isAvailable");
-            //default -> root.get("id");
+            case DISCOUNT -> null;
+            case RATINGS_AMOUNT -> null;
             case PRICE -> null;
         };
 
         if (sortEnum == ProductsSortEnum.PRICE){
 
             // Ещё один вложенный подзапрос для выборки минимального id варианта для данного товара
-            Subquery<Long> minIdSubquery = query.subquery(Long.class);
-            Root<ProductVariant> minIdSubQueryRoot = minIdSubquery.from(ProductVariant.class);
-            minIdSubquery.select(cb.min(minIdSubQueryRoot.get("id")))
+            Subquery<Long> minVariantIdSubquery = query.subquery(Long.class);
+            Root<ProductVariant> minIdSubQueryRoot = minVariantIdSubquery.from(ProductVariant.class);
+            minVariantIdSubquery.select(cb.min(minIdSubQueryRoot.get("id")))
                     .where(cb.equal(minIdSubQueryRoot.get("product"), root));
-
 
             Subquery<Long> subquery = query.subquery(Long.class);
             Root<ProductVariant> subQueryRoot = subquery.from(ProductVariant.class);
 
             // Для получения id базового товара используется ещё один подзапрос, определённый выше
             subquery.select(subQueryRoot.get("price"))
-                    .where(cb.equal(subQueryRoot.get("id"), minIdSubquery));
+                    .where(cb.equal(subQueryRoot.get("id"), minVariantIdSubquery));
 
             expression = subquery.getSelection();
+        }
+
+        // Сортировка по скидке
+        if (sortEnum == ProductsSortEnum.DISCOUNT){
+            Subquery<Float> discountSubQuery = query.subquery(Float.class);
+            Root<Discount> discountRoot = discountSubQuery.from(Discount.class);
+
+            Path<ProductVariant> pvPath = discountRoot.get("productVariants");
+
+            // Найти максимальное значение скидки в вариантах товара
+            discountSubQuery.select(cb.max(discountRoot.get("percentage")))
+                    .where(
+                            cb.equal(
+                                    pvPath.get("product").get("id"),
+                                    root.get("id")
+                            )
+                    );
+
+            expression = discountSubQuery.getSelection();
+
+        }
+
+        // Сортировка по количеству оценок
+        if (sortEnum == ProductsSortEnum.RATINGS_AMOUNT){
+            Subquery<Long> ratingsSubquery = query.subquery(Long.class);
+            Root<RatingStatistics> rsRoot = ratingsSubquery.from(RatingStatistics.class);
+
+            Path<Product> productPath = rsRoot.get("product");
+
+            ratingsSubquery.select(cb.max(rsRoot.get("amount")))
+                    .where(
+                            cb.equal(
+                                    productPath.get("id"),
+                                    root.get("id")
+                            )
+                    );
+
+            expression = ratingsSubquery.getSelection();
+
         }
 
 
@@ -68,8 +110,10 @@ public class SortingUtils {
             case SUM -> root.get("sum");
             case ORDER_STATE -> root.get("orderState");
             case FULLNESS -> root.get("generalProductsAmount");
+            case PAYMENT_METHOD ->  root.get("paymentMethod").get("methodName");
             default-> root.get("id");
         };
+
 
         query.orderBy(sortType == GeneralSortEnum.ASC ? cb.asc(expression) : cb.desc(expression));
 
@@ -83,6 +127,7 @@ public class SortingUtils {
             case SUM -> Sort.by("sum");
             case ORDER_STATE -> Sort.by("orderState");
             case FULLNESS -> Sort.by("generalProductsAmount");
+            case PAYMENT_METHOD -> Sort.by("paymentMethodId");
             default-> Sort.by("id");
         };
 
@@ -121,7 +166,7 @@ public class SortingUtils {
 
         Sort sort = switch (sortEnum) {
             case VISITS -> Sort.by("visits");
-            case AMOUNT -> Sort.by("orders_count");
+            case AMOUNT -> Sort.by("orders_amount");
             case CVR -> Sort.by("cvr");
             case SUM -> Sort.by("orders_sum");
             default-> Sort.by("order_date");
@@ -205,4 +250,45 @@ public class SortingUtils {
 
     }
 
+    // Сформировать объект сортировки при выборке скидок
+    public static Sort createSortForDiscountsSelection(DiscountsSortEnum sortEnum, GeneralSortEnum sortType){
+
+        Sort sort = switch (sortEnum) {
+            case PERCENTAGE -> Sort.by("percentage");
+            case STARTS_AT -> Sort.by("startsAt");
+            case ENDS_AT -> Sort.by("endsAt");
+            case IS_ACTIVE -> Sort.by("isActive");
+            default-> Sort.by("id");
+        };
+
+        return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
+
+    // Сформировать объект сортировки при выборке оценок товаров
+    public static Sort createSortForRatingsSelection(RatingsSortEnum sortEnum, GeneralSortEnum sortType){
+
+        Sort sort = switch (sortEnum) {
+            case RATING -> Sort.by("rating");
+            case CREATED_AT -> Sort.by("createdAt");
+            case UPDATED_AT -> Sort.by("updatedAt");
+            default-> Sort.by("id");
+        };
+
+        return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
+
+    // Сформировать объект сортировки при выборке отзывов на товары
+    public static Sort createSortForReviewsSelection(ReviewsSortEnum sortEnum, GeneralSortEnum sortType){
+
+        Sort sort = switch (sortEnum) {
+            case PRODUCT -> Sort.by("product_id");
+            case USER -> Sort.by("user_id");
+            case VERIFIED -> Sort.by("isVerified");
+            case CREATED_AT -> Sort.by("createdAt");
+            case UPDATED_AT -> Sort.by("updatedAt");
+            default-> Sort.by("id");
+        };
+
+        return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
 }

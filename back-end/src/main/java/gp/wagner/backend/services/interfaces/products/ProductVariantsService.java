@@ -67,4 +67,6 @@ public interface ProductVariantsService {
     void recoverHiddenByProductId(Product product);
 
     void deleteOrRecoverVariant(Long id, List<Long> idList, boolean deletionFlag);
+
+    List<ProductVariant> getByProductsIds(List<Long> productsIdsList);
 }

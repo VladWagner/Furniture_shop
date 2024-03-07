@@ -12,6 +12,7 @@ import gp.wagner.backend.domain.entites.eav.ProductAttribute;
 import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entites.products.Discount;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
@@ -39,6 +40,7 @@ public class ServicesUtils {
     public static Predicate getProductPricePredicate(SimpleTuple<Integer, Integer> priceRange, From<?, ?> root, CriteriaQuery<?> query, CriteriaBuilder cb) {
         //Присоединить таблицу вариантов товаров
         Join<Product, ProductVariant> productProductVariantJoin = root.join("productVariants");
+        Join<ProductVariant, Discount> discountJoin = productProductVariantJoin.join("discount", JoinType.LEFT);
 
         //Создание подзапроса для получения мин.id варианта товара - базового варианта товара
         Subquery<Long> subqueryId = query.subquery(Long.class);
@@ -52,9 +54,21 @@ public class ServicesUtils {
             int priceLo = priceRange.getValue1();
             int priceHi = priceRange.getValue2();
 
+            // Проверка наличия скидки и цены варианта с ней
+            Predicate discountPriceInRange = cb.and(
+                    cb.isNotNull(discountJoin.get("id")),
+                    cb.between(cb.diff(
+                            productProductVariantJoin.get("price"),
+                            cb.prod(productProductVariantJoin.get("price"), discountJoin.get("percentage"))
+                    ), priceLo, priceHi)
+            );
+
+            // Если скидка не задана, тогда сравнение с обычной ценой
+            Predicate regularPriceInRange = cb.between(productProductVariantJoin.get("price"), priceLo, priceHi);
+
             return cb.and(
                     cb.equal(productProductVariantJoin.get("id"), subqueryId),
-                    cb.between(productProductVariantJoin.get("price"), priceLo, priceHi)
+                    cb.or(discountPriceInRange, regularPriceInRange)
             );//cb.and
         }
         return null;
@@ -66,22 +80,36 @@ public class ServicesUtils {
         //Создание подзапроса для получения вариантов для текущего товара, которые входят в диапазон
         Subquery<Long> subQueryId = query.subquery(Long.class);
         Root<ProductVariant> subQueryRoot = subQueryId.from(ProductVariant.class);
+        Join<ProductVariant, Discount> discountJoin = subQueryRoot.join("discount", JoinType.LEFT);
 
         // Подзапрос для проверки базового варианта (его цена >= нижней границе) для корректного вывода
         Subquery<Long> baseVpSubQuery = query.subquery(Long.class);
         Root<ProductVariant> baseVpRoot = baseVpSubQuery.from(ProductVariant.class);
 
-        //Если получить значения из строки удалось, тогда формируем предикаты
+        // Если получить значения из строки удалось, тогда формируем предикаты
         if (priceRange != null) {
 
             int priceLo = priceRange.getValue1();
             int priceHi = priceRange.getValue2();
 
+            // Проверка наличия скидки и цены варианта с ней
+            Predicate discountPriceInRange = cb.and(
+                    cb.isNotNull(discountJoin.get("id")),
+                    cb.between(cb.diff(
+                            subQueryRoot.get("price"),
+                            cb.prod(subQueryRoot.get("price"), discountJoin.get("percentage"))
+                    ), priceLo, priceHi)
+            );
+
+            // Если скидка не задана, тогда сравнение с обычной ценой
+            Predicate regularPriceInRange = cb.between(subQueryRoot.get("price"), priceLo, priceHi);
+
             // Принимать в расчёт только выводимые и неудалённые варианты для определённого товара
             subQueryId.select(subQueryRoot.get("product").get("id"))
                     .where(cb.and(
                             cb.equal(subQueryRoot.get("product").get("id"), root.get("id")),
-                            cb.between(subQueryRoot.get("price"), priceLo, priceHi),
+                            //cb.between(subQueryRoot.get("price"), priceLo, priceHi),
+                            cb.or(discountPriceInRange, regularPriceInRange),
                             cb.equal(subQueryRoot.get("showVariant"), true),
                             cb.equal(subQueryRoot.get("isDeleted"), false)
                            )
@@ -178,10 +206,13 @@ public class ServicesUtils {
         if (categoryIds == null || categoryIds.isEmpty())
             return null;
 
+        // Оставить только id категорий из основной таблицы
         List<Long> simpleCategoriesIds = categoryIds.stream().filter(e -> e > 0).toList();
 
         // Оставить только id повторяющихся категорий (по договоренности их id < 0)
-        List<Long> repeatingCategoriesIds = categoryIds.stream().filter(e -> e < 0).collect(Collectors.toCollection(ArrayList::new));
+        List<Long> repeatingCategoriesIds = categoryIds.stream()
+                .filter(e -> e < 0)
+                .collect(Collectors.toCollection(ArrayList::new));
 
         List<Long> resultCategoriesList = new ArrayList<>();
 
@@ -203,7 +234,7 @@ public class ServicesUtils {
 
     // Сформировать все предикаты для заказов
     public static List<Predicate> collectOrdersPredicates(CriteriaBuilder cb, OrdersAndBasketsCountFiltersRequestDto dto,
-                                                          Path<Product> productPath, Path<Order> orderPath, Path<ProductVariant> pvPath){
+                                                          Path<Product> productPath, Path<Order> orderPath, From<?,OrderAndProductVariant> opvFrom){
 
         List<Predicate> predicates = new ArrayList<>();
 
@@ -224,13 +255,26 @@ public class ServicesUtils {
         if (dto.getMaxDate() != null)
             predicates.add(cb.lessThanOrEqualTo(orderPath.get("orderDate"), dto.getMaxDate()));
 
+
         // Если задана минимальная цена
         if (dto.getPriceMin() != null)
-            predicates.add(cb.greaterThanOrEqualTo(pvPath.get("price"), dto.getPriceMin()));
+            //predicates.add(cb.greaterThanOrEqualTo(pvPath.get("price"), dto.getPriceMin()));
+            predicates.add(
+                    cb.and(
+                            cb.isNotNull(opvFrom.get("unitPrice")),
+                            cb.greaterThanOrEqualTo(opvFrom.get("unitPrice"), dto.getPriceMin())
+                    )
+            );
 
         // Если задана максимальная цена варианта
         if (dto.getPriceMax() != null)
-            predicates.add(cb.lessThanOrEqualTo(pvPath.get("price"), dto.getPriceMax()));
+            //predicates.add(cb.lessThanOrEqualTo(pvPath.get("price"), dto.getPriceMax()));
+            predicates.add(
+                    cb.and(
+                            cb.isNotNull(opvFrom.get("unitPrice")),
+                            cb.lessThanOrEqualTo(opvFrom.get("unitPrice"), dto.getPriceMax())
+                    )
+            );
         //endregion
 
         return predicates;
@@ -238,7 +282,7 @@ public class ServicesUtils {
 
     // Сформировать все предикаты для корзин
     public static List<Predicate> collectBasketsPredicates(CriteriaBuilder cb, OrdersAndBasketsCountFiltersRequestDto dto,
-                                                          Path<Product> productPath, Path<Basket> basketPath, Path<ProductVariant> pvPath){
+                                                          Path<Product> productPath, Path<Basket> basketPath, From<?, ProductVariant> pvFrom){
 
         List<Predicate> predicates = new ArrayList<>();
 
@@ -255,12 +299,52 @@ public class ServicesUtils {
             predicates.add(cb.lessThanOrEqualTo(basketPath.get("addedDate"), dto.getMaxDate()));
 
         // Если задана минимальная цена
-        if (pvPath != null && dto.getPriceMin() != null)
-            predicates.add(cb.greaterThanOrEqualTo(pvPath.get("price"), dto.getPriceMin()));
+        /*if (dto.getPriceMin() != null)
+            predicates.add(cb.greaterThanOrEqualTo(pvFrom.get("price"), dto.getPriceMin()));
 
         // Если задана максимальная цена варианта
-        if (pvPath != null && dto.getPriceMax() != null)
-            predicates.add(cb.lessThanOrEqualTo(pvPath.get("price"), dto.getPriceMax()));
+        if (dto.getPriceMax() != null)
+            predicates.add(cb.lessThanOrEqualTo(pvFrom.get("price"), dto.getPriceMax()));*/
+
+        if (pvFrom != null && (dto.getPriceMin() != null || dto.getPriceMax() != null)) {
+            Join<ProductVariant, Discount> discountJoin = pvFrom.join("discount", JoinType.LEFT);
+            Expression<Integer> discountPrice = cb.diff(
+                    pvFrom.get("price"),
+                    cb.prod(pvFrom.get("price"), discountJoin.get("percentage"))
+            );
+            Predicate discountPricePredicate = cb.isNotNull(discountJoin.get("id"));
+
+            // Если задана минимальная цена
+            if (dto.getPriceMin() != null) {
+                // Скидка должна быть задана либо произойдёт проверка по штатной цене варианта
+                discountPricePredicate = cb.and(
+                        discountPricePredicate,
+                        cb.greaterThanOrEqualTo(discountPrice, dto.getPriceMin())
+                );
+                predicates.add(
+                        cb.or(
+                                discountPricePredicate,
+                                cb.greaterThanOrEqualTo(pvFrom.get("price"), dto.getPriceMin())
+                        )
+                );
+            }
+
+            // Если задана максимальная цена варианта
+            if (dto.getPriceMax() != null)
+            {
+                // Скидка должна быть задана либо произойдёт проверка по штатной цене варианта
+                discountPricePredicate = cb.and(
+                        discountPricePredicate,
+                        cb.lessThanOrEqualTo(discountPrice, dto.getPriceMax())
+                );
+                predicates.add(
+                        cb.or(
+                                discountPricePredicate,
+                                cb.lessThanOrEqualTo(pvFrom.get("price"), dto.getPriceMax())
+                        )
+                );
+            }
+        }
         //endregion
 
         return predicates;
@@ -397,7 +481,7 @@ public class ServicesUtils {
             bpvList = bpvListAll.stream()
                     .filter(e -> e.getBasket().getId().equals(basket.getId())
                             && e.getProductVariant().getShowVariant()
-                            && (e.getProductVariant().getIsDeleted() == null || !e.getProductVariant().getIsDeleted()))
+                            && !e.getProductVariant().getIsDeleted())
                     .toList();
 
             if (bpvList.isEmpty())
@@ -405,7 +489,7 @@ public class ServicesUtils {
 
             // Пересчитать сумму с изменённым вариантом товара
             int newSum = bpvList.stream()
-                    .map(bpv -> bpv.getProductVariant().getPrice() * bpv.getProductsAmount())
+                    .map(bpv -> bpv.getProductVariant().getPriceWithDiscount() * bpv.getProductsAmount())
                     .reduce(0, Integer::sum);
 
             basket.setSum(newSum);
@@ -419,7 +503,7 @@ public class ServicesUtils {
 
         for(Order order: orders){
             // Специально не производим никаких других проверок, поскольку для заказов с разными статусами могут быть нужны
-            // разные расчёты, которые будут определятся за пределом данного метода
+            // разные расчёты, которые будут определяться за пределом данного метода
             opvList = opvListAll.stream()
                     .filter(e -> e.getOrder().getId().equals(order.getId()))
                     .toList();
@@ -435,7 +519,12 @@ public class ServicesUtils {
             int newProductsAmount = 0;
 
             for (OrderAndProductVariant opv : opvList) {
-                newSum += opv.getProductVariant().getPrice() * opv.getProductsAmount();
+                // Зафиксировать стоимость за единицу товара на момент пересчёта суммы
+                opv.setUnitPrice(opv.getProductVariant().getPriceWithDiscount());
+
+                // Получаем стоимость со скидкой, в любом случае значение будет корректным
+                //newSum += opv.getProductVariant().getPriceWithDiscount() * opv.getProductsAmount();
+                newSum += opv.getUnitPrice() * opv.getProductsAmount();
                 newProductsAmount += opv.getProductsAmount();
             }
 
@@ -468,7 +557,7 @@ public class ServicesUtils {
 
         // Посчитать
         for (OrderAndProductVariant opv : opvList) {
-            newSum += opv.getProductVariant().getPrice() * opv.getProductsAmount();
+            newSum += opv.getProductVariant().getPriceWithDiscount() * opv.getProductsAmount();
             newProductsAmount += opv.getProductsAmount();
         }
 
@@ -772,7 +861,7 @@ public class ServicesUtils {
     }
 
     // Сформировать и отсортировать ассоциативную коллекцию фильтров по убыванию приоритетов
-    public static Map<String, List<FilterValuesDto<Integer>>> createAndSortFilterMap(List<FilterValuesDto<Integer>> filterValuesDtoList){
+    public static Map<String, List<FilterValuesDto<Integer>>> createAndSortFiltersMap(List<FilterValuesDto<Integer>> filterValuesDtoList){
 
         // Сформировать начальную ассоциативную коллекцию без сортировки по приоритетам
         Map<String, List<FilterValuesDto<Integer>>> groupedFilters = filterValuesDtoList.stream()
@@ -841,28 +930,4 @@ public class ServicesUtils {
 
         return entityManager.createQuery(query).getResultList().get(0);
     }
-
-    // Подсчёт количества товаров для определённого производителя
-    public static long countProductsByProducerOrCategory(EntityManager entityManager, long requiredId, Class<?> searchingType){
-
-        // Проверить, по чём будет происходить выборка
-        if (!searchingType.isAssignableFrom(Producer.class) || !searchingType.isAssignableFrom(Producer.class))
-            return 0;
-
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<Product> root = query.from(Product.class);
-
-        // Определить, по чём будет происходить поиск - производитель или категории
-        Path<?> path = searchingType.isAssignableFrom(Producer.class) ? root.get("producer") : root.get("category");
-
-        Predicate predicate = cb.equal(path.get("id"), requiredId);
-
-        query.select(cb.count(root.get("id"))).where(predicate);
-
-        return entityManager.createQuery(query).getResultList().get(0);
-    }
-
-
 }

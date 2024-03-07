@@ -36,4 +36,17 @@ public class OrderAndProductVariant {
     @JoinColumn(name = "order_id")
     private Order order;
 
+    // Зафиксированная стоимость варианта товара
+    @Column(name = "unit_price")
+    private Integer unitPrice;
+
+    public OrderAndProductVariant(Long id, int productsAmount, ProductVariant productVariant, Order order) {
+        this.id = id;
+        this.productsAmount = productsAmount;
+        this.productVariant = productVariant;
+        this.order = order;
+
+        // Зафиксировать текущую цену варианта (со скидкой или без)
+        this.unitPrice = productVariant.getPriceWithDiscount();
+    }
 }

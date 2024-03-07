@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.request.crud;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.validation.order_request_dto.annotations.ValidOrderRequestDto;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Min;
@@ -30,8 +31,14 @@ public class OrderRequestDto {
 
     @Nullable
     private Long code;
+    @Nullable
+    private String description;
 
-    @Min(1)
+    @Min(value = 1, message = "Id статуса заказа должен быть >= 1")
+    @JsonProperty("state_id")
     private int stateId;
+    @Min(1)
+    @JsonProperty("payment_method")
+    private long paymentMethodId;
 
 }

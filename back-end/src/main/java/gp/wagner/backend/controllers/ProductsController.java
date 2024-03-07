@@ -5,8 +5,8 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.PageDto;
-import gp.wagner.backend.domain.dto.response.product.ProductDetailsRespDto;
-import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
+import gp.wagner.backend.domain.dto.response.products.ProductDetailsRespDto;
+import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
 import gp.wagner.backend.domain.dto.response.product_attributes.AttributeValueRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
@@ -293,11 +293,16 @@ public class ProductsController {
 
                 //Если файл загружен не был и при этом его путь задан в dto, то возможно это изменение порядка
                 if (file == null) {
-                    if (!Services.fileManageService.isExists(new URI(imageDto.getFileName())))
-                        continue;
+                    /*if (!Services.fileManageService.isExists(new URI(imageDto.getFileName())))
+                        continue;*/
 
                     //Получить имя файла
-                    ProductImage productImage = Services.productImagesService.getByLink(imageDto.getFileName());
+                    //ProductImage productImage = Services.productImagesService.getByLink(imageDto.getFileName());
+                    ProductImage productImage = imageDto.getId() != null ? Services.productImagesService.getById(imageDto.getId()) : null;
+
+                    // Если найти изображение по id не удалось и при этом задано имя файла
+                    if (productImage == null && !imageDto.getFileName().isBlank())
+                        productImage = Services.productImagesService.getByLink(imageDto.getFileName());
 
                     //Если такого изображения нет, или оно не для этого варианта товара
                     if (productImage == null || !Objects.equals(productImage.getProductVariant().getId(), basicVariant.getId()))
@@ -320,7 +325,7 @@ public class ProductsController {
                     continue;
                 }
 
-                //Найти изображение с заданным порядковым номером (если такового нет, то добавляем)
+                //Найти изображение с заданным порядковым номером (если такового нет, то добавляем).
                 //То есть порядковый номер в данном случае выступает в роли идентификатора изображения
                 Optional<ProductImage> productImageOptional = productImages.size() > 0 ? productImages.stream()
                         .filter(pi -> pi.getImgOrder() == imageDto.getImgOrder())

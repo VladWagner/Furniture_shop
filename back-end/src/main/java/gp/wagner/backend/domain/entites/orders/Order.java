@@ -34,10 +34,20 @@ public class Order {
     @Column(name = "code")
     private long code;
 
+    // Описание заказа
+    @Column(name = "description")
+    private String description;
+
     //Связующее свойство состояния заказа (Многие заказы к 1 статусу)
     @ManyToOne
     @JoinColumn(name = "order_state_id")
     private OrderState orderState;
+
+
+    // Связующее свойство способа оплаты заказа
+    @ManyToOne
+    @JoinColumn(name = "payment_method_id")
+    private PaymentMethod paymentMethod;
 
     //Связующее свойство покупателя (снова многие заказы к 1 пользователю)
     @ManyToOne

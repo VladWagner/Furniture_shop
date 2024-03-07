@@ -1,6 +1,8 @@
 package gp.wagner.backend.repositories.orders;
 
 import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.entites.orders.OrderState;
+import gp.wagner.backend.domain.entites.orders.PaymentMethod;
 import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,6 +33,7 @@ public interface OrdersRepository extends JpaRepository<Order,Long> {
     void insertOrder(@Param("order_state") int orderStateId, @Param("customer") int customerId, @Param("code") long orderCode);
 
     //Изменение заказа
+    @Modifying
     @Transactional
     @Query(nativeQuery = true,
     value = """
@@ -44,13 +47,14 @@ public interface OrdersRepository extends JpaRepository<Order,Long> {
     void updateOrder(@Param("id") long id, @Param("order_state") int orderStateId, @Param("customer") int customerId, @Param("code") long orderCode, @Param("sum") int orderSum);
 
     //Изменение состояния заказа по id записи в таблице/коду заказа
+    @Modifying
     @Transactional
     @Query(nativeQuery = true,
     value = """
     update orders set
               order_state_id = :order_state
     where
-        if(:id is null or :id <= 0, (:code is not null and :code > 0 and :code = code), id = :id)
+        (:id is null or :id <= 0) and (:code is not null and :code > 0 and :code = code) or (:id is not null and :id > 0 and id = :id)
     """)
     void updateOrderState(@Param("id") Long id, @Param("code") Long orderCode, @Param("order_state") int orderStateId);
 
@@ -134,5 +138,43 @@ public interface OrdersRepository extends JpaRepository<Order,Long> {
     """)
     long getMaxId();
 
+    @Query(value = """
+    select
+        order.orderState
+    from
+        Order order
+    where order.orderState.id = :order_state_id
+    """)
+    Optional<OrderState> getOrderStateById(@Param("order_state_id") int orderStateId);
+
+    @Query(value = """
+    select
+        pm
+    from
+        PaymentMethod pm
+    where pm.id = :payment_method_id
+    """)
+    Optional<PaymentMethod> getPaymentMethodById(@Param("payment_method_id") long paymentMethodId);
+
+    @Query(value = """
+    select
+        pm
+    from
+        PaymentMethod pm
+    order by pm.id asc
+    """)
+    List<PaymentMethod> getAllPaymentMethods();
+
+    // Сохранить созданный способ оплаты
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true,
+            value = """
+    insert payment_methods
+        (method_name)
+    values
+        (:name)
+    """)
+    void insertPaymentMethod(@Param("name") String methodName);
 
 }

@@ -1,11 +1,8 @@
-package gp.wagner.backend.domain.dto.response.product;
+package gp.wagner.backend.domain.dto.response.products;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import jakarta.annotation.Nullable;
 import lombok.*;
-
-import java.util.Date;
 
 //DTO-объект для передачи ссылки на изображение + порядок вывода изображения в галереи
 @Data

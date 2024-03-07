@@ -38,7 +38,8 @@ public interface CategoriesService {
     List<Long> getAllChildCategories(List<Long> id);
 
     //Выборка id дочерних категорий в родительской на одном уровне рекурсии
-    List<Long> getChildCategories(long id);
+    List<Long> getChildCategoriesIds(long id);
+    List<Category> getChildCategories(long id);
 
     // Скрыть категорию по id + скрыть все её товары
     void hideById(long categoryId);

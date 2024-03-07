@@ -3,8 +3,9 @@ package gp.wagner.backend.infrastructure;
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
+import gp.wagner.backend.domain.dto.response.categories.CategoryDtoWithChildren;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
-import gp.wagner.backend.domain.dto.response.product.ProductPreviewRespDto;
+import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
@@ -24,17 +25,12 @@ public class ControllerUtils {
 
         if (products == null)
             return null;
-        return products.stream().map(p -> {
-            //Получить стоимость перового, базового варианта товара
-            ProductVariant baseVariant = p.getProductVariants().get(0);
-
-            return new ProductPreviewRespDto(p, baseVariant.getPrice(), baseVariant.getPreviewImg(), p.getAttributeValues());
-        }).toList();
+        return products.stream().map(ProductPreviewRespDto::new).toList();
     }//getProductsPreviewsList
 
     //Добавление характеристик товара
     public static void addProductFeatures(long productId, List<AttributeValueDto> attributeValueDtoList){
-        if (attributeValueDtoList.size() > 0)
+        if (attributeValueDtoList != null && !attributeValueDtoList.isEmpty())
             //Пройти по списку характеристик и задать DTO в метод сервиса
             for (AttributeValueDto dto: attributeValueDtoList)
                 Services.attributeValuesService.save(productId, dto);
@@ -44,7 +40,7 @@ public class ControllerUtils {
     //Изменение характеристик товара
     public static void updateProductFeatures(ProductDto productDto){
         //В DTO товара находится список атрибутов
-        if (productDto.getAttributes().size() > 0)
+        if (productDto.getAttributes() != null && !productDto.getAttributes().isEmpty())
 
             //Пройтись по списку атрибутов и определить, происходит ли добавление или изменение существующего атрибута
             for (AttributeValueDto dto: productDto.getAttributes()) {
@@ -149,6 +145,46 @@ public class ControllerUtils {
                         .get().getImgOrder() : -1;
     }
 
+    // Найти дочерние категории
+    public static List<CategoryDtoWithChildren> findChildCategories(long parentId){
+
+        List<CategoryDtoWithChildren> categories = Services.categoriesService.getChildCategories(parentId)
+                .stream()
+                .map(CategoryDtoWithChildren::factory)
+                //.map(c -> new CategoryDtoWithChildren(c, null))
+                .toList();
+
+        if (categories.isEmpty())
+            return null;
+
+        // Для дочерних категорий так же найти их вложенные категории
+        for (CategoryDtoWithChildren categoryDto : categories) {
+            categoryDto.setChildCategories(findChildCategories(categoryDto.getId()));
+        }
+
+        return categories;
+    }
+
+    // Найти дочерние категории, которые есть в заданной ассоциативной коллекции
+    public static List<CategoryDtoWithChildren> findChildCategories(long parentId, Set<Long> categoriesIdsSet){
+
+        List<CategoryDtoWithChildren> categories = Services.categoriesService.getChildCategories(parentId)
+                .stream()
+                .filter(c -> categoriesIdsSet.contains(c.getId()))
+                //.map(CategoryDtoWithChildren::factory)
+                .map(c -> new CategoryDtoWithChildren(c, null))
+                .toList();
+
+        if (categories.isEmpty())
+            return null;
+
+        // Для дочерних категорий так же найти их вложенные категории
+        for (CategoryDtoWithChildren categoryDto : categories) {
+            categoryDto.setChildCategories(findChildCategories(categoryDto.getId(), categoriesIdsSet));
+        }
+
+        return categories;
+    }
 
     //Рекурсивный обход дерева категорий
     public static CategoriesViewsWithChildrenDto findSubCategoryViews(long categoryId){
@@ -160,7 +196,7 @@ public class ControllerUtils {
         CategoriesViewsWithChildrenDto categoriesViewsDto = new CategoriesViewsWithChildrenDto(categoryViews);
 
         //Найти дочерние элементы на одном уровне рекурсии
-        List<Long> childCategories = Services.categoriesService.getChildCategories(categoryId);
+        List<Long> childCategories = Services.categoriesService.getChildCategoriesIds(categoryId);
 
         //Для каждого дочернего элемента, найти его дочерние элементы, пока не дойдём до последней
 
@@ -240,6 +276,7 @@ public class ControllerUtils {
 
             //Удалить предыдущее thumbnail
             String oldPreview = Services.productVariantsService.getById(pv.getId()).getPreviewImg();
+
             Services.fileManageService.deleteFile(new URI(oldPreview));
 
             String thumbnailUri = Utils.cleanUrl(Services.fileManageService.saveThumbnail(existingImage.getImgLink(),

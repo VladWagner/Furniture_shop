@@ -2,6 +2,8 @@ package gp.wagner.backend.domain.exceptions;
 
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.classes.UserNotConfirmedException;
+import gp.wagner.backend.domain.exceptions.validation_errors.ValidationExceptionDto;
+import gp.wagner.backend.domain.exceptions.validation_errors.Violation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -90,11 +92,29 @@ public class ExceptionsHandler {
                 .body(exceptionDto);
     }
 
+    /*@ExceptionHandler(value = {MethodArgumentNotValidException.class})
+    public ResponseEntity<ValidationExceptionDto> handleMethodArgumentNotValidException(MethodArgumentNotValidException e){
+
+        // Получить сообщения из результатов привязки
+        BindingResult bindingResult = e.getBindingResult();
+
+        List<Violation> violations = bindingResult.getFieldErrors()
+                .stream()
+                .map(error -> new Violation(error.getField(), error.getDefaultMessage()))
+                .toList();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ValidationExceptionDto(violations));
+    }*/
+
     // Обработка constraint исключения связанного с валидацией
     @ExceptionHandler(value = {ConstraintViolationException.class})
     public ResponseEntity<ExceptionDto> handleConstraintViolationException(ConstraintViolationException e){
 
-        String exceptionMessage = e.getConstraintViolations().iterator().next().getMessage();
+        String exceptionMessage = e.getConstraintViolations() != null ?
+                e.getConstraintViolations().iterator().next().getMessage():
+                e.getMessage();
         ExceptionDto exceptionDto = ExceptionDto.getBuilder()
                 .exceptionType(ConstraintViolationException.class)
                 .message(exceptionMessage)
@@ -104,5 +124,18 @@ public class ExceptionsHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(exceptionDto);
     }
+
+    /*@ExceptionHandler(value = {ConstraintViolationException.class})
+    public ResponseEntity<?> handleConstraintViolationExceptionViolationsDto(ConstraintViolationException e){
+
+        List<Violation> violations = e.getConstraintViolations()
+                .stream()
+                .map(cv -> new Violation(cv.getPropertyPath().toString(), cv.getMessage()))
+                .toList();
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ValidationExceptionDto(violations));
+    }*/
 
 }

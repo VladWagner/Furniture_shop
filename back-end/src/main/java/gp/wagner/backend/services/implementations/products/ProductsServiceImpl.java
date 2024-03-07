@@ -8,8 +8,7 @@ import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
-import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.SortingUtils;
+import gp.wagner.backend.infrastructure.*;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
@@ -292,7 +291,59 @@ public class ProductsServiceImpl implements ProductsService {
         List<Product> products = typedQuery.getResultList();
 
         // Пагинация готовой коллекции
-        long elementsCount = ServicesUtils.countProductsByProducerOrCategory(entityManager, categoryId, Category.class);
+        long elementsCount = PaginationUtils.countProductsByProducersOrCategories(entityManager, childCategoriesIds, Category.class);
+
+        return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
+    }
+
+    @Override
+    public Page<Product> getByCategoryAndPrice(long categoryId, String priceRange, int pageNum, int dataOnPage,
+                                               ProductsSortEnum sortEnum, GeneralSortEnum sortType, ProductsOrVariantsEnum povEnum) {
+
+        if (priceRange == null || priceRange.isBlank())
+            return getByCategory(categoryId, pageNum, dataOnPage, sortEnum, sortType);
+
+        List<Long> childCategoriesIds = ServicesUtils.getChildCategoriesList(categoryId);
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Используется установка флага distinct для корректной пагинации, иначе выбирается несоответствующее реальности количество записей
+        CriteriaQuery<Product> query = cb.createQuery(Product.class).distinct(true);
+        Root<Product> root = query.from(Product.class);
+
+        // Id категории находится в заданном списке и при этом не удалён (но может быть скрыт)
+        Predicate predicate = cb.and(
+                root.get("category").get("id").in(childCategoriesIds),
+                cb.equal(root.get("isDeleted"), false)/*,
+                cb.isNotNull(root.get("productVariants").get("discount"))*/
+        );
+
+        SimpleTuple<Integer, Integer> rangeTuple = Utils.parseTwoNumericValues(priceRange);
+        if (rangeTuple != null && povEnum != null) {
+            // Определить тип выборки по цене (базового варианта или всех вариантов товара)
+            Predicate pricePredicate = povEnum == ProductsOrVariantsEnum.PRODUCTS ?
+                    ServicesUtils.getProductPricePredicate(rangeTuple, root, query, cb) :
+                    ServicesUtils.getProductVariantPricePredicate(rangeTuple, root, query, cb);
+
+           predicate = cb.and(predicate, pricePredicate);
+        }
+
+        query.where(predicate);
+
+        // Задать сортировку
+        SortingUtils.createSortQueryForProducts(cb, query, root, sortEnum, sortType);
+
+        TypedQuery<Product> typedQuery = entityManager.createQuery(query);
+        typedQuery.setMaxResults(dataOnPage);
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+
+        List<Product> products = typedQuery.getResultList();
+
+        // Пагинация готовой коллекции
+        long elementsCount = PaginationUtils.countProductsByProducersOrCategoriesWithPrice(entityManager, childCategoriesIds, Category.class, rangeTuple, povEnum);
 
         return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
@@ -325,7 +376,7 @@ public class ProductsServiceImpl implements ProductsService {
         List<Product> products = typedQuery.getResultList();
 
         // Пагинация готовой коллекции
-        long elementsCount = ServicesUtils.countProductsByProducerOrCategory(entityManager, producerId, Producer.class);
+        long elementsCount = PaginationUtils.countProductsByProducerOrCategory(entityManager, producerId,Producer.class);
 
         return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }

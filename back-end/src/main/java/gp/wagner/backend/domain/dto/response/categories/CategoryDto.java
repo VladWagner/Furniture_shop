@@ -1,5 +1,6 @@
-package gp.wagner.backend.domain.dto.response;
+package gp.wagner.backend.domain.dto.response.categories;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.middleware.Services;
 import lombok.AllArgsConstructor;
@@ -15,12 +16,15 @@ public class CategoryDto {
 
     private long id;
 
+    @JsonProperty("category_name")
     private String categoryName;
 
     //Id родительской категории, если такая имеется
+    @JsonProperty("parent_category_id")
     private int parentCategoryId;
 
     //Количество товаров в данной категории
+    @JsonProperty("products_amount")
     private int productsAmount;
 
     public CategoryDto(Category category, int productsAmount) {

@@ -617,7 +617,7 @@ select
     coalesce((select count(v.id)
         from visitors v where v.last_visit_at = order_date_alias group by v.last_visit_at), 0) as visits,
     COUNT(DISTINCT(o.id)) as orders_amount
-from orders o left join (orders_products_variants opv join
+from orders o join (orders_products_variants opv join
                             (variants_product vp join products p on vp.product_id = p.id)
                             on opv.product_variant_id = vp.id)
         on o.id = opv.order_id
@@ -980,7 +980,7 @@ select
     v.fingerprint,
     v.created_at,
     v.last_visit_at,
-    count(pv.id) as views_count,
+    count(pv.id)  as views_count,
     sum(pv.count) as views_sum
 from visitors v join (products_views pv join products p on pv.product_id = p.id)
     on  v.id = pv.visitor_id
@@ -990,4 +990,70 @@ select
     count(DISTINCT (v.id))
 from visitors v join (categories_views cv join (categories c left join subcategories rc on c.subcategory_id = rc.id)
                       on cv.category_id = c.id)
-                     on  v.id = cv.visitor_id
+                     on  v.id = cv.visitor_id;
+select
+    DATE(o.order_date) as order_date_alias,
+    coalesce((select sum(dv.count)
+              from daily_visits dv where dv.date = order_date_alias group by dv.date), 0) as visits,
+    COUNT(DISTINCT(o.id)) as orders_amount,
+    SUM(o.sum) as orders_sum
+from orders o
+where o.order_date between '2023-12-01' and '2024-02-15'
+group by order_date_alias, visits
+having visits >= orders_amount;
+
+select
+    DATE(o.order_date) as order_date_alias,
+    coalesce((select sum(dv.count)
+              from daily_visits dv where dv.date = DATE(o.order_date) group by dv.date), 0) as visits,
+    COUNT(DISTINCT(o.id)) as orders_amount,
+    SUM(o.sum) as orders_sum
+from orders o
+where DATE(o.order_date) between '2023-12-01' and '2024-02-15'
+group by DATE(o.order_date), visits;
+
+-- Выборка товаров по цена варианта со скидкой - для одного товара
+SET @price_min = 10000, @price_max = 25000;
+select distinct
+    vp.id,
+    variant.id                                                    as variant_id,
+    vp.product_name,
+    vp.show_product,
+    variant.price,
+    variant.price - (discount.percentage * variant.price) as discount_price,
+    round(variant.price - (discount.percentage * variant.price), 0) as discount_price_int
+from
+    view_products as vp
+        join (products_attributes pa left join attributes_values av on av.attribute_id = pa.id) on av.product_id = vp.id
+        join variants_product variant on variant.product_id = vp.id
+        left join discounts discount on variant.discount_id = discount.id
+        left join ratings_statistics rs on vp.id = rs.product_id
+where (variant.discount_id is not null and (variant.price - (discount.percentage * variant.price) between @price_min and @price_max) or
+                                            variant.price between @price_min and @price_max) and
+        (select min(vr.id) from variants_product as vr where vr.product_id = vp.id) = variant.id
+order by (select rs.amount from ratings_statistics rs where rs.product_id = vp.id);
+
+select distinct
+    vp.id,
+    variant.id                                                    as variant_id,
+    vp.product_name,
+    vp.show_product,
+    variant.price,
+    variant.price - (discount.percentage * variant.price) as discount_price,
+    round(variant.price - (discount.percentage * variant.price), 0) as discount_price_int/*,
+    rs.amount as rating_amount*//*,
+    discount.percentage*/
+from
+    view_products as vp
+        join (products_attributes pa left join attributes_values av on av.attribute_id = pa.id) on av.product_id = vp.id
+        join variants_product variant on variant.product_id = vp.id
+        left join discounts discount on variant.discount_id = discount.id
+        left join ratings_statistics rs on vp.id = rs.product_id
+order by (select distinct MAX(d.percentage) from discounts d join (variants_product v join products prod on v.product_id = prod.id)
+            on d.id = v.discount_id where prod.id = 48) desc;
+-- order by (select rs.amount from ratings_statistics rs where rs.product_id = vp.id)desc ;
+
+select
+    count(o.id)
+from orders o join customers c on c.id = o.customer_id
+where c.email like '%mikhail@gmail.com%'

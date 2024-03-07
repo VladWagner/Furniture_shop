@@ -7,6 +7,9 @@ public enum OrdersSortEnum {
     SUM("sum"),
     ORDER_STATE("order_state"),
 
+    // Сортировка по способу оплаты
+    PAYMENT_METHOD("payment_method"),
+
     // Количество товаров в заказе
     FULLNESS("fullness");
 
@@ -22,6 +25,7 @@ public enum OrdersSortEnum {
         return switch (sort.toLowerCase()) {
             case "id" -> ID;
             case "order_state" -> ORDER_STATE;
+            case "payment" -> PAYMENT_METHOD;
             case "fullness" -> FULLNESS;
             default -> SUM;
         };

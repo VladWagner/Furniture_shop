@@ -6,7 +6,11 @@ public enum ProductsSortEnum {
     ID("id"),
     AVAILABLE("available"),
 
-    // Позже сюда будет добавлена сортировка по размеру скидки
+    // Сортировка по размеру скидки
+    DISCOUNT("discount"),
+
+    // Количество оценок
+    RATINGS_AMOUNT("ratings"),
 
     PRICE("price");
 
@@ -22,6 +26,8 @@ public enum ProductsSortEnum {
         return switch (sort.toLowerCase()) {
             case "id" -> ID;
             case "available" -> AVAILABLE;
+            case "discount" -> DISCOUNT;
+            case "ratings" -> RATINGS_AMOUNT;
             default -> PRICE;
         };
 

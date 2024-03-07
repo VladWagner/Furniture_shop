@@ -4,6 +4,7 @@ import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entites.orders.PaymentMethod;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
@@ -28,6 +29,7 @@ public interface OrdersService {
     SimpleTuple<Long, Long> create(int orderStateId, int customerId);
 
     SimpleTuple<Long, Long> create(OrderRequestDto dto);
+    PaymentMethod createPaymentMethod(String methodName);
 
     // Задать заказываемые варианты товаров. Т.е. что именно будет заказывать пользователь
     void insertProductVariants(OrderRequestDto orderDto);
@@ -64,8 +66,8 @@ public interface OrdersService {
     //Выборка записи по коду заказа
     List<Order> getByOrdersByCodes(List<Long> ordersCodes);
 
-    //Получить все заказы по email покупателя
-    List<Order> getOrdersByEmail(String email, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
+    // Получить все заказы по email покупателя
+    Page<Order> getOrdersByCustomerEmail(String email, Long id, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Получить заказы для определённого варианта товара по id
     Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage);
@@ -75,6 +77,9 @@ public interface OrdersService {
 
     //Получение максимального id - последнее добавленное значение
     long getMaxId();
+
+    // Получить список способов оплаты
+    List<PaymentMethod> getPaymentMethods();
 
     //Удаление заказа
     long deleteOrder(Long id, Long code);
@@ -87,5 +92,8 @@ public interface OrdersService {
 
     // Получить пограничные значения дат для заказов с определённым статусом/в определённой категории
     SimpleTuple<Date, Date> getOrdersDatesBorders(Long statusId, Integer categoryId);
+
+    // Пересчитать суммы заказов для определённых вариантов
+    void recountSumsForVariants(Long pvId, List<Long> pvIdsList);
 
 }

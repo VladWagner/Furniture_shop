@@ -1,5 +1,8 @@
 package gp.wagner.backend.services.implementations;
 
+import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.services.interfaces.EmailService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
@@ -62,6 +65,7 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendConfirmationTokenMime(String email, String token, String userLogin) throws MessagingException {
+
         MimeMessage passwordResetMail = mailSender.createMimeMessage();
 
         MimeMessageHelper helper = new MimeMessageHelper(passwordResetMail);
@@ -73,6 +77,30 @@ public class EmailServiceImpl implements EmailService {
                 <a href='http://localhost:8080/confirm?token=%1$s'>Подтвердить аккаунт</a>
                 <p>Токен: <b>%1$s</b></p>
                 """, token);
+        helper.setText(content, true);
+
+        mailSender.send(passwordResetMail);
+    }
+
+    @Override
+    public void sendOrderDetailsMime(Order createdOrder) throws MessagingException {
+        MimeMessage passwordResetMail = mailSender.createMimeMessage();
+
+        MimeMessageHelper helper = new MimeMessageHelper(passwordResetMail);
+        helper.setFrom(env.getProperty("spring.mail.mail_from"));
+        helper.setTo(createdOrder.getCustomer().getEmail());
+        helper.setSubject(String.format("Заказ #%d был размещён успешно!", createdOrder.getCode()));
+        String content = String.format("""
+                <p>Здравствуйте %s, вы сформировали заказ в нашем магазине!</p>
+                <p>Количество заказанных товаров: <b>%d</b></p>
+                <p>Дата заказа: <b>%s</b></p>
+                <p>Статус заказа: <b>%s</b></p>
+                %s
+                """, createdOrder.getCustomer().getName(),
+                createdOrder.getGeneralProductsAmount(),
+                Utils.sdf.format(createdOrder.getOrderDate()),
+                createdOrder.getOrderState().getState(),
+                Utils.opvTableView(createdOrder));
         helper.setText(content, true);
 
         mailSender.send(passwordResetMail);

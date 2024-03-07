@@ -77,6 +77,5 @@ public interface BasketsService {
     //Удалить по id пользователя и варианта товара
     long deleteBasketByUserAndProdVariant(long userId, long productId);
 
-
-
+    void recountSumsForVariants(Long pvId, List<Long> pvIdList);
 }

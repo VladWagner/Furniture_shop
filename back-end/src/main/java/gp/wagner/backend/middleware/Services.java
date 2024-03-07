@@ -9,6 +9,9 @@ import gp.wagner.backend.services.interfaces.products.ProductImagesService;
 import gp.wagner.backend.services.interfaces.products.ProductVariantsService;
 import gp.wagner.backend.services.interfaces.products.ProductViewsService;
 import gp.wagner.backend.services.interfaces.products.ProductsService;
+import gp.wagner.backend.services.interfaces.ratings.RatingsService;
+import gp.wagner.backend.services.interfaces.reviews.ReviewsImagesService;
+import gp.wagner.backend.services.interfaces.reviews.ReviewsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -159,8 +162,40 @@ public class Services {
     public static ProductAttributesService productAttributesService ;
 
     @Autowired
-    public void setDailyVisitsService(ProductAttributesService service){
+    public void setProductAttributesService(ProductAttributesService service){
         Services.productAttributesService = service;
+    }
+
+    // Сервис для работы с discounts
+    public static DiscountsService discountsService ;
+
+    @Autowired
+    public void setDiscountsService(DiscountsService service){
+        Services.discountsService = service;
+    }
+
+    // Сервис для оценок товаров
+    public static RatingsService ratingsService ;
+
+    @Autowired
+    public void setRatingsService(RatingsService service){
+        Services.ratingsService = service;
+    }
+
+    // Сервис для работы с отзывами на товары
+    public static ReviewsService reviewsService ;
+
+    @Autowired
+    public void setReviewsService(ReviewsService service){
+        Services.reviewsService = service;
+    }
+
+    // Сервис для работы с изображениями в отзывах на товары
+    public static ReviewsImagesService reviewsImagesService  ;
+
+    @Autowired
+    public void setReviewsImagesService(ReviewsImagesService service){
+        Services.reviewsImagesService = service;
     }
 
     //Сервис для инициализации hibernate search

@@ -1,5 +1,6 @@
 package gp.wagner.backend.services.interfaces;
 
+import gp.wagner.backend.domain.entites.reviews.Review;
 import gp.wagner.backend.domain.entites.users.User;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +25,9 @@ public interface FileManageService {
 
     // Загрузить изображение профиля пользователя
     Resource saveUserProfileImg(String fileName, MultipartFile multipartFile, long userId) throws IOException;
+
+    // Загрузить изображение отзыва
+    Resource saveReviewImg(String fileName, MultipartFile multipartFile, Review review) throws IOException;
 
     // Сформировать и загрузить изображение профиля пользователя
     Resource generateAndSaveUserImg(User user) throws IOException;

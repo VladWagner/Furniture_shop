@@ -60,7 +60,7 @@ CREATE TABLE `attributes_values` (
   KEY `attribute_id_idx` (`attribute_id`),
   CONSTRAINT `fk_attributes_values_attribute` FOREIGN KEY (`attribute_id`) REFERENCES `products_attributes` (`id`),
   CONSTRAINT `fk_attributes_values_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2014 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Поле product_id в данной таблице ссылается именно на запись в таблице товаров, а не вариантов товаров, поскольку для разных вариантов исполнения характеристики остаются одними и теме же, меняется только представление товара (фотографии галереи и preview)';
+) ENGINE=InnoDB AUTO_INCREMENT=2022 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Поле product_id в данной таблице ссылается именно на запись в таблице товаров, а не вариантов товаров, поскольку для разных вариантов исполнения характеристики остаются одними и теме же, меняется только представление товара (фотографии галереи и preview)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -132,16 +132,16 @@ DROP TABLE IF EXISTS `categories_views`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categories_views` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `visitor_id` int NOT NULL,
+  `visitor_id` bigint unsigned NOT NULL,
   `category_id` int NOT NULL,
   `count` int NOT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_categories_views_visitors_idx` (`visitor_id`),
   KEY `fk_categories_views_categories_idx` (`category_id`),
-  CONSTRAINT `fk_categories_views_categories` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`),
-  CONSTRAINT `fk_categories_views_visitors` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CONSTRAINT `categories_views_visitors_id_fk` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`),
+  CONSTRAINT `fk_categories_views_categories` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -158,10 +158,10 @@ CREATE TABLE `customers` (
   `patronymic` varchar(255) DEFAULT NULL,
   `phone_number` decimal(17,0) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
-  `visitor_id` int NOT NULL,
+  `visitor_id` bigint unsigned NOT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_customers_visitors_idx` (`visitor_id`),
-  CONSTRAINT `fk_customers_visitors` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`)
+  CONSTRAINT `customers_visitors_id_fk` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -177,7 +177,26 @@ CREATE TABLE `daily_visits` (
   `date` date NOT NULL,
   `count` int DEFAULT '0',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `discounts`
+--
+
+DROP TABLE IF EXISTS `discounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discounts` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `percentage` float NOT NULL,
+  `starts_at` datetime DEFAULT NULL,
+  `ends_at` datetime DEFAULT NULL,
+  `is_active` bit(1) NOT NULL DEFAULT b'1',
+  `is_infinite` bit(1) NOT NULL DEFAULT b'0' COMMENT 'Флаг бессрочности действия скидки.',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_idx_discounts` (`percentage`,`starts_at`,`ends_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -209,13 +228,17 @@ CREATE TABLE `orders` (
   `order_date` datetime(6) DEFAULT NULL,
   `sum` int DEFAULT '0' COMMENT 'Итоговая сумма заказа',
   `general_products_amount` int NOT NULL DEFAULT '0',
+  `payment_method_id` bigint DEFAULT NULL,
+  `description` varchar(500) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `code_UNIQUE` (`code`),
   KEY `fk_orders_order_states_idx` (`order_state_id`),
   KEY `fk_orders_customers_idx` (`customer_id`),
+  KEY `fk_orders_payment_methods` (`payment_method_id`),
   CONSTRAINT `fk_orders_customers` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`),
-  CONSTRAINT `fk_orders_order_states` FOREIGN KEY (`order_state_id`) REFERENCES `order_states` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  CONSTRAINT `fk_orders_order_states` FOREIGN KEY (`order_state_id`) REFERENCES `order_states` (`id`),
+  CONSTRAINT `fk_orders_payment_methods` FOREIGN KEY (`payment_method_id`) REFERENCES `payment_methods` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -230,12 +253,13 @@ CREATE TABLE `orders_products_variants` (
   `product_variant_id` int NOT NULL,
   `order_id` bigint NOT NULL,
   `products_count` int DEFAULT '1',
+  `unit_price` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_product_variants_idx` (`product_variant_id`),
   KEY `fk_orders_idx` (`order_id`),
   CONSTRAINT `fk_orders` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
   CONSTRAINT `fk_product_variants` FOREIGN KEY (`product_variant_id`) REFERENCES `variants_product` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=63 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -255,6 +279,21 @@ CREATE TABLE `password_reset_token` (
   KEY `fk_password_reset_token_users` (`user_id`),
   CONSTRAINT `fk_password_reset_token_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `payment_methods`
+--
+
+DROP TABLE IF EXISTS `payment_methods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `payment_methods` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `method_name` varchar(80) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `method_name_UNIQUE` (`method_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -292,14 +331,13 @@ CREATE TABLE `products` (
   `is_available` bit(1) DEFAULT NULL,
   `show_product` bit(1) DEFAULT b'1',
   `is_deleted` bit(1) DEFAULT b'0',
-  `mark` float DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_products_categories_idx` (`category_id`),
   KEY `fk_products_producers_idx` (`producer_id`),
   FULLTEXT KEY `full_text_search_idx` (`product_name`,`description`),
   CONSTRAINT `fk_products_categories` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`),
   CONSTRAINT `fk_products_producers` FOREIGN KEY (`producer_id`) REFERENCES `producers` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=60 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -335,7 +373,7 @@ CREATE TABLE `products_images` (
   KEY `fk_products_images_products_idx` (`id`,`product_variant_id`),
   KEY `fk_products_images_product_variants_idx` (`product_variant_id`),
   CONSTRAINT `fk_products_images_product_variants` FOREIGN KEY (`product_variant_id`) REFERENCES `variants_product` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=74 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -365,16 +403,99 @@ DROP TABLE IF EXISTS `products_views`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `products_views` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `visitor_id` int NOT NULL,
+  `visitor_id` bigint unsigned NOT NULL,
   `product_id` int NOT NULL,
   `count` int NOT NULL,
   `updated_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `fk_products_views_visitors_idx` (`visitor_id`),
   KEY `fk_products_views_products_idx` (`product_id`),
+  KEY `products_views_visitors_id_fk` (`visitor_id`),
   CONSTRAINT `fk_products_views_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
-  CONSTRAINT `fk_products_views_visitors` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Здесь считаются именно просмотры товаров, а не их вариантов исполнения. Это сделано осознанно!';
+  CONSTRAINT `products_views_visitors_id_fk` FOREIGN KEY (`visitor_id`) REFERENCES `visitors` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Здесь считаются именно просмотры товаров, а не их вариантов исполнения. Это сделано осознанно!';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ratings`
+--
+
+DROP TABLE IF EXISTS `ratings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ratings` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `rating` int NOT NULL,
+  `product_id` int NOT NULL,
+  `user_id` bigint NOT NULL,
+  `created_at` date DEFAULT NULL,
+  `updated_at` date DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_ratings_products_idx` (`product_id`),
+  KEY `fk_ratings_users_idx` (`user_id`),
+  CONSTRAINT `fk_ratings_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_ratings_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `ratings_statistics`
+--
+
+DROP TABLE IF EXISTS `ratings_statistics`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ratings_statistics` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `product_id` int NOT NULL,
+  `avg` float NOT NULL,
+  `amount` int NOT NULL,
+  `ratings_sum` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_rs_products_idx` (`product_id`),
+  CONSTRAINT `fk_rs_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `reviews`
+--
+
+DROP TABLE IF EXISTS `reviews`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reviews` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `text` varchar(1000) NOT NULL,
+  `product_id` int NOT NULL,
+  `user_id` bigint NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `is_verified` bit(1) NOT NULL DEFAULT b'0',
+  `deleted_at` datetime DEFAULT NULL COMMENT 'Дата удаления отзыва, из таблицы запись удаляться не будет, но и в выборках она так же будет отсутствовать.',
+  PRIMARY KEY (`id`),
+  KEY `fk_reviews_products_idx` (`product_id`),
+  KEY `fk_reviews_users_idx` (`user_id`),
+  CONSTRAINT `fk_reviews_products` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_reviews_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `reviews_images`
+--
+
+DROP TABLE IF EXISTS `reviews_images`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `reviews_images` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `review_id` bigint NOT NULL,
+  `img_link` varchar(255) NOT NULL,
+  `img_order` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `fk_images_reviews_idx` (`review_id`),
+  CONSTRAINT `fk_images_reviews` FOREIGN KEY (`review_id`) REFERENCES `reviews` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -430,7 +551,7 @@ CREATE TABLE `users` (
   KEY `login_index` (`login`),
   KEY `users_email_index` (`email`) COMMENT 'Индексирование поля для ускоренного поиска существующих записей при регистрации пользователя',
   CONSTRAINT `fk_users_roles` FOREIGN KEY (`role_id`) REFERENCES `user_roles` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -447,7 +568,7 @@ CREATE TABLE `users_passwords` (
   PRIMARY KEY (`id`),
   KEY `fk_passwords_users_idx` (`user_id`),
   CONSTRAINT `fk_passwords_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -463,15 +584,18 @@ CREATE TABLE `variants_product` (
   `preview_img` varchar(255) NOT NULL,
   `title` varchar(255) DEFAULT NULL,
   `price` int NOT NULL,
-  `show_variant` bit(1) DEFAULT NULL,
+  `show_variant` bit(1) DEFAULT b'1',
   `is_deleted` bit(1) DEFAULT b'0',
+  `discount_id` bigint DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_products_variants_idx` (`product_id`),
   KEY `product_id_index` (`product_id`),
   KEY `variant_id_index` (`id`),
+  KEY `fk_products_variants_discounts_idx` (`discount_id`),
   FULLTEXT KEY `fulltext_title_index` (`title`),
-  CONSTRAINT `fk_products_variants` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=189 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Правильнм назвзанием было бы: product_variants, но таблиц с префиксом product и так слишком много, так что данную таблицу будет проще найти при таком именовании)';
+  CONSTRAINT `fk_products_variants` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
+  CONSTRAINT `fk_products_variants_discounts` FOREIGN KEY (`discount_id`) REFERENCES `discounts` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=190 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Правильнм назвзанием было бы: product_variants, но таблиц с префиксом product и так слишком много, так что данную таблицу будет проще найти при таком именовании)';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -490,7 +614,7 @@ CREATE TABLE `verification_tokens` (
   UNIQUE KEY `token_UNIQUE` (`token`),
   KEY `fk_verification_tokens_users` (`user_id`),
   CONSTRAINT `fk_verification_tokens_users` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -558,7 +682,7 @@ DROP TABLE IF EXISTS `visitors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `visitors` (
-  `id` int NOT NULL AUTO_INCREMENT,
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `ip_address` varchar(255) DEFAULT NULL,
   `fingerprint` varchar(255) DEFAULT NULL,
   `created_at` date DEFAULT NULL,
@@ -630,4 +754,4 @@ CREATE TABLE `visitors` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-02-20 13:39:14
+-- Dump completed on 2024-03-07 16:57:13

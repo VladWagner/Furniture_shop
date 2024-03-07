@@ -1,19 +1,27 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
+import gp.wagner.backend.domain.dto.response.PaymentMethodRespDto;
 import gp.wagner.backend.domain.dto.response.orders.OrderAndPvRespDto;
 import gp.wagner.backend.domain.dto.response.orders.OrderRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entites.orders.OrderState;
+import gp.wagner.backend.domain.entites.orders.PaymentMethod;
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.middleware.Services;
+import gp.wagner.backend.services.interfaces.OrdersService;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -28,7 +37,6 @@ import java.util.Map;
 public class OrdersController {
 
     //Получение всех заказов
-    // {{host}}/api/orders?offset=1&limit=20
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<OrderRespDto> getOrderAllOrders(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
                                                    @Valid @RequestParam(value = "limit") @Max(80) int limit,
@@ -57,27 +65,54 @@ public class OrdersController {
         return idAndCode;
     }
 
-    //Добавление ещё товаров в заказ/изменение кол-ва товаров в заказе
+    // Добавление ещё товаров в заказ/изменение кол-ва товаров в заказе
     @PutMapping(value = "/add_product_variants", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> addProductVariants(@Valid @RequestBody() OrderRequestDto orderRequestDto){
 
-        try {
-
-            Services.ordersService.insertProductVariants(orderRequestDto);
-
-        } catch (Exception e) {
-            throw new ApiException(e.getMessage());
-        }
+        Services.ordersService.insertProductVariants(orderRequestDto);
 
         return new ResponseEntity<>(String.format("Вариант товаров добавлены в заказ '%d'!", orderRequestDto.getCode()), HttpStatusCode.valueOf(200)) ;
     }
 
-    //Получение заказа по коду
+    // Создать способ оплаты
+    @PostMapping(value = "/create_payment_method",produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> createPaymentMethod(@RequestParam(value = "name") String methodName){
+
+        PaymentMethod paymentMethod = Services.ordersService.createPaymentMethod(methodName);
+
+        return ResponseEntity
+                .status(HttpStatus.OK )
+                .body(String.format("Способ оплаты '%s' успешно создан!", paymentMethod.getMethodName()));
+    }
+
+    // Изменение статуса заказа
+    @PutMapping(value = "/update_status")
+    public ResponseEntity<String> updateStatus(@Valid @RequestParam(value = "order_state_id") @Min(1) int orderStateId,
+                                               @Valid @RequestParam(value = "code") @Min(1) long orderCode){
+
+        Services.ordersService.updateStatus(orderCode, orderStateId);
+
+        /*Order order = Services.ordersService.getByOrderCode(orderCode);
+
+        boolean stateChanged = order != null && order.getOrderState().getId().equals(orderStateId);
+        return ResponseEntity
+                .status(stateChanged ? HttpStatus.OK : HttpStatus.NOT_MODIFIED)
+                .body(String.format("Статус заказа с кодом %d %3$s изменён на %d!", orderCode, orderStateId,
+                        !stateChanged ? "не был" : "успешно"));*/
+
+        return ResponseEntity
+                .status(HttpStatus.OK )
+                .body(String.format("Статус заказа с кодом %d успешно изменён на статус id %d!", orderCode, orderStateId));
+    }
+
+    // Получение заказа по коду
     @GetMapping(value = "/order_by_code/{code}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public OrderRespDto getOrderByCode(@PathVariable long code){
+    public OrderRespDto getOrderByCode(@PathVariable long code) throws MessagingException {
 
         // Если вариант товара будет show == false, тогда на фронте нужно будет отображать эту информацию и упоминать, что сумма пересчитана
         Order foundOrder = Services.ordersService.getByOrderCode(code);
+
+        Services.emailService.sendOrderDetailsMime(foundOrder);
 
         // Если вариант будет скрыт, тогда не вводи цену, но выводи кол-во и сделай блок немного тусклым и
         // в tooltip пиши, что сумма пересчитана
@@ -118,6 +153,25 @@ public class OrdersController {
         return new PageDto<>(opvListPage, () -> opvListPage.getContent().stream().map(OrderRespDto::new).toList());
     }
 
+    //Получение заказов по email'у покупателя
+    @GetMapping(value = "/orders_for_customer", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<OrderRespDto> getOrderForCustomer(@RequestParam(value = "email",required = false) String email,
+                                                     @RequestParam(value = "id",required = false) Long id,
+                                                    @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                    @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                    @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                    @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
+
+
+        Page<Order> ordersPage = Services.ordersService.getOrdersByCustomerEmail(email, id, pageNum, limit,
+                OrdersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        if (ordersPage.getContent().isEmpty())
+            throw new ApiException(String.format("Не удалось найти заказы для покупателя с email: %d", email));
+
+        return new PageDto<>(ordersPage, () -> ordersPage.getContent().stream().map(OrderRespDto::new).toList());
+    }
+
     //Удаление вариантов товара в определённом заказе
     @DeleteMapping(value = "/delete_by_code")
     public ResponseEntity<String> deleteProductVariantByCode(@RequestParam(value = "code") long code, @RequestParam(value = "pv_id") long productVariantId){
@@ -146,4 +200,23 @@ public class OrdersController {
         return minMaxDates;
     }
 
+
+    // Временный end-point для пересчёта сумм всех заказов
+    @GetMapping(value = "/recount_sums", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> recountOrdersSums(){
+
+        // Получить все варианты товаров
+        List<Long> pvsIds = Services.productVariantsService.getAll().stream().map(ProductVariant::getId).toList();
+
+        Services.ordersService.recountSumsForVariants(null, pvsIds);
+
+        return ResponseEntity.ok("Вроде пересчитано и units_pries заданы для opv");
+    }
+
+    // Получение списка способов оплаты
+    @GetMapping(value = "/get_payment_methods", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<PaymentMethodRespDto> getOrderByProductVariant(){
+
+        return Services.ordersService.getPaymentMethods().stream().map(PaymentMethodRespDto::new).toList();
+    }
 }

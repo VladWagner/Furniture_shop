@@ -12,16 +12,10 @@ public class ProducerRequestDtoValidator implements ConstraintValidator<ValidPro
         ConstraintValidator.super.initialize(constraintAnnotation);
     }
 
-    // Проверить, какие
+    // Провести валидацию полей передаваемого DTO производителя
     @Override
     public boolean isValid(ProducerRequestDto dto,
                            ConstraintValidatorContext constraintValidatorContext) {
-
-        /*if (!dto.getIsShown() && dto.getIsDisclosed())
-            throw new ProducerDisclosureException("Флаг раскрытия задан некорректно, поскольку isShown стоит в false!");
-        else if (dto.getIsShown() && dto.getIsDisclosed() && dto.getDiscloseHeirs() == null)
-            throw new ProducerDisclosureException("Если производитель был восстановлен в показе, " +
-                    "тогда нужно установить флаг восстановления всех связанных с ним сущностей (товары и варианты)!");*/
 
         if (!dto.getIsShown() && (dto.getIsDisclosed() != null && dto.getIsDisclosed())) {
             constraintValidatorContext.disableDefaultConstraintViolation();

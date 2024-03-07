@@ -35,13 +35,13 @@ ALTER TABLE products AUTO_INCREMENT = 1;
 
 -- таблица пользователей
 delete from verification_tokens where verification_tokens.id > 0;
-ALTER TABLE verification_tokens AUTO_INCREMENT = 1;
+ALTER TABLE verification_tokens AUTO_INCREMENT = 0;
 
-delete from users where users.id > 7;
-ALTER TABLE users AUTO_INCREMENT = 7;
+delete from users_passwords where users_passwords.id > 11;
+ALTER TABLE users_passwords AUTO_INCREMENT = 11;
 
-delete from users_passwords where users_passwords.id > 7;
-ALTER TABLE users_passwords AUTO_INCREMENT = 7;
+delete from users where users.id > 11;
+ALTER TABLE users AUTO_INCREMENT = 11;
 
 
 --
@@ -99,3 +99,19 @@ ALTER TABLE attributes_categories AUTO_INCREMENT = 316;
 -- Очистка таблицы атрибутов товаров
 delete from products_attributes where products_attributes.id > 40;
 ALTER TABLE products_attributes AUTO_INCREMENT = 40;
+
+-- Очистка таблицы оценок товаров
+delete from ratings where ratings.id > 0;
+ALTER TABLE ratings AUTO_INCREMENT = 1;
+
+delete from ratings_statistics where ratings_statistics.id > 0;
+ALTER TABLE ratings_statistics AUTO_INCREMENT = 1;
+
+delete from reviews_images where reviews_images.id > 0;
+ALTER TABLE reviews_images AUTO_INCREMENT = 1;
+
+delete from reviews where reviews.id > 0;
+ALTER TABLE reviews AUTO_INCREMENT = 1;
+
+delete from payment_methods where payment_methods.id > 0;
+ALTER TABLE payment_methods AUTO_INCREMENT = 2;

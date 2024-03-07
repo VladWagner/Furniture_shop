@@ -1,7 +1,8 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.crud.CategoryRequestDto;
-import gp.wagner.backend.domain.dto.response.CategoryDto;
+import gp.wagner.backend.domain.dto.response.categories.CategoryDto;
+import gp.wagner.backend.domain.dto.response.categories.CategoryDtoWithChildren;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsDtoContainer;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
 import gp.wagner.backend.domain.entites.categories.Category;
@@ -49,6 +50,30 @@ public class CategoriesController {
 
         //Создаём из вариантов товаров список объектов DTO для вариантов товаров
         return categoryDtosMap.values();
+    }
+
+    // Выборка всех категорий с дочерними категориями. Для посртроения дерева
+    @GetMapping(value = "/get_tree", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Collection<CategoryDtoWithChildren> getCategoriesWithChildren() {
+
+        List<Category> parentCategories = Services.categoriesService.getAllParentCategories();
+
+        List<CategoryDtoWithChildren> categoriesWithChildren = new ArrayList<>();
+
+        for (Category category : parentCategories) {
+
+            // Dto без подсчёта кол-ва товаров каждой категории
+            //CategoryDtoWithChildren categoryWithChildren = new CategoryDtoWithChildren(category, null);
+            CategoryDtoWithChildren categoryWithChildren = CategoryDtoWithChildren.factory(category);
+
+            // Рекурсивно выбрать дочерние категории
+            categoryWithChildren.setChildCategories(ControllerUtils.findChildCategories(category.getId()));
+            categoriesWithChildren.add(categoryWithChildren);
+
+        }
+
+        //Создаём из вариантов товаров список объектов DTO для вариантов товаров
+        return categoriesWithChildren;
     }
 
     //Добавление категории
@@ -114,7 +139,7 @@ public class CategoriesController {
 
         //Пройти по всем начальным родительским категориям
         for (Category c : parentCategories) {
-            childCategories = Services.categoriesService.getChildCategories(c.getId());
+            childCategories = Services.categoriesService.getChildCategoriesIds(c.getId());
 
             //Создать dto с подсчётом просмотров текущей и дочерних категорий на всех уровнях
             CategoriesViewsWithChildrenDto categoriesViewsDto = new CategoriesViewsWithChildrenDto(

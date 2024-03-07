@@ -1,16 +1,18 @@
 package gp.wagner.backend.domain.dto.response.orders;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.dto.response.product_variant.ProductVariantPreviewRespDto;
-import gp.wagner.backend.domain.entites.orders.Customer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.deser.std.DelegatingDeserializer;
+import gp.wagner.backend.domain.dto.response.product_variants.ProductVariantPreviewRespDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.infrastructure.serializers.DateTimeJsonSerializer;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
-import java.util.List;
 
 //DTO сущности таблицы многие ко многим для заказов
 @Data
@@ -49,6 +51,8 @@ public class OrderAndPvRespDto {
     private ProductVariantPreviewRespDto productVariantPreview;
 
     // Дата создания заказа
+    @JsonProperty("created_at")
+    @JsonSerialize(using = DateTimeJsonSerializer.class)
     private Date createdAt;
 
     public OrderAndPvRespDto(OrderAndProductVariant opv) {

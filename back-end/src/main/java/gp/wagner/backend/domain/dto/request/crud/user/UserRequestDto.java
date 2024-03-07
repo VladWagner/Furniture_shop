@@ -2,6 +2,7 @@ package gp.wagner.backend.domain.dto.request.crud.user;
 
 import gp.wagner.backend.validation.user_request_dto.annotations.ValidUserRequestDto;
 import jakarta.annotation.Nullable;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

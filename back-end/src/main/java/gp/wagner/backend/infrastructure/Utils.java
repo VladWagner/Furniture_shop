@@ -1,5 +1,8 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entites.products.ProductVariant;
 import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
@@ -9,6 +12,8 @@ import java.security.SecureRandom;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component("Utils")
 public class Utils {
@@ -114,7 +119,7 @@ public class Utils {
         return charBuffer.remaining() == 0;
     }
 
-    //Record-класс для задания id Товара и категории
+    //Record-класс для задания id товара и категории
     public record CategoryAndProductIds(long categoryId, long productId) {
     }
 
@@ -154,7 +159,7 @@ public class Utils {
         if (str == null || str.isBlank())
             return null;
 
-        String[] arr = str.replaceAll("[ .,;:\\-–—]", " ").split("\\s+");
+        String[] arr = str.replaceAll("[ .,;:\\-–—_]", " ").split("\\s+");
 
         if (arr.length > 1) {
 
@@ -179,5 +184,63 @@ public class Utils {
 
         return Long.toHexString(part1) + Long.toHexString(part2) /*+ Long.toHexString(part3)*/;
     }
+
+    // Проверка валидности email
+    public static boolean emailIsValid(String email){
+
+        if (email == null || email.isBlank())
+            return false;
+
+        Pattern pattern = Pattern.compile(Constants.EMAIL_REG_EXP);
+        Matcher matcher = pattern.matcher(email);
+
+        return matcher.matches();
+    }
+
+    // Сформировать таблицу с заказанными вариантами товаров
+    public static String opvTableView(Order order){
+
+        StringBuilder sb =  new StringBuilder("""
+            <table style='border: 1px solid black; border-collapse: collapse;' border='1' cellspacing='0' cellpadding='4'>
+            <tr>
+            <th>Изображение товара</th>
+            <th>Наименование товара</th>
+            <th>Количество единиц</th>
+            <th>Стоимость единицы</th>
+            <th>Сумма</th>
+            </tr>""");
+
+        for (OrderAndProductVariant opv: order.getOrderAndPVList()) {
+            ProductVariant pv = opv.getProductVariant();
+
+            // <td> <img src='%s' /> </td>
+            sb.append(String.format("""
+                <tr>
+                    <td style='text-align:center'> --- </td>
+                    <td> %s </td>
+                    <td style='text-align:center'> %d </td>
+                    <td style='text-align:center'> %d </td>
+                    <td> %d </td>
+                </tr>
+                """, String.format("%s.%s", pv.getProduct().getName(), pv.getTitle()),
+                    opv.getProductsAmount(),
+                    opv.getUnitPrice(),
+                    opv.getProductsAmount()*opv.getUnitPrice())
+            );
+
+        }
+
+        sb.append(String.format("""
+                <tr>
+                    <td colspan='4'> Итого: </td>
+                    <td> %d </td>
+                </tr>
+                </table>
+                """, order.getSum())
+        );
+        
+        return sb.toString();
+    }
+
 
 }

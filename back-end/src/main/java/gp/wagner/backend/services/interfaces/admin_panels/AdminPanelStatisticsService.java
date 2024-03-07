@@ -35,6 +35,8 @@ public interface AdminPanelStatisticsService {
     // Подсчёт конверсии из просмотра в заказ в определённой категории
     Page<Object[]> getConversionFromViewToOrderInCategory(DatesRangeAndValRequestDto datesDto, int pageNum, int dataOnPage,
                                                           OrdersStatisticsSortEnum sortEnum, GeneralSortEnum sortType);
+    Page<Tuple> getConversionFromViewToOrderInCategoryCriteria(DatesRangeAndValRequestDto datesDto, int pageNum, int dataOnPage,
+                                                          OrdersStatisticsSortEnum sortEnum, GeneralSortEnum sortType);
 
     // Подсчёт конверсии из просмотра в заказ в определённого товара
     Page<Object[]> getConversionFromViewToOrderForProduct(DatesRangeAndValRequestDto datesDto, int pageNum, int dataOnPage,
