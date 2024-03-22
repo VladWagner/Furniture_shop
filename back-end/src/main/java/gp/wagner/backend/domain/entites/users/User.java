@@ -1,5 +1,7 @@
 package gp.wagner.backend.domain.entites.users;
 
+import gp.wagner.backend.domain.entites.orders.Customer;
+import gp.wagner.backend.domain.entites.visits.Visitor;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.Objects;
 
 //Пользователь
 @Entity
@@ -66,6 +69,10 @@ public class User {
     @LastModifiedDate
     private Instant updatedAt;
 
+    // Связующее свойство покупателя, если пользователь совершал заказы
+    @OneToOne(mappedBy = "user", cascade = CascadeType.PERSIST)
+    private Customer customer;
+
     public User(Long id, String userLogin, String name, String email, UserRole userRole) {
         this.id = id;
         this.userLogin = userLogin;
@@ -73,5 +80,18 @@ public class User {
         this.email = email;
         this.userRole = userRole;
         this.isConfirmed = false;
+    }
+
+    public boolean isEqualTo(User user){
+
+        if(user == null)
+            return false;
+
+        return  Objects.equals(this.id, user.id) &&
+                Objects.equals(this.userLogin, user.userLogin) &&
+                Objects.equals(this.name, user.name) &&
+                Objects.equals(this.email, user.email) &&
+                Objects.equals(this.userRole.getId(), user.userRole.getId()) &&
+                Objects.equals(this.isConfirmed, user.isConfirmed);
     }
 }

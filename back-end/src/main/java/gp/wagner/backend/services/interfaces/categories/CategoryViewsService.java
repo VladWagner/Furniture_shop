@@ -19,10 +19,10 @@ public interface CategoryViewsService {
     void create(long visitorId, long categoryId, int count);
 
     @Async
-    void createOrUpdate(String fingerPrint, long categoryId);
+    void createOrUpdate(String fingerPrint, String ip, long categoryId);
 
     @Async
-    void createOrUpdateRepeatingCategory(String fingerPrint, long categoryId);
+    void createOrUpdateRepeatingCategory(String fingerPrint, String ip, long categoryId);
 
     //Изменение записи
     void update(CategoryViews categoryViews);

@@ -78,4 +78,6 @@ public interface BasketsService {
     long deleteBasketByUserAndProdVariant(long userId, long productId);
 
     void recountSumsForVariants(Long pvId, List<Long> pvIdList);
+
+    Basket getForAuthenticatedUser();
 }

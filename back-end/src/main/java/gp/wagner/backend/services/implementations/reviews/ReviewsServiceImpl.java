@@ -68,7 +68,9 @@ public class ReviewsServiceImpl implements ReviewsService {
 
     @Override
     public long create(Review review) {
-        return 0;
+        if (review == null)
+            throw new ApiException("Не получилось создать отзыв для товара!");
+        return reviewsRepository.saveAndFlush(review).getId();
     }
 
     @Override

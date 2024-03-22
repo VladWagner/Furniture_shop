@@ -5,6 +5,7 @@ import gp.wagner.backend.domain.dto.request.crud.user.PasswordUpdateRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
+import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
 import gp.wagner.backend.domain.entites.tokens.VerificationToken;
 import gp.wagner.backend.domain.entites.users.User;
@@ -16,14 +17,15 @@ import gp.wagner.backend.domain.exceptions.suppliers.TokenExpired;
 import gp.wagner.backend.domain.exceptions.suppliers.UserNotFound;
 import gp.wagner.backend.domain.exceptions.suppliers.UserRoleNotFound;
 import gp.wagner.backend.domain.specifications.UsersSpecifications;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.PasswordResetTokenRepository;
+import gp.wagner.backend.repositories.tokens.PasswordResetTokenRepository;
 import gp.wagner.backend.repositories.UsersRepository;
 import gp.wagner.backend.repositories.UsersRolesRepository;
-import gp.wagner.backend.repositories.VerificationTokenRepository;
+import gp.wagner.backend.repositories.tokens.VerificationTokenRepository;
 import gp.wagner.backend.services.interfaces.UsersService;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityManager;
@@ -59,7 +61,7 @@ public class UsersServiceImpl implements UsersService {
     private UsersRolesRepository usersRolesRepository;
 
     @Autowired
-    public void setUsersRepository(UsersRolesRepository rolesRepository) {
+    public void setUsersRolesRepository(UsersRolesRepository rolesRepository) {
         this.usersRolesRepository = rolesRepository;
     }
 
@@ -67,7 +69,7 @@ public class UsersServiceImpl implements UsersService {
     private PasswordResetTokenRepository prtRepository;
 
     @Autowired
-    public void setUsersRepository(PasswordResetTokenRepository repository) {
+    public void setPasswordResetTokenRepository(PasswordResetTokenRepository repository) {
         this.prtRepository = repository;
     }
 
@@ -75,7 +77,7 @@ public class UsersServiceImpl implements UsersService {
     private VerificationTokenRepository vfRepository;
 
     @Autowired
-    public void setUsersRepository(VerificationTokenRepository repository) {
+    public void setVerificationTokenRepository(VerificationTokenRepository repository) {
         this.vfRepository = repository;
     }
 
@@ -85,6 +87,7 @@ public class UsersServiceImpl implements UsersService {
     public void setPasswordEncoder(PasswordEncoder passwordEncoder) {
         this.passwordEncoder = passwordEncoder;
     }
+
 
     // Подтверждение почты пользователя - пока что просто mock-метод
     @Override
@@ -100,8 +103,17 @@ public class UsersServiceImpl implements UsersService {
 
         user.setIsConfirmed(true);
 
+        // Найти и добавить покупателя с таким же email, если он существует
+        Customer customer = Services.customersService.getCustomerByEmail(user.getEmail());
+
+        if (customer != null) {
+            customer.setUser(user);
+            Services.customersService.update(customer);
+        }
+
         // Удалить использованный токен
         vfRepository.delete(vft);
+
 
         return usersRepository.saveAndFlush(user);
     }
@@ -170,6 +182,11 @@ public class UsersServiceImpl implements UsersService {
     public User resendConfirmationMessage(String email) throws MessagingException {
         User user = getByEmail(email);
 
+        if (user.getIsConfirmed())
+            throw new ApiException(
+                    String.format("Отправить письмо подтверждения email пользователя %s не удалось. Запись уже подтверждена!", user.getUserLogin())
+            );
+
         // Создать и отправить токен ещё раз
         generateAndSendVerificationToken(user);
 
@@ -195,7 +212,7 @@ public class UsersServiceImpl implements UsersService {
 
         }
 
-        // Отправить сообщение - тестовая почта. После проверки оставить user
+        // Отправить сообщение с токеном подтверждения
 
         Services.emailService.sendConfirmationTokenMime(user.getEmail(), vft.getToken(), user.getUserLogin());
 
@@ -320,7 +337,7 @@ public class UsersServiceImpl implements UsersService {
         List<User> users = typedQuery.getResultList();
 
         // Общее кол-во элементов с таким же ключевым словом и входящее в теже фильтра
-        long elements = ServicesUtils.countUsersByKeyword(keyword, entityManager, specification);
+        long elements = PaginationUtils.countUsersByKeyword(keyword, entityManager, specification);
 
         return new PageImpl<>(users, PageRequest.of(pageNum, limit), elements);
     }
@@ -354,6 +371,11 @@ public class UsersServiceImpl implements UsersService {
     @Override
     public User getByEmail(String email) {
         return usersRepository.getUserByEmail(email).orElseThrow(new UserNotFound(email,null));
+    }
+
+    @Override
+    public User getByEmailNullable(String email) {
+        return usersRepository.getUserByEmail(email).orElse(null);
     }
 
     @Override
@@ -451,6 +473,20 @@ public class UsersServiceImpl implements UsersService {
         prtRepository.delete(prt);
 
         return usersRepository.saveAndFlush(user);
+    }
+
+    @Override
+    public UserRole getBasicUserRole() {
+        return usersRolesRepository.getBasicRole();
+    }
+
+    @Override
+    public Optional<User> getByLoginNullable(String userLogin) {
+
+        if (userLogin == null || userLogin.isBlank())
+            throw new ApiException("Не удалось найти пользователя по username, параметр задан некорректно!");
+
+        return usersRepository.getUsersByUserLoginEquals(userLogin);
     }
 
 }

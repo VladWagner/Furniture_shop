@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import gp.wagner.backend.domain.dto.response.product_variants.SimpleProductVariantRespDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.infrastructure.serializers.DateTimeJsonSerializer;
 import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
@@ -80,7 +81,7 @@ public class OrderRespDto {
     public OrderRespDto(Order order) {
         this.id = order.getId();
         this.code = order.getCode();
-        this.customerDto = new CustomerRespDto(order.getCustomer());
+        this.customerDto = order.getCustomer() != null ? new CustomerRespDto(order.getCustomer()) : null;
         this.orderStateId = order.getOrderState().getId();
         this.productVariantsAndCount = order.getOrderAndPVList().stream().map(ProductVariantAndCount::new).toList();
         this.createdAt = order.getOrderDate();

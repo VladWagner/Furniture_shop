@@ -21,17 +21,22 @@ spring:
         #    directory:
         #      type: local-filesystem
         #      root: src/main/resources/indexes
-  security:
-    user:
-      name: name
-      password: password
+  jwt:
+    secret:
+      access: ${JWT_ACCESS_SECRET_KEY}
+      refresh: ${JWT_REFRESH_SECRET_KEY}
+    life-time:
+      # Срок жизни = 1 день в миллисекундах
+      access: 86400000
+      # Срок жизни = 60 дней в миллисекундах
+      refresh: 5184000000
   mail:
     mail_from: redaschyup@yandex.ru
     host: smtp.yandex.ru
     port: 587
     username: redaschyup
     # Это сгенерированный пароль приложения, а не от яндекс-аккаунта
-    password: jduyjgcjwxptrerz
+    password: ${MAIL_APP_PASSWORD}
     properties:
       mail:
         smtp:
@@ -39,6 +44,10 @@ spring:
           starttls.enable: true
           ssl.trust: smtp.yandex.ru
           timeout: 20000
+  cors:
+    allowed-origins: "*"
+    allowed-methods: "*"
+    allowed-headers: "*"
   main:
     allow-bean-definition-overriding: true
   servlet:

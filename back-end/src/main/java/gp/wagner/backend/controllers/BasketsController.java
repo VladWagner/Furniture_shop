@@ -12,6 +12,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,9 +34,9 @@ public class BasketsController {
         );
     }
 
-    //Выборка корзины заданного пользователя
-    @GetMapping(value = "/user/{userId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public BasketRespDto getBasketByUser(@PathVariable int userId){
+    // Выборка корзины заданного пользователя
+    @GetMapping(value = "/user/{user_id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public BasketRespDto getBasketByUser(@PathVariable(value = "user_id") int userId){
 
         Basket basket = Services.basketsService.getByUserId(userId);
 
@@ -44,9 +46,21 @@ public class BasketsController {
         return new BasketRespDto(basket);
     }
 
+    // Выборка корзины аутентифицированного и авторизированного пользователя
+    @GetMapping(value = "/get_for_user", produces = MediaType.APPLICATION_JSON_VALUE)
+    public BasketRespDto getBasketForUser(){
+
+        Basket basket = Services.basketsService.getForAuthenticatedUser();
+
+        if (basket == null)
+            throw new ApiException("Корзина для пользователя не найдена. Not found!");
+
+        return new BasketRespDto(basket);
+    }
+
     //Выборка корзины по id
-    @GetMapping(value = "/by_id/{basketId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public BasketRespDto getBasketByUser(@PathVariable long basketId){
+    @GetMapping(value = "/by_id/{basket_id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public BasketRespDto getBasketById(@PathVariable(value = "basket_id") long basketId){
 
         Basket basket = Services.basketsService.getById(basketId);
 
@@ -57,8 +71,8 @@ public class BasketsController {
     }
 
     //Выборка корзин для определённого варианта товара
-    @GetMapping(value = "/by_product_variant/{pvId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<BasketRespDto> getBasketsByProductVariants(@PathVariable int pvId){
+    @GetMapping(value = "/by_product_variant/{pv_id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<BasketRespDto> getBasketsByProductVariants(@PathVariable(value = "pv_id") int pvId){
 
         List<Basket> basket = Services.basketsService.getByProductId(pvId);
 
@@ -82,7 +96,7 @@ public class BasketsController {
             throw new ApiException(e.getMessage());
         }
 
-        return new ResponseEntity<>(String.format("Корзину c id: %d успешно создана!", createdBasketId), HttpStatusCode.valueOf(200)) ;
+        return new ResponseEntity<>(String.format("Корзина c id: %d успешно создана!", createdBasketId), HttpStatusCode.valueOf(200)) ;
     }
 
     //Добавление ещё товаров в корзину
@@ -91,6 +105,7 @@ public class BasketsController {
 
         try {
 
+            // Изменить логику работы с пользователем - получать пользователя из SecurityContext
             Services.basketsService.insertProductVariants(basketRequestDto);
 
          } catch (Exception e) {

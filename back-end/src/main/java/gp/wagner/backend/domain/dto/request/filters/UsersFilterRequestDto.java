@@ -29,6 +29,11 @@ public class UsersFilterRequestDto {
     @JsonProperty("role_id")
     private Long role;
 
+    // Флаг является ли пользователь покупателем
+    @Nullable
+    @JsonProperty("is_customer")
+    private Boolean isCustomer;
+
     // Минимальная дата регистрации
     @Nullable
     @JsonProperty("date_lo")

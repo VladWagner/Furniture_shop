@@ -154,7 +154,7 @@ public class ProductsServiceImpl implements ProductsService {
         List<Product> products = typedQuery.getResultList();
 
         // Пагинация готовой коллекции
-        long elementsCount = ServicesUtils.countProductsByFilter(entityManager, specifications, container, categoryId, priceRange);
+        long elementsCount = PaginationUtils.countProductsByFilter(entityManager, specifications, container, categoryId, priceRange);
 
         return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
@@ -199,7 +199,7 @@ public class ProductsServiceImpl implements ProductsService {
         List<Product> products = typedQuery.getResultList();
 
         // Пагинация готовой коллекции
-        long elementsCount = ServicesUtils.countProductsByFilterPv(entityManager, specifications, filtersContainer, categoryId, priceRange);
+        long elementsCount = PaginationUtils.countProductsByFilterPv(entityManager, specifications, filtersContainer, categoryId, priceRange);
 
         return new PageImpl<>(products, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }

@@ -4,12 +4,16 @@ import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.infrastructure.SortingUtils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProducersSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.ProducersRepository;
 import gp.wagner.backend.services.interfaces.ProducersService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -177,8 +181,9 @@ public class ProducersServiceImpl implements ProducersService {
     }
 
     @Override
-    public Page<Producer> getAll(int pageNum, int limit) {
-        return producersRepository.findAll(PageRequest.of(pageNum-1, limit));
+    public Page<Producer> getAll(int pageNum, int limit, ProducersSortEnum sortEnum, GeneralSortEnum sortType) {
+        Sort sort = SortingUtils.createSortForProducersSelection(sortEnum, sortType);
+        return producersRepository.findAll(PageRequest.of(pageNum-1, limit, sort));
     }
 
     @Override
@@ -212,5 +217,15 @@ public class ProducersServiceImpl implements ProducersService {
     public List<Producer> getProducersByProductKeyword(String keyword) {
 
         return producersRepository.getProducersByProductKeyword(keyword);
+    }
+
+    @Override
+    public Page<Producer> getAllDeleted(int pageNum, int limit, ProducersSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        Sort sort = SortingUtils.createSortForProducersSelection(sortEnum, sortType);
+        return producersRepository.getDeletedProducers(PageRequest.of(pageNum, limit, sort));
     }
 }

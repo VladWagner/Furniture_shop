@@ -38,6 +38,12 @@ public class UsersSpecifications {
             if (filterDto.getIsConfirmed() != null)
                 predicates.add(cb.equal(root.get("isConfirmed"), filterDto.getIsConfirmed()));
 
+            // Флаг принадлежности пользователя к покупателям
+            if (filterDto.getIsCustomer() != null)
+                predicates.add(
+                        cb.isNotNull(root.get("customer"))
+                );
+
             // Начальная дата регистрации
             if (filterDto.getMinDate() != null)
                 predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filterDto.getMinDate()));

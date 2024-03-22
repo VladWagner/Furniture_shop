@@ -3,6 +3,7 @@ package gp.wagner.backend.services.implementations;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.entites.visits.DailyVisits;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.repositories.DailyVisitsRepository;
@@ -87,7 +88,7 @@ public class DailyVisitsServiceImpl implements DailyVisitsService {
         typedQuery.setFirstResult(pageNum*dataOnPage);
         typedQuery.setMaxResults(dataOnPage);
 
-        long elementsCount = ServicesUtils.countDailyVisitsInPeriod(entityManager, datesRangeDto);
+        long elementsCount = PaginationUtils.countDailyVisitsInPeriod(entityManager, datesRangeDto);
 
         List<DailyVisits> dvList = typedQuery.getResultList();
 
@@ -149,7 +150,7 @@ public class DailyVisitsServiceImpl implements DailyVisitsService {
         typedQuery.setFirstResult(pageNum*dataOnPage);
         typedQuery.setMaxResults(dataOnPage);
 
-        long elementsCount = ServicesUtils.countTopDailyVisitsInPeriod(entityManager, datesRangeDto, maxVisits);
+        long elementsCount = PaginationUtils.countTopDailyVisitsInPeriod(entityManager, datesRangeDto, maxVisits);
 
         List<DailyVisits> dvList = typedQuery.getResultList();
 

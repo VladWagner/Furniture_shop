@@ -84,6 +84,5 @@ public class Visitor {
         return  Objects.equals(this.id, visitor.id) &&
                 Objects.equals(this.ipAddress, visitor.ipAddress) &&
                 Objects.equals(this.fingerprint, visitor.fingerprint);
-
     }
 }

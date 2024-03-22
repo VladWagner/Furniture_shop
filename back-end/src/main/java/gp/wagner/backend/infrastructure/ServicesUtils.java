@@ -3,6 +3,7 @@ package gp.wagner.backend.infrastructure;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
+import gp.wagner.backend.domain.dto.request.filters.CustomersFilterRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.entites.baskets.Basket;
@@ -24,11 +25,14 @@ import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.middleware.Services;
+import gp.wagner.backend.security.models.UserDetailsImpl;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -298,14 +302,7 @@ public class ServicesUtils {
         if (basketPath != null && dto.getMaxDate() != null)
             predicates.add(cb.lessThanOrEqualTo(basketPath.get("addedDate"), dto.getMaxDate()));
 
-        // Если задана минимальная цена
-        /*if (dto.getPriceMin() != null)
-            predicates.add(cb.greaterThanOrEqualTo(pvFrom.get("price"), dto.getPriceMin()));
-
-        // Если задана максимальная цена варианта
-        if (dto.getPriceMax() != null)
-            predicates.add(cb.lessThanOrEqualTo(pvFrom.get("price"), dto.getPriceMax()));*/
-
+        // Фильтрация по цене с учётом наличия скидки на вариант товара
         if (pvFrom != null && (dto.getPriceMin() != null || dto.getPriceMax() != null)) {
             Join<ProductVariant, Discount> discountJoin = pvFrom.join("discount", JoinType.LEFT);
             Expression<Integer> discountPrice = cb.diff(
@@ -417,7 +414,7 @@ public class ServicesUtils {
         return entityManager.createQuery(query).getSingleResult();
     }
 
-    // Метод для поиска корзин - частично обобщённый
+    // Метод для поиска корзин - частично обобщённый (возвращает либо единичную корзину, либо коллекцию корзин)
     public static <R> R findByProdVariantIdAndUserIdGeneric(Long pvId, List<Long> pvIdList, Integer userId, EntityManager entityManager, /*Class<Q> queriesType,*/ Class<R> returnType){
 
         if (pvId == null && userId == null && pvIdList == null)
@@ -574,7 +571,7 @@ public class ServicesUtils {
 
         Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
 
-        // Сформировать запрос с агрегатной функцией подсчёта суммы
+        // Сформировать запрос с агрегатной для колчества просмотров каждого товвара
         Expression<?> expression/* = cb.sum(cb.coalesce(root.get("count"), 0))*/ = switch (operation) {
             case SUM -> cb.sum(cb.coalesce(root.get("count"), 0));
             case AVG -> cb.avg(cb.coalesce(root.get("count"), 0));
@@ -617,249 +614,6 @@ public class ServicesUtils {
         return entityManager.createQuery(query).getResultList().get(0);
     }
 
-    // Подсчёт количества посетителей, которые просмотрели товары с заданными параметрами
-    public static Long countVisitorsWithProductsViews(EntityManager entityManager, Long categoryId, String priceRange){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<Visitor> root = query.from(Visitor.class);
-
-        Join<Visitor, ProductViews> productViewsJoin = root.join("productViewsList");
-        Join<ProductViews, Product> productJoin = productViewsJoin.join("product");
-
-        // Сформировать запрос
-
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
-                ProductsOrVariantsEnum.PRODUCTS);
-
-        if (predicates != null && !predicates.isEmpty())
-            query.where(predicates.toArray(new Predicate[0]));
-
-        query.select(cb.countDistinct(root.get("id")));
-
-        return entityManager.createQuery(query).getResultList().get(0);
-    }
-
-    // Подсчёт количества просмотров с максимальными значениями
-    public static int countMaxProductsViews(EntityManager entityManager, long maxCount, Long categoryId, String priceRange){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        // Основной запрос выборки записей просмотров товаров
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<ProductViews> root = query.from(ProductViews.class);
-        Join<ProductViews, Product> productJoin = root.join("product", JoinType.LEFT);
-
-        // Добавить предикаты
-        List<Predicate> predicates = collectProductsPredicates(cb, productJoin, query, null, categoryId, priceRange,
-                ProductsOrVariantsEnum.PRODUCTS);
-
-        // Основной запрос
-        Expression<Integer> sumExpression = cb.sum(cb.coalesce(root.get("count"), 0));
-
-        if (predicates != null && !predicates.isEmpty())
-            query.where(predicates.toArray(new Predicate[0]));
-
-        query.select(productJoin.get("id"))
-                .groupBy(productJoin.get("id"))
-                .having(cb.ge(sumExpression, maxCount));
-
-
-        return entityManager.createQuery(query).getResultList().size();
-    }
-
-    // Подсчёт общего количества просмотренных товаров для одного покупателя
-    public static long countCustomerProductsViews(EntityManager entityManager, CustomerRequestDto customerDto){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        // Основной запрос выборки записей просмотров товаров
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<ProductViews> root = query.from(ProductViews.class);
-        Path<Visitor> visitorPath = root.get("visitor");
-        Path<Customer> customerPath = visitorPath.get("customers");
-
-        Predicate predicate;
-        if (customerDto.getId() != null && customerDto.getFingerPrint() != null)
-            predicate = cb.or(
-                    cb.equal(visitorPath.get("fingerprint"), customerDto.getFingerPrint()),
-                    cb.equal(customerPath.get("id"), customerDto.getId())
-            );
-        else if (customerDto.getId() == null)
-            predicate = cb.equal(visitorPath.get("fingerprint"), customerDto.getFingerPrint());
-        else
-            predicate = cb.equal(customerPath.get("id"), customerDto.getId());
-
-        query.where(predicate);
-        query.select(cb.count(root.get("id")));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-
-        typedQuery.setMaxResults(1);
-
-        return typedQuery.getSingleResult();
-    }
-
-    // Подсчёт товаров или их вариантов в заказе
-    public static long countProductsOrVariantsOrders(EntityManager entityManager, long searchingId, Class<?> countingType){
-
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-
-        // Таблица со заказываемыми товарами
-        Root<OrderAndProductVariant> root = query.from(OrderAndProductVariant.class);
-
-        // Присоединение сущности productVariant
-        Join<OrderAndProductVariant, ProductVariant> pvJoin = root.join("productVariant");
-        Path<Product> productPath = null;
-
-        // Если происходит подсчёт количества заказов для товара
-        if (countingType == Product.class)
-            productPath = pvJoin.get("product");
-
-        Predicate predicate = productPath == null ?
-                                cb.equal(pvJoin.get("id"), searchingId) :
-                                cb.equal(productPath.get("id"), searchingId);
-
-        query.where(predicate)
-             .select(cb.count(root));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-
-        // Для перестраховки, чтобы избежать падения
-        typedQuery.setMaxResults(1);
-
-        return typedQuery.getSingleResult();
-    }
-
-    public static long countProductsByFilter(EntityManager entityManager,List<Specification<Product>> specifications, ProductFilterDtoContainer container, Long categoryId, String priceRange){
-
-        //Объект для формирования запросов - построитель запроса
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-
-        //Получить таблицу для запросов
-        Root<Product> root = query.from(Product.class);
-
-        // Собираем предикаты категории и дипазона цен отдельно в этом запросе, поскольку для них нужен root именно от текущего query
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, categoryId, priceRange, ProductsOrVariantsEnum.PRODUCTS);
-
-        // Получить предикат для выборки по заданным фильтрам
-        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
-
-        //Сформировать запрос
-        if (predicates != null && !predicates.isEmpty())
-            //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
-            query.where(cb.and(
-                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
-        else
-            query.where(filterPredicate);
-
-        query.select(cb.count(root.get("id")));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-
-        return typedQuery.getResultList().get(0);
-    }
-
-    public static long countProductsByFilterPv(EntityManager entityManager, List<Specification<Product>> specifications, ProductFilterDtoContainer container, Long categoryId, String priceRange){
-
-        //Объект для формирования запросов - построитель запроса
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-
-        Root<Product> root = query.from(Product.class);
-
-        List<Predicate> predicates = collectProductsPredicates(cb, root, query, container, categoryId, priceRange, ProductsOrVariantsEnum.VARIANTS);
-
-        Predicate filterPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
-
-        //Сформировать запрос
-        if (predicates != null && !predicates.isEmpty())
-            //Доп.фильтра по категории и ценам, производителям + фильтра по характеристикам
-            query.where(cb.and(
-                    cb.and(predicates.toArray(new Predicate[0])), filterPredicate));
-        else
-            query.where(filterPredicate);
-
-        query.select(cb.countDistinct(root.get("id")));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-        return typedQuery.getResultList().get(0);
-    }
-
-    public static long countProductsByKeyword(String key, EntityManager entityManager, List<Specification<Product>> specifications, ProductFilterDtoContainer container, String priceRange){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-
-        Root<Product> root = query.from(Product.class);
-
-        Join<Product, ProductVariant> productVariantJoin = root.join("productVariants");
-
-        //Список предикатов для поиска
-        List<Predicate> searchPredicates = new ArrayList<>();
-
-        searchPredicates.add(cb.like(root.get("name"),key));
-        searchPredicates.add(cb.like(root.get("description"),key));
-        searchPredicates.add(cb.like(productVariantJoin.get("title"),key));
-        searchPredicates.add(cb.like(root.get("producer").get("producerName"), key));
-
-        // Сформировать предикаты фильтрации по цене и производителям
-        List<Predicate> predicates = ServicesUtils.collectProductsPredicates(cb, root, query, container, null, priceRange,
-                ProductsOrVariantsEnum.VARIANTS);
-
-        // Спецификации для фильтрации по характеристикам
-        Predicate featuresPredicate = Specification.allOf(specifications).toPredicate(root, query, cb);
-
-        //Сформировать запрос
-        if (predicates != null && !predicates.isEmpty())
-            //Доп.фильтра по категории и ценам + фильтра по характеристикам
-            query.where(cb.and(
-                            cb.and(cb.or(searchPredicates.toArray(new Predicate[0]))
-                                    ,featuresPredicate)),
-                    cb.and(predicates.toArray(new Predicate[0]))
-            ).distinct(true);
-        else
-            query.where(cb.and( cb.or(searchPredicates.toArray(new Predicate[0])), featuresPredicate)).distinct(true);
-
-        query.select(cb.countDistinct(root.get("id")));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-
-        return typedQuery.getResultList().get(0);
-
-    }
-
-    // Подсчёт общего кол-ва пользователей по ключевому слову в имени или логине
-    public static long countUsersByKeyword(String key, EntityManager entityManager, Specification<User> specification){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-
-        Root<User> root = query.from(User.class);
-
-        List<Predicate> predicates = new ArrayList<>();
-
-        // Условие выборки по ключевым словам
-        predicates.add(cb.or(
-                cb.like(root.get("name"), key),
-                cb.like(root.get("userLogin"), key)
-        ));
-
-        // Снова создать предикат из спецификации, но уже для другого CriteriaQuery
-        if (specification != null)
-            predicates.add(specification.toPredicate(root, query, cb));
-
-        query.where(predicates.toArray(new Predicate[0]));
-
-        query.select(cb.countDistinct(root.get("id")));
-
-        TypedQuery<Long> typedQuery = entityManager.createQuery(query);
-
-        return typedQuery.getResultList().get(0);
-
-    }
-
     // Сформировать и отсортировать ассоциативную коллекцию фильтров по убыванию приоритетов
     public static Map<String, List<FilterValuesDto<Integer>>> createAndSortFiltersMap(List<FilterValuesDto<Integer>> filterValuesDtoList){
 
@@ -879,55 +633,88 @@ public class ServicesUtils {
                 ));
     }
 
-    // Подсчёт количества записей о посещении магазина за определённый период
-    public static long countDailyVisitsInPeriod(EntityManager entityManager, DatesRangeRequestDto datesRangeDto){
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    // Получить пользователя из SecurityContext
+    public static User getUserFromSecurityContext(SecurityContext securityContext){
 
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<DailyVisits> root = query.from(DailyVisits.class);
+        Authentication authentication = securityContext.getAuthentication();
 
-        Predicate selectionPredicate = cb.between(root.get("date"), datesRangeDto.getMin(), datesRangeDto.getMax());
+        if (authentication == null)
+            return null;
 
-        query.where(selectionPredicate);
+        Object principal = authentication.getPrincipal();
 
-        query.select(cb.count(root.get("id")));
+        // Если в authentication задан полностью пользователь, тогда вернуть его
+        if (User.class.isAssignableFrom(principal.getClass()))
+            return (User) principal;
 
-        return entityManager.createQuery(query).getResultList().get(0);
+        long userId = ((UserDetailsImpl) principal).getUserId();
+
+        return Services.usersService.getById(userId);
+
     }
 
-    // Подсчёт количества записей о посещении магазина за определённый период с максимальным количеством самих посещений
-    public static long countTopDailyVisitsInPeriod(EntityManager entityManager, DatesRangeRequestDto datesRangeDto, int maxViewsCount){
+    public static Expression<String> customerSnpExpression(CriteriaBuilder cb, From<Customer, ?> customer){
 
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<DailyVisits> root = query.from(DailyVisits.class);
-
-        // Сформировать предикат для выборки записей посещений за определеённый период и кол-во самих посещений близко к максимальному
-        Predicate selectionPredicate = cb.between(root.get("date"), datesRangeDto.getMin(), datesRangeDto.getMax());
-        selectionPredicate = cb.and(
-                selectionPredicate,
-                cb.ge(root.get("countVisits"), maxViewsCount)
+        Expression<Integer> digit  = cb.literal(1);
+        return cb.function("CONCAT_WS", String.class, cb.literal("."),
+                customer.get("name"),
+                cb.function("SUBSTR", String.class, customer.get("surname"), digit, digit),
+                cb.function("SUBSTR", String.class, customer.get("patronymic"), digit, digit)
         );
-
-        query.where(selectionPredicate)
-             .select(cb.count(root.get("id")));
-
-        return entityManager.createQuery(query).getResultList().get(0);
     }
 
-    // Подсчёт количества записей о посещении магазина за определённый период с максимальным количеством самих посещений
-    public static long countProductAttributesByCategory(EntityManager entityManager, long categoryId){
+    // Сформировать все предикаты для фильтрации покупателей
+    public static List<Predicate> collectCustomersPredicates(CriteriaBuilder cb, From<Customer, ?> customer, CustomersFilterRequestDto filterDto,
+                                                             Expression<Boolean> isRegisteredExp, Expression<Long> ordersCountExp,
+                                                             Expression<Integer> ordersUnitsCountExp, Expression<Integer> ordersSumsExp,
+                                                             Expression<Double> avgUnitPrice){
 
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        List<Predicate> predicates = new ArrayList<>();
 
-        CriteriaQuery<Long> query = cb.createQuery(Long.class);
-        Root<ProductAttribute> root = query.from(ProductAttribute.class);
+        if (cb == null || customer == null)
+            return predicates;
 
-        Predicate predicate = cb.equal(root.get("categories").get("id"), categoryId);
+        // Является ли покупатель зарегистрированным пользователем
+        if (filterDto.getIsRegistered() != null)
+            predicates.add(cb.equal(isRegisteredExp, filterDto.getIsRegistered()));
 
-        query.select(cb.count(root.get("id"))).where(predicate);
+        // Даты создания записи
+        if (filterDto.getMinDate() != null)
+            predicates.add(cb.greaterThanOrEqualTo(customer.get("createdAt"), filterDto.getMinDate()));
 
-        return entityManager.createQuery(query).getResultList().get(0);
+        if (filterDto.getMaxDate() != null)
+            predicates.add(cb.lessThanOrEqualTo(customer.get("createdAt"), filterDto.getMaxDate()));
+
+        // Количество заказов сделанных покупателем
+        if (filterDto.getMinOrdersCount() != null)
+            predicates.add(cb.greaterThanOrEqualTo(ordersCountExp, filterDto.getMinOrdersCount()));
+
+        if (filterDto.getMaxOrdersCount() != null)
+            predicates.add(cb.lessThanOrEqualTo(ordersCountExp, filterDto.getMaxOrdersCount()));
+
+        // Количество всех товаров в заказах сделанных покупателем
+        if (filterDto.getMinOrderedUnitsCount() != null)
+            predicates.add(cb.greaterThanOrEqualTo(ordersUnitsCountExp, filterDto.getMinOrderedUnitsCount()));
+
+        if (filterDto.getMaxOrderedUnitsCount() != null)
+            predicates.add(cb.lessThanOrEqualTo(ordersUnitsCountExp, filterDto.getMaxOrderedUnitsCount()));
+
+        // Сумма всех заказов сделанных покупателем
+        if (filterDto.getMinOrdersSum() != null)
+            predicates.add(cb.greaterThanOrEqualTo(ordersSumsExp, filterDto.getMinOrdersSum()));
+
+        if (filterDto.getMaxOrdersSum() != null)
+            predicates.add(cb.lessThanOrEqualTo(ordersSumsExp, filterDto.getMaxOrdersSum()));
+
+        // Средняя цена каждого товара в заказах покупателя
+        if (filterDto.getMinAvgUnitPrice() != null)
+            predicates.add(cb.greaterThanOrEqualTo(avgUnitPrice, filterDto.getMinAvgUnitPrice()));
+
+        if (filterDto.getMaxAvgUnitPrice() != null)
+            predicates.add(cb.lessThanOrEqualTo(avgUnitPrice, filterDto.getMaxAvgUnitPrice()));
+
+        return predicates;
     }
+
+
 }

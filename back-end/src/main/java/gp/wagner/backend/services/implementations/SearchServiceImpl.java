@@ -4,6 +4,7 @@ import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoCon
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.SortingUtils;
@@ -103,7 +104,7 @@ public class SearchServiceImpl implements SearchService {
         List<Product> products = typedQuery.getResultList();
 
         // Подсчёт общего кол-ва элементов без пагинации
-        long elementsCount = ServicesUtils.countProductsByKeyword(preparedKey, entityManager, specifications, filterContainer, priceRange);
+        long elementsCount = PaginationUtils.countProductsByKeyword(preparedKey, entityManager, specifications, filterContainer, priceRange);
 
         return new PageImpl<>(products, PageRequest.of(page, limit), elementsCount);
     }

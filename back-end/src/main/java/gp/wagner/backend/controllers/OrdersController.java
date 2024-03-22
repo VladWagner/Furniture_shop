@@ -1,22 +1,26 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
+import gp.wagner.backend.domain.dto.request.filters.CustomersFilterRequestDto;
+import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.PaymentMethodRespDto;
+import gp.wagner.backend.domain.dto.response.orders.CustomerRespDto;
 import gp.wagner.backend.domain.dto.response.orders.OrderAndPvRespDto;
 import gp.wagner.backend.domain.dto.response.orders.OrderRespDto;
-import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.entites.orders.OrderState;
 import gp.wagner.backend.domain.entites.orders.PaymentMethod;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.infrastructure.enums.sorting.CustomersSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.services.interfaces.OrdersService;
 import jakarta.mail.MessagingException;
+import jakarta.persistence.Tuple;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -52,10 +56,10 @@ public class OrdersController {
     }
 
     //Добавление заказа
-    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE)
-    public Map<String, Long> createOrder(@Valid @RequestBody OrderRequestDto orderRequestDto){
+    @PostMapping(value = "/create_order", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Map<String, Long> createOrder(HttpServletRequest request, @Valid @RequestBody OrderRequestDto orderRequestDto) throws Exception{
 
-        SimpleTuple<Long, Long> result = Services.ordersService.create(orderRequestDto);
+        SimpleTuple<Long, Long> result = Services.ordersService.create(orderRequestDto, Utils.getFingerprint(request), request.getRemoteAddr());
 
         Map<String, Long> idAndCode = new HashMap<>();
 
@@ -105,14 +109,23 @@ public class OrdersController {
                 .body(String.format("Статус заказа с кодом %d успешно изменён на статус id %d!", orderCode, orderStateId));
     }
 
+    // Отменить заказ
+    @PutMapping(value = "/cancel_order/{code}")
+    public ResponseEntity<String> cancelOrder(@PathVariable long code) throws Exception {
+
+        Services.ordersService.cancelOrder(code);
+
+        return ResponseEntity
+                .status(HttpStatus.OK )
+                .body(String.format("Заказ с кодом %d успешно отменён!", code));
+    }
+
     // Получение заказа по коду
     @GetMapping(value = "/order_by_code/{code}", produces = MediaType.APPLICATION_JSON_VALUE)
     public OrderRespDto getOrderByCode(@PathVariable long code) throws MessagingException {
 
         // Если вариант товара будет show == false, тогда на фронте нужно будет отображать эту информацию и упоминать, что сумма пересчитана
         Order foundOrder = Services.ordersService.getByOrderCode(code);
-
-        Services.emailService.sendOrderDetailsMime(foundOrder);
 
         // Если вариант будет скрыт, тогда не вводи цену, но выводи кол-во и сделай блок немного тусклым и
         // в tooltip пиши, что сумма пересчитана
@@ -167,9 +180,33 @@ public class OrdersController {
                 OrdersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         if (ordersPage.getContent().isEmpty())
-            throw new ApiException(String.format("Не удалось найти заказы для покупателя с email: %d", email));
+            throw new ApiException(String.format("Не удалось найти заказы для покупателя с email: %s", email));
 
-        return new PageDto<>(ordersPage, () -> ordersPage.getContent().stream().map(OrderRespDto::new).toList());
+        return new PageDto<>(ordersPage, () -> ordersPage.getContent().stream().map(order -> {
+            order.setCustomer(null);
+            return new OrderRespDto(order);
+        }).toList());
+    }
+
+    //Получение заказов для пользователя
+    @GetMapping(value = "/orders_for_user", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<OrderRespDto> getOrdersForUser(@RequestParam(value = "user_id",required = false) Long id,
+                                                    @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                    @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                    @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                    @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
+
+
+        Page<Order> ordersPage = Services.ordersService.getOrdersByUser(id, pageNum, limit,
+                OrdersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        if (ordersPage == null || ordersPage.getContent().isEmpty())
+            throw new ApiException(String.format("Не удалось найти заказы для пользователя с id: %d", id));
+
+        return new PageDto<>(ordersPage, () -> ordersPage.getContent().stream().map(order -> {
+            order.setCustomer(null);
+            return new OrderRespDto(order);
+        }).toList());
     }
 
     //Удаление вариантов товара в определённом заказе
@@ -186,7 +223,7 @@ public class OrdersController {
 
     }
 
-    // Получить возможный диапазон заказов определённого статуса и/или в определённой категории
+    // Получить диапазон дат заказов определённого статуса и/или в определённой категории
     @GetMapping(value = "/orders_dates_range", produces = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Date> createOrder(@RequestParam(value = "state_id", required = false) Long stateId, @RequestParam(value = "category_id", required = false) Integer categoryId){
 
@@ -218,5 +255,21 @@ public class OrdersController {
     public List<PaymentMethodRespDto> getOrderByProductVariant(){
 
         return Services.ordersService.getPaymentMethods().stream().map(PaymentMethodRespDto::new).toList();
+    }
+
+    //Получение всех покупателей
+    @GetMapping(value = "/get_all_customers", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<CustomerRespDto> getOrderAllCustomers(@RequestBody(required = false) CustomersFilterRequestDto filterDto,
+                                                         @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                         @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                         @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                         @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
+
+        Page<Tuple> orderPage = Services.customersService.getAllWithStat(pageNum, limit, filterDto,
+                CustomersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        return new PageDto<>(
+                orderPage, () -> orderPage.getContent().stream().map(CustomerRespDto::new).toList()
+        );
     }
 }

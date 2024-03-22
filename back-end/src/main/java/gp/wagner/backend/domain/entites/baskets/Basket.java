@@ -11,6 +11,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.util.Date;
 import java.util.List;
@@ -29,6 +31,7 @@ public class Basket {
 
     //Дата и время добавления товара в корзину
     @Column(name = "added_date")
+    @CreationTimestamp
     private Date addedDate;
 
     //Связующее свойство пользователя
@@ -45,4 +48,13 @@ public class Basket {
     @Column(name = "sum")
     private int sum;
 
+    public Basket(Long id, User user, int sum) {
+        this.id = id;
+        this.user = user;
+        this.sum = sum;
+
+        /*if (id == null || id <= 0)
+            this.addedDate = new Date();*/
+
+    }
 }

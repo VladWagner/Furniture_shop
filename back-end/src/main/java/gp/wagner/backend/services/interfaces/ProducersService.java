@@ -2,6 +2,9 @@ package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProducersSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -31,7 +34,7 @@ public interface ProducersService {
     void recoverHiddenById(long id, boolean recoverHeirs);
 
     //Выборка всех записей
-    Page<Producer> getAll(int pageNum, int limit);
+    Page<Producer> getAll(int pageNum, int limit, ProducersSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Выборка записи под id
     Producer getById(long id);
@@ -43,4 +46,6 @@ public interface ProducersService {
     List<Producer> getProducersInCategories(List<Long> categoriesIds);
 
     List<Producer> getProducersByProductKeyword(String keyword);
+
+    Page<Producer> getAllDeleted(int pageNum, int limit, ProducersSortEnum sortEnum, GeneralSortEnum sortType);
 }

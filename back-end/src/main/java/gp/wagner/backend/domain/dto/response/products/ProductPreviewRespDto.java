@@ -117,8 +117,6 @@ public class ProductPreviewRespDto {
                     .stream()
                     .filter(pv -> pv.getDiscount() != null).findFirst().orElse(null);
 
-            //this.discountRespDto = variantWithDiscount != null ? new DiscountRespDto(variantWithDiscount.getDiscount()) : null;
-
             // Цену оставим null, чтобы на фронте было понятно, что скидка задана не для базового варианта
             this.discountPercent = variantWithDiscount != null && !variantWithDiscount.getDiscount().isExpired() ?
                     variantWithDiscount.getDiscount().getPercentage() : null;

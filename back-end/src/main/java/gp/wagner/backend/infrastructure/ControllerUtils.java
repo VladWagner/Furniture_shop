@@ -3,14 +3,17 @@ package gp.wagner.backend.infrastructure;
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
+import gp.wagner.backend.domain.dto.response.categories.CategoryBreadcrumbsDto;
 import gp.wagner.backend.domain.dto.response.categories.CategoryDtoWithChildren;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
 import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
+import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductImage;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.visits.CategoryViews;
 import gp.wagner.backend.middleware.Services;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
@@ -286,4 +289,55 @@ public class ControllerUtils {
         }
     }
 
+    // Получить breadcrumbs по категории
+    public static CategoryBreadcrumbsDto createBreadCrumbByCategory(Category category) {
+
+        if (category == null)
+            return null;
+
+        Set<Long> ids = new HashSet<>();
+        ids.add(category.getId());
+
+        Category parentCategory = category;
+
+        // Подняться к родительской категории
+        while (parentCategory.getParentCategory() != null){
+            parentCategory = parentCategory.getParentCategory();
+            ids.add(parentCategory.getId());
+        }
+
+        return breadcrumbsFromParentCategory(parentCategory, ids);
+    }
+
+    private static CategoryBreadcrumbsDto breadcrumbsFromParentCategory(Category parent, Set<Long> childrenIds){
+
+        CategoryBreadcrumbsDto categoryBreadcrumbsDto = new CategoryBreadcrumbsDto(parent);
+
+        // Получить дочерние категории текущей на одном уровне рекурсии
+        Category childCategory = Services.categoriesService.getChildCategories(parent.getId())
+                .stream()
+                .filter(c -> childrenIds.contains(c.getId()))
+                .findFirst()
+                .orElse(null);
+
+        // Если дочерней категории нет, тогда мы дошли до нужной
+        if (childCategory == null)
+            return categoryBreadcrumbsDto;
+
+        // Спустится ещё на 1 уровень рекурсии
+        categoryBreadcrumbsDto.setChildBreadCrumb(breadcrumbsFromParentCategory(childCategory, childrenIds));
+
+        return categoryBreadcrumbsDto;
+    }
+
+    // Засчитать просмотр категории
+    public static void countCategoryView(HttpServletRequest request, Long categoryId){
+        String fingerprint = Utils.getFingerprint(request);
+        if (fingerprint != null && categoryId != null) {
+            if (categoryId > 0)
+                Services.categoryViewsService.createOrUpdate(fingerprint, request.getRemoteAddr(), categoryId);
+            else if (categoryId < 0)
+                Services.categoryViewsService.createOrUpdateRepeatingCategory(fingerprint, request.getRemoteAddr(), categoryId);
+        }
+    }
 }

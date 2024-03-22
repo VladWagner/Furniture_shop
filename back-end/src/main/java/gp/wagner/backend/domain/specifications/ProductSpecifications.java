@@ -5,7 +5,7 @@ import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.entites.eav.ProductAttribute;
 import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.infrastructure.enums.FilterOperations;
+import gp.wagner.backend.infrastructure.enums.FilterOperationsEnum;
 import gp.wagner.backend.infrastructure.Utils;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
@@ -72,12 +72,12 @@ public class ProductSpecifications {
                             // Далее для каждого условия и атрибута будет формироваться свой подзапрос
 
                             // Выбор заданной операции для каждого параметра фильтра
-                            if (dto.getOperation().equals(FilterOperations.EQUALS.getValue())) {
+                            if (dto.getOperation().equals(FilterOperationsEnum.EQUALS.getValue())) {
 
                                 Integer dataInt = Utils.TryParseInt(dto.getValue());
 
                                 subQueryPredicate = cb.and(
-                                                //Поиск нужной характеристики - id в фильтре с id d таблице атрибутов
+                                                //Поиск нужной характеристики - id в фильтре с id в таблице атрибутов
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
                                                 //Поиск и сравнение значения характеристики (пока по двум базовым полям)
                                                 dataInt != null ? cb.equal(subProdAttrValueJoin.get("intValue"), dataInt) :
@@ -86,7 +86,7 @@ public class ProductSpecifications {
                             }
                             // end-if
                             // Если значение должно быть >= заданного
-                            else if (dto.getOperation().equals(FilterOperations.GREATER_THAN_EQUAL.getValue()))
+                            else if (dto.getOperation().equals(FilterOperationsEnum.GREATER_THAN_EQUAL.getValue()))
                                 subQueryPredicate = cb.and(
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
                                                 cb.ge(subProdAttrValueJoin.get("intValue"), Utils.TryParseInt(dto.getValue()))
@@ -95,7 +95,7 @@ public class ProductSpecifications {
                                 //end-else if
 
                             // Если значение должно быть <= заданного
-                            else if (dto.getOperation().equals(FilterOperations.LESS_THAN_EQUAL.getValue()))
+                            else if (dto.getOperation().equals(FilterOperationsEnum.LESS_THAN_EQUAL.getValue()))
                                 subQueryPredicate = cb.and(
                                                 cb.equal(subProductAttrPath.get("id"), dto.getAttributeId()),
                                                 cb.le(subProdAttrValueJoin.get("intValue"), Utils.TryParseInt(dto.getValue()))
@@ -103,8 +103,7 @@ public class ProductSpecifications {
                                 //end-else if
 
                             // Если значение должно быть между заданными (целочисленными)
-                            else if (dto.getOperation().equals(FilterOperations.BETWEEN.getValue())) {
-
+                            else if (dto.getOperation().equals(FilterOperationsEnum.BETWEEN.getValue())) {
 
                                 //Попытка вытащить целочисленные значения из строки
                                 String[] values = dto.getValue().split("[-_–—|]");
@@ -124,7 +123,7 @@ public class ProductSpecifications {
                             }
                             //end-else if
 
-                            // Сформировать одно из условий в where из результатов подзапроса
+                            // Сформировать одно из условий в where из результатов подзапроса (id текущего товара должен быть в результате подзапроса)
                             if (subQueryPredicate != null) {
                                 subQueryAv.select(subRoot.get("id")).where(subQueryPredicate);
                                 predicates.add(cb.in(root.get("id")).value(subQueryAv));
@@ -133,7 +132,7 @@ public class ProductSpecifications {
                         }//for
 
                         // Выбор внутреннего объединения условий
-                        if (filterBlock.getInnerRule().equalsIgnoreCase(FilterOperations.OR.getValue()))
+                        if (filterBlock.getInnerRule().equalsIgnoreCase(FilterOperationsEnum.OR.getValue()))
                             return cb.or(predicates.toArray(new Predicate[0]));
                         else
                             return cb.and(predicates.toArray(new Predicate[0]));

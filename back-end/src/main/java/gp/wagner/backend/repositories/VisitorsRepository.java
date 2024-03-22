@@ -55,6 +55,16 @@ public interface VisitorsRepository extends JpaRepository<Visitor,Long> {
     //Получить посетителя по finger print
     Optional<Visitor> getVisitorByFingerprint(String fingerPrint);
 
+    //Получить посетителя по finger print и/или id
+    @Query(value = """
+    select
+        v
+    from Visitor v
+    where (:finger_print is not null and :ip_address is not null) and v.fingerprint = :finger_print and v.ipAddress = :ip_address or
+        (:ip_address is null and v.fingerprint = :finger_print) or (:finger_print is null and v.ipAddress = :ip_address)
+""")
+    Optional<Visitor> getVisitorByFingerprintAndIpAddress(@Param("finger_print") String fingerPrint, @Param("ip_address") String ipAddress);
+
     //Получить maxId
     @Query(value = """
     select

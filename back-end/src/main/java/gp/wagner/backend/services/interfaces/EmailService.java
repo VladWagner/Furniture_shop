@@ -14,5 +14,6 @@ public interface EmailService {
 
     void sendOrderDetailsMime(Order createdOrder) throws MessagingException;
 
-
+    @Async
+    void sendOrderCancelNotification(Order orderToCancel) throws MessagingException;
 }

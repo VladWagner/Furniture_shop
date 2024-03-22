@@ -10,6 +10,7 @@ import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
+import jakarta.mail.MessagingException;
 import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
 
@@ -28,7 +29,7 @@ public interface OrdersService {
 
     SimpleTuple<Long, Long> create(int orderStateId, int customerId);
 
-    SimpleTuple<Long, Long> create(OrderRequestDto dto);
+    SimpleTuple<Long, Long> create(OrderRequestDto dto, String fingerprint, String ip) throws MessagingException;
     PaymentMethod createPaymentMethod(String methodName);
 
     // Задать заказываемые варианты товаров. Т.е. что именно будет заказывать пользователь
@@ -53,6 +54,9 @@ public interface OrdersService {
     // Изменить статус заказа
     void updateStatus(long orderCode, int orderStateId);
 
+    // Отменить заказ
+    void cancelOrder(Long orderCode) throws MessagingException;
+
     //Выборка записи под id
     Order getById(Long id);
 
@@ -68,6 +72,9 @@ public interface OrdersService {
 
     // Получить все заказы по email покупателя
     Page<Order> getOrdersByCustomerEmail(String email, Long id, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
+
+    // Получить все заказы пользователя, если такие существуют
+    Page<Order> getOrdersByUser(Long userId, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType);
 
     //Получить заказы для определённого варианта товара по id
     Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage);
@@ -95,5 +102,6 @@ public interface OrdersService {
 
     // Пересчитать суммы заказов для определённых вариантов
     void recountSumsForVariants(Long pvId, List<Long> pvIdsList);
+
 
 }

@@ -2,6 +2,8 @@ package gp.wagner.backend.repositories;
 
 import gp.wagner.backend.domain.entites.categories.Category;
 import gp.wagner.backend.domain.entites.products.Producer;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -100,4 +102,11 @@ public interface ProducersRepository extends JpaRepository<Producer,Long> {
 """)
     List<Producer> getProducersByProductKeyword(@Param("keyword") String key);
 
+    @Query(value = """
+    select
+        p
+    from Producer p
+    where p.deletedAt is not null
+""")
+    Page<Producer> getDeletedProducers(PageRequest of);
 }

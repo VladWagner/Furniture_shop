@@ -6,11 +6,13 @@ import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
 import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.repositories.baskets.BasketsAndProductVariantsRepository;
 import gp.wagner.backend.repositories.baskets.BasketsRepository;
 import gp.wagner.backend.repositories.UsersRepository;
 import gp.wagner.backend.repositories.products.ProductVariantsRepository;
+import gp.wagner.backend.security.models.UserDetailsImpl;
 import gp.wagner.backend.services.interfaces.BasketsService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -18,6 +20,9 @@ import jakarta.persistence.criteria.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -59,6 +64,8 @@ public class BasketsServiceImpl implements BasketsService {
     public void setBasketsRepository(UsersRepository usersRepository) {
         this.usersRepository = usersRepository;
     }
+
+
     //endregion
 
     @Override
@@ -92,26 +99,28 @@ public class BasketsServiceImpl implements BasketsService {
     @Override
     public long create(BasketRequestDto dto) {
 
-        if (dto == null || dto.getUserId() == null || dto.getProductVariantIdAndCount() == null)
+        if (dto == null || /*dto.getUserId() == null ||*/ dto.getProductVariantIdAndCount() == null)
             return 0;
 
         // Найти пользователя, для которого создаётся корзина
-        User user = usersRepository.findById(dto.getUserId()).orElse(null);
+        //User user = dto.getUserId() != null ? usersRepository.findById(dto.getUserId()).orElse(null) : ServicesUtils.getUserFromSecurityContext(securityContext);
+        User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
 
         if (user == null)
             return 0;
 
-        Basket basket = getByUserId(dto.getUserId());
+        Basket basket = getByUserId(user.getId());
 
         // Если корзина для пользователя уже существует
         if (basket != null) {
             // Сбросить сумму и удалить все варианты товаров
             basket.setSum(0);
+            basket.setAddedDate(new Date());
 
             bpvRepository.deleteBasketAndProductVariantsByBasketId(basket.getId());
         }
         else {
-            basket = new Basket(dto.getId(), null, user, null, 0);
+            basket = new Basket(dto.getId(),  user,  0);
 
             basket = basketsRepository.saveAndFlush(basket);
         }
@@ -126,14 +135,28 @@ public class BasketsServiceImpl implements BasketsService {
 
     @Override
     public void insertProductVariants(BasketRequestDto basketDto) {
+        if (basketDto.getProductVariantIdAndCount() == null)
+            throw new ApiException("Варианты товаров для добавления в корзину не заданы!");
+
+        // Получить id пользователя, чтобы лишний раз к БД не обращаться
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Long userId = User.class.isAssignableFrom(principal.getClass()) ? ((User) principal).getId() : ((UserDetailsImpl) principal).getUserId();
+
         Basket foundBasket = basketDto.getId() != null ?
                 basketsRepository.findById(basketDto.getId()).orElseThrow() :
-                basketDto.getUserId() != null ? getByUserId(basketDto.getUserId()) : null;
+                getByUserId(userId);
 
-        if (foundBasket == null)
-            throw new ApiException("Корзина не найдена!");
-        else if (basketDto.getProductVariantIdAndCount() == null)
-            throw new ApiException("Варианты товаров для добавления в корзину не заданы!");
+        if (foundBasket == null){
+            //throw new ApiException("Корзина не найдена!");
+
+            User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
+
+            if (user == null)
+                throw new ApiException("Не удалось создать корзину, пользователь не задан");
+
+            foundBasket = basketsRepository.saveAndFlush(new Basket(null, null, user, null, 0));
+
+        }
 
         List<BasketAndProductVariant> basketAndProductVariants = addAndUpdateProductVariants(basketDto.getProductVariantIdAndCount().entrySet(), foundBasket);
 
@@ -158,7 +181,8 @@ public class BasketsServiceImpl implements BasketsService {
 
             bpvList.add(new BasketAndProductVariant(null, productVariant, entry.getValue(), basket));
 
-            totalSum += productVariant.getPrice()*entry.getValue();
+            // Рассчитать сумму по обычной цене, либо цене со скидкой
+            totalSum += productVariant.getPriceWithDiscount()*entry.getValue();
         }
 
         basket.setSum(totalSum);
@@ -204,7 +228,8 @@ public class BasketsServiceImpl implements BasketsService {
             // Сохранить/добавить вариант товара и пересчитать общую сумму
             if (oldBpv != null) {
 
-                int oldSumPart = oldBpv.getProductsAmount() * productVariant.getPrice();
+                // Используем цену со скидкой, поскольку если эта самая скидка была утс
+                int oldSumPart = oldBpv.getProductsAmount() * productVariant.getPriceWithDiscount();
 
                 // Вычесть часть старой суммы для конкретного варианта товара и его количества
                 if (totalSum >= oldSumPart)
@@ -213,12 +238,12 @@ public class BasketsServiceImpl implements BasketsService {
                 oldBpv.setProductsAmount(entry.getValue());
                 newBpvList.add(oldBpv);
 
-                // Расчитать новую часть суммы
+                // Рассчитать новую часть суммы
                 totalSum += productVariant.getPrice() * oldBpv.getProductsAmount();
             }
             else {
                 newBpvList.add(new BasketAndProductVariant(null, productVariant, entry.getValue(), basket));
-                totalSum += productVariant.getPrice() * entry.getValue();
+                totalSum += productVariant.getPriceWithDiscount() * entry.getValue();
             }
 
         }
@@ -313,7 +338,7 @@ public class BasketsServiceImpl implements BasketsService {
 
     }
 
-    // Обработка сктрия одного или нескольки товароа
+    // Обработка скрытия одного или нескольких товаров
     @Override
     public void updateBasketsOnPvHidden(ProductVariant pv, List<ProductVariant> changedPvList) {
 
@@ -414,13 +439,36 @@ public class BasketsServiceImpl implements BasketsService {
     }
 
     @Override
+    public Basket getForAuthenticatedUser() {
+
+        User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
+
+        if (user == null)
+            throw new ApiException("Не удалось найти корзину! Пользователь не аутентифицирован.");
+
+        return getByUserId(user.getId());
+    }
+
+    @Override
     public Page<Basket> getAll(int pageNumber, int dataOnPage) {
         return basketsRepository.findAll(PageRequest.of(pageNumber-1, dataOnPage));
     }
 
     @Override
     public Basket getById(Long id) {
-        return basketsRepository.findById(id).orElse(null);
+
+        Basket basket = basketsRepository.findById(id).orElse(null);
+
+        // Текущий авторизированный пользователь
+        User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
+
+        // Если аутентифицированный и авторизированный пользователь имеет базовую роль и при этом запрашивает не его корзину
+        if ((basket != null && user != null) &&
+            user.getUserRole().getRole().equals(Constants.BASIC_USER_ROLE.getRole()) && !user.getId().equals(basket.getUser().getId()))
+            throw new ApiException(String.format("Пользователь %s не имеет достаточно прав для просмотра корзины с id: %d",
+                            user.getUserLogin(), basket.getId()), HttpStatus.FORBIDDEN);
+
+        return basket;
     }
 
     //Выборка корзин для конкретного пользователя

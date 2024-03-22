@@ -105,4 +105,27 @@ public class EmailServiceImpl implements EmailService {
 
         mailSender.send(passwordResetMail);
     }
+
+    @Override
+    public void sendOrderCancelNotification(Order order) throws MessagingException {
+        MimeMessage orderCancelMail = mailSender.createMimeMessage();
+
+        MimeMessageHelper helper = new MimeMessageHelper(orderCancelMail);
+        helper.setFrom(env.getProperty("spring.mail.mail_from"));
+        helper.setTo(order.getCustomer().getEmail());
+        helper.setSubject(String.format("Отмена заказа #%d", order.getCode()));
+        String content = String.format("""
+                <p>Здравствуйте %s!</p>
+                <p>Заказ №%d от %5$s был отменён.</p>
+                <p>Количество заказанных товаров: <b>%d</b></p>
+                <p>Сумма заказа: <b>%s</b></p>
+                """, order.getCustomer().getName(),
+                order.getCode(),
+                order.getGeneralProductsAmount(),
+                Utils.intFormatter.format(order.getSum()),
+                Utils.sdf.format(order.getOrderDate()));
+        helper.setText(content, true);
+
+        mailSender.send(orderCancelMail);
+    }
 }

@@ -1,5 +1,6 @@
 package gp.wagner.backend.middleware;
 
+import gp.wagner.backend.security.services.JwtService;
 import gp.wagner.backend.services.Indexer;
 import gp.wagner.backend.services.interfaces.*;
 import gp.wagner.backend.services.interfaces.admin_panels.AdminPanelStatisticsService;
@@ -196,6 +197,31 @@ public class Services {
     @Autowired
     public void setReviewsImagesService(ReviewsImagesService service){
         Services.reviewsImagesService = service;
+    }
+
+
+    // Сервис для работы с jwt
+    public static JwtService jwtService  ;
+
+    @Autowired
+    public void setJwtService(JwtService service){
+        Services.jwtService = service;
+    }
+
+    // Сервис для аутентификации пользователя
+    public static AuthService authService  ;
+
+    @Autowired
+    public void setAuthService(AuthService service){
+        Services.authService = service;
+    }
+
+    // Сервис для работы с покупателями
+    public static CustomersService customersService  ;
+
+    @Autowired
+    public void setCustomersService(CustomersService service){
+        Services.customersService = service;
     }
 
     //Сервис для инициализации hibernate search

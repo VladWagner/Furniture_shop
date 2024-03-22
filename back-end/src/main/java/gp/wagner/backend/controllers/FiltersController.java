@@ -1,6 +1,7 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
+import gp.wagner.backend.domain.dto.response.filters.CustomersFilterValuesDto;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
@@ -16,11 +17,11 @@ import java.util.*;
 @RequestMapping(value = "/api/filter")
 public class FiltersController {
 
-    //Выборка всех корзин заданного пользователя
+    // Выборка фильтров по категории
     /**
      * <p>Здесь получается, что отправляется словарь состоящий из строки названия [характеристика, List<dto>]</p>
      * <p>Следовательно на фронте нужно будет проверять длину списка у каждого ключа и если она == 1 и при этом value == null, тогда это диапазон</p>
-     * <p>Если же длина списка у ключа > 1, тогда это значения для чек-боксов и здесь нужно получать именно value. В таком случае нужно
+     * <p>Если же длина списка у ключа > 1 и при этом min & max == null, тогда это значения для чек-боксов и здесь нужно получать именно value. В таком случае нужно
      * проверять, что value != null, в противном случае просто игнорировать данный DTO</p>
      * */
     @GetMapping(value = "/filter_by_category/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -31,7 +32,7 @@ public class FiltersController {
         if (filterValueDtoList == null)
             throw new ApiException(String.format("Значения фильтрации для категории %d не найдены. Not found!", id));
 
-        return  filterValueDtoList;
+        return filterValueDtoList;
     }
 
     // Подсчёт кол-ва товаров в текущем состоянии фильтра
@@ -86,6 +87,17 @@ public class FiltersController {
             throw new ApiException("Значения для фильтрации пользователей не найдены!");
 
         return  filterValueDtoList;
+    }
+    // Возврат фильтра для покупателей
+    @GetMapping(value = "/filter_for_customers", produces = MediaType.APPLICATION_JSON_VALUE)
+    public CustomersFilterValuesDto getFilterForCustomers(){
+
+        CustomersFilterValuesDto filterValuesDto = Services.customersService.getFilterValues();
+
+        if (filterValuesDto == null)
+            throw new ApiException("Значения для фильтрации покупателей не найдены!");
+
+        return  filterValuesDto;
     }
 
 }

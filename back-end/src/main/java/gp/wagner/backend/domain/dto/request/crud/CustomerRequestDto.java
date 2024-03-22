@@ -1,5 +1,6 @@
 package gp.wagner.backend.domain.dto.request.crud;
 
+import gp.wagner.backend.validation.customer_request_dto.annotations.ValidCustomerRequestDto;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,14 +12,12 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@ValidCustomerRequestDto
 public class CustomerRequestDto {
 
     //Для редактирования клиента
     @Nullable
     private Long id;
-
-    @Nullable
-    private String fingerPrint;
 
     @NotNull
     @NotBlank
@@ -33,7 +32,8 @@ public class CustomerRequestDto {
     @Nullable
     private String email;
 
-    private long phoneNumber;
+    @Nullable
+    private Long phoneNumber;
 
 
 }

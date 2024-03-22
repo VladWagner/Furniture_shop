@@ -1,4 +1,4 @@
-package gp.wagner.backend.repositories;
+package gp.wagner.backend.repositories.tokens;
 
 import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
 import gp.wagner.backend.domain.entites.users.User;

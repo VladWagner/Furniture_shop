@@ -9,6 +9,7 @@ import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.suppliers.ProductAttributeNotFound;
 import gp.wagner.backend.infrastructure.Constants;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.DailyVisitsRepository;
@@ -221,7 +222,7 @@ public class ProductAttributesServiceImpl implements ProductAttributesService {
         List<ProductAttribute> attributes = typedQuery.getResultList();
 
         // Общее кол-во элементов с таким же ключевым словом и входящее в те же фильтра
-        long elements = ServicesUtils.countProductAttributesByCategory(entityManager, categoryId);
+        long elements = PaginationUtils.countProductAttributesByCategory(entityManager, categoryId);
 
         return new PageImpl<>(attributes, PageRequest.of(pageNum, dataOnPage), elements);
     }

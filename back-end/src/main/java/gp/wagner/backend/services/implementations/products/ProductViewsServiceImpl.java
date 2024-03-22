@@ -6,6 +6,7 @@ import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
@@ -65,12 +66,14 @@ public class ProductViewsServiceImpl implements ProductViewsService {
     }
 
     @Override
-    public void createOrUpdate(String fingerPrint, long productId) {
+    public void createOrUpdate(String fingerPrint, String ip, long productId) {
         if (productId <= 0 || fingerPrint.isBlank())
             return;
 
         //Найти или создать посетителя с заданным отпечатком браузера
-        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint);
+        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint, ip);
+        visitor.setLastVisit(new Date());
+        Services.visitorsService.update(visitor);
 
         //Проверить наличие записи просмотра товара для конкретного посетителя по конкретному товару
         ProductViews productView = getByVisitorAndProductId(visitor.getId(), productId);
@@ -278,7 +281,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
                 .toList();
 
         // Общее количество записей о просмотрах с такими параметрами
-        int elementsCount = ServicesUtils.countMaxProductsViews(entityManager, maxCount, categoryId, priceRange);
+        int elementsCount = PaginationUtils.countMaxProductsViews(entityManager, maxCount, categoryId, priceRange);
 
         return new PageImpl<>(rawResult, PageRequest.of(pageNum, offset), elementsCount);
     }
@@ -321,7 +324,7 @@ public class ProductViewsServiceImpl implements ProductViewsService {
         typedQuery.setFirstResult(pageNum*offset);
         typedQuery.setMaxResults(offset);
 
-        Long elementsCount = ServicesUtils.countVisitorsWithProductsViews(entityManager, categoryId, priceRange);
+        Long elementsCount = PaginationUtils.countVisitorsWithProductsViews(entityManager, categoryId, priceRange);
 
         return new PageImpl<>(typedQuery.getResultList(), PageRequest.of(pageNum, offset), elementsCount);
 

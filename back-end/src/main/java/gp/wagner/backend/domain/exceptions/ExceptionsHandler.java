@@ -1,17 +1,17 @@
 package gp.wagner.backend.domain.exceptions;
 
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.domain.exceptions.classes.JwtValidationException;
 import gp.wagner.backend.domain.exceptions.classes.UserNotConfirmedException;
-import gp.wagner.backend.domain.exceptions.validation_errors.ValidationExceptionDto;
-import gp.wagner.backend.domain.exceptions.validation_errors.Violation;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,10 +46,41 @@ public class ExceptionsHandler {
                 .build();
 
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                //.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .status(e.getErrorType())
                 .body(exceptionDto);
     }
 
+
+    // Обработка при валидации токена аутентификации и авторизации
+    @ExceptionHandler(value = {JwtValidationException.class})
+    public ResponseEntity<ExceptionDto> handleJwtValidationException(JwtValidationException e){
+
+        ExceptionDto exceptionDto = ExceptionDto.getBuilder()
+                .exceptionType(JwtValidationException.class)
+                .message(e.getMessage())
+                .stackTrace(Arrays.toString(e.getStackTrace()))
+                .build();
+
+        return ResponseEntity
+                .status(e.getErrorType())
+                .body(exceptionDto);
+    }
+
+    // Обработка исключения при отсутствии прав у авторизированного пользователя
+    @ExceptionHandler(value = {AccessDeniedException.class})
+    public ResponseEntity<ExceptionDto> handleAccessDeniedException(AccessDeniedException e){
+
+        ExceptionDto exceptionDto = ExceptionDto.getBuilder()
+                .exceptionType(AccessDeniedException.class)
+                .message(String.format("У вас недостаточно прав или вы не вошли в аккаунт. %s", e.getMessage()))
+                .stackTrace(Arrays.toString(e.getStackTrace()))
+                .build();
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(exceptionDto);
+    }
 
     //Обработка исключения при регистрации/авторизации пользователя
     @ExceptionHandler(value = {UserNotConfirmedException.class})

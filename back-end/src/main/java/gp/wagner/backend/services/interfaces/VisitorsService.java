@@ -17,6 +17,7 @@ public interface VisitorsService {
     long create(String ipAddress, String fingerPrint);
 
     Visitor saveIfNotExists(String fingerPrint);
+    Visitor saveIfNotExists(String fingerPrint, String ip);
 
     //Изменение записи
     void update(Visitor visitor);
@@ -31,6 +32,9 @@ public interface VisitorsService {
 
     //Выборка записи по fingerPrint
     Visitor getByFingerPrint(String fingerPrint);
+
+    //Выборка записи по fingerPrint и/или по ip
+    Visitor getByFingerPrintAndIp(String fingerPrint, String ip);
 
     //Получение максимального id - последнее добавленное значение
     long getMaxId();

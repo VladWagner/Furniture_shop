@@ -21,7 +21,7 @@ public interface ProductViewsService {
 
 
     @Async
-    void createOrUpdate(String fingerPrint, long productId);
+    void createOrUpdate(String fingerPrint, String ip, long productId);
 
     // Изменение записи
     void update(ProductViews productView);

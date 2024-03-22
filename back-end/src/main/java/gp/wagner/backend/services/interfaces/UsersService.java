@@ -6,13 +6,15 @@ import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
 import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entites.users.UserRole;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import jakarta.mail.MessagingException;
 import org.springframework.data.domain.Page;
 
+import java.util.Optional;
+
 
 public interface UsersService {
-
 
     // Выборка всех записей
     Page<User> getAll(int pageNum, int limit);
@@ -42,6 +44,7 @@ public interface UsersService {
 
     //Выборка записи по email
     User getByEmail(String email);
+    User getByEmailNullable(String email);
 
     //Получение максимального id
     long getMaxId();
@@ -63,4 +66,8 @@ public interface UsersService {
     // Изменение пароля по токену, полученному из email и фронта
     User savePasswordAfterReset(PasswordResetRequestDto resetDto);
 
+    UserRole getBasicUserRole();
+
+    // Nullable означает, что при отсутствии записи о пользователе с заданным логином не будет выброшено исключение, а просто вернётся null
+    Optional<User> getByLoginNullable(String userLogin);
 }

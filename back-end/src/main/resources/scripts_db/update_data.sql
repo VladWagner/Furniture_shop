@@ -36,5 +36,9 @@ alter table furniture_shop.customers
     add constraint customers_visitors_id_fk
         foreign key (visitor_id) references visitors (id);
 
+update visitors
+set visitors.ip_address = '127.0.0.1'
+where visitors.fingerprint is not null;
+
 -- Индекс для проверки уникальности создаваемой записи скидки. Скидка должна быть уникальна по: % дате начала и окончания
 CREATE UNIQUE INDEX unique_idx_discounts ON furniture_shop.discounts (percentage, starts_at, ends_at);

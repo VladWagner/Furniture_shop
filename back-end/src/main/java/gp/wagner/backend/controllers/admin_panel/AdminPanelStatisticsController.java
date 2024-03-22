@@ -1,5 +1,6 @@
 package gp.wagner.backend.controllers.admin_panel;
 
+import gp.wagner.backend.domain.dto.request.admin_panel.CustomerStatRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeAndValRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
@@ -45,9 +46,12 @@ public class AdminPanelStatisticsController {
     public PageDto<DailyVisitsRespDto> getDailyVisitsCount(
             @Valid @RequestPart(value = "dates_range") DatesRangeRequestDto datesRangeDto,
             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
-            @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit) throws ApiException {
+            @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
+            @RequestParam(value = "sort_by", defaultValue = "date")  String sortBy,
+            @RequestParam(value = "sort_type", defaultValue = "asc") String sortType) throws ApiException {
 
-        Page<SimpleTuple<Date, Long>> dailyViewsPage = Services.adminPanelStatisticsService.getDailyVisitsByDatesRange(datesRangeDto, pageNum, limit);
+        Page<SimpleTuple<Date, Long>> dailyViewsPage = Services.adminPanelStatisticsService.getDailyVisitsByDatesRange(datesRangeDto, pageNum, limit,
+                DailyVisitsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         return new PageDto<>(dailyViewsPage, () -> dailyViewsPage.getContent().stream().map(DailyVisitsRespDto::new).toList());
     }
@@ -303,7 +307,7 @@ public class AdminPanelStatisticsController {
     // Выборка определённых просмотренных товаров покупателем
     @GetMapping(value = "/viewed_products_by_customer", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<ProductViewRespDto> getCustomerViewedProducts(
-            @Valid @RequestBody CustomerRequestDto customerDto,
+            @Valid @RequestBody CustomerStatRequestDto customerDto,
             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit) {
 

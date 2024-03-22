@@ -1,15 +1,19 @@
 package gp.wagner.backend.domain.entites.orders;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
+import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.entites.visits.Visitor;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 
-import jakarta.persistence.*;
-
+import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 //Покупатели
@@ -46,10 +50,29 @@ public class Customer {
     @Column(name = "phone_number")
     private long phoneNumber;
 
-    // Посетитель, с которого пришел заказ
+    // Посетитель, с которого пришел заказ. Тип отношения м к 1, поскольку 1 посетитель может совершить заказ в виде разных покупателей
     @ManyToOne
     @JoinColumn(name = "visitor_id")
     private Visitor visitor;
+
+    // Пользователь, если таковой имеется с текущим email. 1 к 1, поскольку не может быть одного и того же пользователя с разными email
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    /*@OneToMany(mappedBy = "customer", fetch = FetchType.LAZY)
+    @BatchSize(size = 256)
+    private List<Order> orders;*/
+
+    // Дата регистрации
+    @Column(name = "created_at")
+    @CreatedDate
+    private Instant createdAt;
+
+    // Дата изменения пользователя
+    @Column(name = "updated_at")
+    @LastModifiedDate
+    private Instant updatedAt;
 
     public Customer(CustomerRequestDto dto) {
         this.id = dto.getId();
@@ -69,19 +92,21 @@ public class Customer {
         this.visitor = visitor;
     }
 
+    public Customer(CustomerRequestDto dto, Visitor visitor, User user) {
+        this(dto, visitor);
+
+        this.user = user;
+    }
+
     // Являются ли изменения в объекте необходимыми для его перезаписи в БД
     public boolean isEqualTo(Customer customer){
 
         if(customer == null)
             return false;
 
-        // Текущий email не пустой и задаваемый не пустой, либо текущий пусто, а задаваемый - нет. В противном случае это не замена, а удаление
-        //boolean replacingEmail = (!this.email.isEmpty() && !customer.email.isEmpty()) || (this.email.isEmpty() && !customer.email.isEmpty());
-        //boolean replacingPhone = (!(this.phoneNumber <= 0) && !(customer.phoneNumber <= 0) || (this.phoneNumber <= 0 && !(customer.phoneNumber <= 0));
-
-
         return phoneNumber == customer.phoneNumber &&
                 this.visitor.isEqualTo(customer.getVisitor()) &&
+                this.user != null && this.user.isEqualTo(customer.user) &&
                 Objects.equals(this.id, customer.id) &&
                 Objects.equals(this.surname, customer.surname) &&
                 Objects.equals(this.name, customer.name) &&

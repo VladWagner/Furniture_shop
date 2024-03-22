@@ -19,11 +19,13 @@ import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.annotation.Nullable;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -65,18 +67,15 @@ public class ProductsController {
 
     //Выборка всех товаров по категории с пагинацией
     @GetMapping(value = "/by_category",produces = MediaType.APPLICATION_JSON_VALUE)
-    public PageDto<ProductPreviewRespDto> getProductsByCategoryPaged(
-                                             @RequestParam(value = "category_id", defaultValue = "1") long categoryId,
-                                             @RequestParam(value = "fingerprint") String fingerprint,
-                                             @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
-                                             @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
-                                             @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
-                                             @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
+    public PageDto<ProductPreviewRespDto> getProductsByCategoryPaged(HttpServletRequest request,
+                                                                     @RequestParam(value = "category_id", defaultValue = "1") long categoryId,
+                                                                     @Valid @RequestParam(value = "offset", defaultValue = "1") @Max(100) int pageNum,
+                                                                     @Valid @RequestParam(value = "limit", defaultValue = "20") @Max(50) int limit,
+                                                                     @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                                     @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
-        if (categoryId > 0)
-                Services.categoryViewsService.createOrUpdate(fingerprint, categoryId);
-        else if (categoryId < 0)
-            Services.categoryViewsService.createOrUpdateRepeatingCategory(fingerprint, categoryId);
+        // Засчитать просмотр категории если его ещё не было
+        ControllerUtils.countCategoryView(request, categoryId);
 
         Page<Product> productsPage = Services.productsService.getByCategory(categoryId,pageNum, limit,
                 ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
@@ -130,12 +129,12 @@ public class ProductsController {
     // На фронте нужно будет отправлять
     @GetMapping(value = "/filter_new",produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<ProductPreviewRespDto> getProductsPagedAndFiltered2(
+            HttpServletRequest request,
             @Valid @RequestPart(value = "filter") ProductFilterDtoContainer container,
             @Valid @RequestParam(value = "offset") @Max(100) int pageNum,
             @Valid @RequestParam(value = "limit") @Max(80) int limit,
             @RequestParam(value = "category_id", defaultValue = "0")  Long categoryId,
             @RequestParam(value = "price_range", defaultValue = "") String priceRange,
-            @Nullable @RequestParam(value = "fingerprint") String fingerprint,
             @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
             @RequestParam(value = "sort_type", defaultValue = "asc") String sortType){
 
@@ -149,12 +148,7 @@ public class ProductsController {
                 prices != null ? priceRange : null, pageNum, limit, ProductsSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         // Засчитать просмотр категории, если его ещё не было в эти сутки
-        if (fingerprint != null && categoryId != null) {
-            if (categoryId > 0)
-                Services.categoryViewsService.createOrUpdate(fingerprint, categoryId);
-            else if (categoryId < 0)
-                Services.categoryViewsService.createOrUpdateRepeatingCategory(fingerprint, categoryId);
-        }
+        ControllerUtils.countCategoryView(request, categoryId);
 
         return new PageDto<>(productsPage, () -> {
             // Если диапазон цен был задан, значит происходила выборка по ценам вариантов товаров
@@ -164,6 +158,7 @@ public class ProductsController {
                 return productsPage.getContent().stream().map(p -> new ProductPreviewRespDto(p, prices)).toList();
         });
     }
+
 
     // Выборка атрибутов товаров по id
     // В параметрах передаём id товара для выборки значений его характеристик.
@@ -179,14 +174,14 @@ public class ProductsController {
     //Выборка товара по id
     //Produces - тип возвращаемого значения, в данном случае возвращаем продукт в виде JSON
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ProductDetailsRespDto getProductById(@PathVariable int id,
+    public ProductDetailsRespDto getProductById(HttpServletRequest request, @PathVariable int id,
                                                 @Nullable @RequestParam(value = "fingerprint", defaultValue = "") String fingerPrint){
 
         Product product = Services.productsService.getById((long) id);
 
         //Увеличить значение в счётчике просмотров каждого продукта
         if (product != null && fingerPrint != null)
-            Services.productViewService.createOrUpdate(fingerPrint, product.getId());
+            Services.productViewService.createOrUpdate(Utils.getFingerprint(request), request.getRemoteAddr(), product.getId());
 
         else if (product == null)
             throw new ApiException(String.format("Не удалось выбрать товар с id: %d", id));

@@ -149,6 +149,15 @@ public interface OrdersRepository extends JpaRepository<Order,Long> {
 
     @Query(value = """
     select
+        os
+    from
+        OrderState os
+    where lower(os.state) like lower(concat('%',:order_state_name,'%'))
+    """)
+    Optional<OrderState> getOrderStateByName(@Param("order_state_name") String orderStateName);
+
+    @Query(value = """
+    select
         pm
     from
         PaymentMethod pm

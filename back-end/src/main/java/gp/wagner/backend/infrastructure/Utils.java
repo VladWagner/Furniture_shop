@@ -3,6 +3,8 @@ package gp.wagner.backend.infrastructure;
 import gp.wagner.backend.domain.entites.orders.Order;
 import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
@@ -10,8 +12,9 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.util.Random;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,6 +27,7 @@ public class Utils {
 
     //Формат вывода вещественных чисел
     public static DecimalFormat doubleFormatter = new DecimalFormat("#0.00");
+    public static DecimalFormat intFormatter = new DecimalFormat("#,###,###,###,###");
 
     //Формат вывода даты
     public static SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
@@ -103,9 +107,39 @@ public class Utils {
         return 0;
     }
 
-    public static String[] splitPrices(String str){
+    // Получение нужного значения из cookie
+    public static String readCookie(HttpServletRequest request, String cookieName){
+        Cookie[] cookies = request.getCookies();
 
-        return new String[0];
+        for (Cookie cookie : cookies) {
+            if (cookie.getName().equalsIgnoreCase(cookieName))
+                return cookie.getValue();
+        }
+
+        return null;
+    }
+    public static String readHeader(HttpServletRequest request, String headerName){
+
+        /*Iterator<String> headers = request.getHeaderNames().asIterator();
+
+        while (headers.hasNext()){
+            String header = headers.next();
+
+            if (header.equalsIgnoreCase(headerName))
+                return request.getHeader(header);
+        }*/
+
+        return request.getHeader(headerName);
+    }
+
+    // Получить fingerprint из cookie
+    public static String getFingerprint(HttpServletRequest request) {
+
+        if (request == null)
+            return null;
+
+        //return readCookie(request, "fingerprint");
+        return readHeader(request, "X-fingerprint");
     }
 
     //Проверка типа кодировки строки
@@ -118,6 +152,8 @@ public class Utils {
 
         return charBuffer.remaining() == 0;
     }
+
+
 
     //Record-класс для задания id товара и категории
     public record CategoryAndProductIds(long categoryId, long productId) {
@@ -153,7 +189,7 @@ public class Utils {
 
     }
 
-    // Получить первые 1 или несколько симоволов переданной строки
+    // Получить первые 1 или несколько символов переданной строки
     public static String getFistSymbols(String str){
 
         if (str == null || str.isBlank())
@@ -219,13 +255,14 @@ public class Utils {
                     <td style='text-align:center'> --- </td>
                     <td> %s </td>
                     <td style='text-align:center'> %d </td>
-                    <td style='text-align:center'> %d </td>
-                    <td> %d </td>
+                    <td style='text-align:center'> %s </td>
+                    <td> %s </td>
                 </tr>
-                """, String.format("%s.%s", pv.getProduct().getName(), pv.getTitle()),
+                """, String.format("%s. %s", pv.getProduct().getName(), pv.getTitle()),
                     opv.getProductsAmount(),
-                    opv.getUnitPrice(),
-                    opv.getProductsAmount()*opv.getUnitPrice())
+                    Utils.intFormatter.format(opv.getUnitPrice()),
+                    Utils.intFormatter.format((long) opv.getProductsAmount() *opv.getUnitPrice())
+                )
             );
 
         }
@@ -233,10 +270,10 @@ public class Utils {
         sb.append(String.format("""
                 <tr>
                     <td colspan='4'> Итого: </td>
-                    <td> %d </td>
+                    <td> %s </td>
                 </tr>
                 </table>
-                """, order.getSum())
+                """, Utils.intFormatter.format(order.getSum()))
         );
         
         return sb.toString();

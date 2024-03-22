@@ -118,7 +118,7 @@ public class CategoriesServiceImpl implements CategoriesService {
             Category existingCategory = categoriesRepository.findCategoryByRepeatingCategoryAndParent(repeatingCategory.get(),
                     null).orElse(null);
 
-            // Если найдена категория использующая ту же повторяющуюся категорию, тогда это родительская категория, которая уже существует
+            // Если найдена категория использующая ту же повторяющуюся категорию, тогда это родительская категория, которая уже существует - выбросить исключение
             if (existingCategory != null)
                 throw new ParentlessCategoryAlreadyExists(existingCategory.getId(), categoryName).get();
 
@@ -169,9 +169,10 @@ public class CategoriesServiceImpl implements CategoriesService {
         // Если категория повторяется по имени, но они принадлежат разным родительским категориям и при этом заданная родительская категория != существующей категории
         boolean parentsAreNotEqual = existingCategory != null &&
                 (existingCategory.getParentCategory() == null || !existingCategory.getParentCategory().getId().equals(parentCategoryId));
+
         if (existingCategory != null && !existingCategory.getId().equals(parentCategoryId) && parentsAreNotEqual) {
 
-            // Создать новую или использовать существующую категорию
+            // Создать новую или использовать существующую ПОВТОРЯЮЩУЮСЯ категорию
             RepeatingCategory newRepeatingCategory = repeatingCategory
                     .orElseGet(() -> subCategoriesRepository.saveAndFlush(new RepeatingCategory(null, categoryName)));
 
@@ -392,7 +393,7 @@ public class CategoriesServiceImpl implements CategoriesService {
         if (id <= 0)
             throw new ApiException(String.format("Id %d is incorrect!", id));
 
-        return categoriesRepository.getChildCategoriesIds(id).orElse(null);
+        return categoriesRepository.getChildCategoriesIds(id).orElse(new ArrayList<>());
     }
 
     @Override

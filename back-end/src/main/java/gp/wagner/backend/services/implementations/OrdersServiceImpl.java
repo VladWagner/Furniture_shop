@@ -3,12 +3,13 @@ package gp.wagner.backend.services.implementations;
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
 import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.orders.*;
 import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.entites.orders.*;
 import gp.wagner.backend.domain.entites.products.Product;
 import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entites.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.domain.exceptions.suppliers.OrderNotFound;
 import gp.wagner.backend.infrastructure.*;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
@@ -19,6 +20,7 @@ import gp.wagner.backend.repositories.orders.OrdersAndProductVariantsRepository;
 import gp.wagner.backend.repositories.orders.OrdersRepository;
 import gp.wagner.backend.repositories.products.ProductVariantsRepository;
 import gp.wagner.backend.services.interfaces.OrdersService;
+import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
@@ -28,7 +30,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -96,51 +97,59 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     // Добавление заказа
-    @Override
-    public SimpleTuple<Long, Long> create(OrderRequestDto dto) {
+    /*@Override
+    public SimpleTuple<Long, Long> create(OrderRequestDto dto) throws MessagingException {
 
         if (dto == null || dto.getCustomer() == null)
             return null;
 
         // Добавить покупателя, если он не задан
-        Long customerId = dto.getCustomer().getId();
+        //Long customer = dto.getCustomer().getId();
+        Customer existingCustomer = Services.customersService.getCustomerByEmailOrId(dto.getCustomer().getEmail(), dto.getCustomer().getId());
 
         // Проверить наличие созданного посетителя с таким отпечатком браузера
         Visitor visitor = null;
+        User user = Services.usersService.getByEmailNullable(dto.getCustomer().getEmail());
+
         if (!dto.getCustomer().getFingerPrint().isEmpty()){
             visitor = Services.visitorsService.saveIfNotExists(dto.getCustomer().getFingerPrint());
         }
 
-        if (customerId == null || customerId <= 0)
-            customerId = customersRepository.save(new Customer(dto.getCustomer(), visitor)).getId();
+        if (existingCustomer == null)
+            existingCustomer = customersRepository.save(new Customer(dto.getCustomer(), visitor, user));
         else{
             // Получить запись о переданном покупателе и объекте из БД с тем же id
-            Customer newCustomer = new Customer(dto.getCustomer(), visitor);
-            Customer oldCustomer = customersRepository.findById(customerId).orElse(null);
+            Customer newCustomer = new Customer(dto.getCustomer(), visitor, user);
+            newCustomer.setId(existingCustomer.getId());
 
             //Сравнить предыдущую запись с заданной
-            if (!newCustomer.isEqualTo(oldCustomer)) {
+            if (!newCustomer.isEqualTo(existingCustomer)) {
 
                 // Если покупатель изменён, но при этом в старой записи существует Visitor
-                if (newCustomer.getVisitor() == null && oldCustomer != null && oldCustomer.getVisitor() != null)
-                    newCustomer.setVisitor(oldCustomer.getVisitor());
+                if (newCustomer.getVisitor() == null && existingCustomer.getVisitor() != null)
+                    newCustomer.setVisitor(existingCustomer.getVisitor());
+
+                // Если покупатель изменён, но при этом в старой записи существует корректный User
+                if (newCustomer.getUser() == null && existingCustomer.getUser() != null)
+                    newCustomer.setUser(existingCustomer.getUser());
 
                 //Если значения полей !=, тогда пересохранить запись, поскольку произошло редактирование
-                customersRepository.save(newCustomer);
+                existingCustomer = customersRepository.save(newCustomer);
             }
 
         }
 
-        long orderCode = Utils.generateOrderCode(customerId);
+        long orderCode = Utils.generateOrderCode(existingCustomer.getId());
 
         PaymentMethod paymentMethod = ordersRepository.getPaymentMethodById(dto.getPaymentMethodId())
                 .orElseThrow(() -> new ApiException(String.format("Способ оплаты с id: %d не найден!", dto.getPaymentMethodId())));
 
         // Добавить информацию о самом заказе
-        ordersRepository.insertOrder(dto.getStateId(), customerId.intValue(), orderCode);
+        ordersRepository.insertOrder(dto.getStateId(), existingCustomer.getId().intValue(), orderCode);
 
         Order createdOrder = ordersRepository.findOrderByCode(orderCode).orElse(null);
 
+        // Если созданный заказ найти не удалось
         if (createdOrder == null)
             return new SimpleTuple<>(-1L, -1L);
 
@@ -165,7 +174,7 @@ public class OrdersServiceImpl implements OrdersService {
 
             opvList.add(new OrderAndProductVariant(null, entry.getValue(), productVariant, createdOrder));
 
-            orderSum += productVariant.getPriceWithDiscount();
+            orderSum += productVariant.getPriceWithDiscount()*entry.getValue();
             productsAmount += entry.getValue();
 
         }
@@ -179,6 +188,72 @@ public class OrdersServiceImpl implements OrdersService {
         opvRepository.saveAll(opvList);
 
         //TODO: реализовать асинхронную отправку уведомления || синхронное добавление в таблицу уведомлений
+        Services.emailService.sendOrderDetailsMime(createdOrder);
+
+        return new SimpleTuple<>(createdOrder.getId(), createdOrder.getCode()) ;
+    }*/
+
+    // Добавление заказа
+    @Override
+    public SimpleTuple<Long, Long> create(OrderRequestDto dto, String fingerprint, String ip) throws MessagingException {
+
+        if (dto == null || dto.getCustomer() == null)
+            return null;
+
+        // Добавить покупателя, если он не задан
+        //Long customer = dto.getCustomer().getId();
+        Customer existingCustomer = Services.customersService.create(dto.getCustomer(), fingerprint, ip);
+
+        long orderCode = Utils.generateOrderCode(existingCustomer.getId());
+
+        PaymentMethod paymentMethod = ordersRepository.getPaymentMethodById(dto.getPaymentMethodId())
+                .orElseThrow(() -> new ApiException(String.format("Способ оплаты с id: %d не найден!", dto.getPaymentMethodId())));
+
+        // Добавить информацию о самом заказе
+        ordersRepository.insertOrder(dto.getStateId(), existingCustomer.getId().intValue(), orderCode);
+
+        Order createdOrder = ordersRepository.findOrderByCode(orderCode).orElse(null);
+
+        // Если созданный заказ найти не удалось
+        if (createdOrder == null)
+            return new SimpleTuple<>(-1L, -1L);
+
+        // Добавить способ оплат
+        createdOrder.setPaymentMethod(paymentMethod);
+        createdOrder.setDescription(dto.getDescription());
+
+        // Добавить список товаров
+        List<OrderAndProductVariant> opvList = new LinkedList<>();
+
+        ProductVariant productVariant;
+
+        int orderSum = 0;
+        int productsAmount = 0;
+
+        for (Map.Entry<Integer,Integer> entry : dto.getProductVariantIdAndCount().entrySet()) {
+
+            productVariant = productVariantsRepository.findById(entry.getKey().longValue()).orElse(null);
+
+            if (productVariant == null)
+                continue;
+
+            opvList.add(new OrderAndProductVariant(null, entry.getValue(), productVariant, createdOrder));
+
+            orderSum += productVariant.getPriceWithDiscount()*entry.getValue();
+            productsAmount += entry.getValue();
+
+        }
+
+        // Установить сумму заказа и общее кол-во единиц вариантов товара
+        createdOrder.setSum(orderSum);
+        createdOrder.setGeneralProductsAmount(productsAmount);
+
+        update(createdOrder);
+
+        opvRepository.saveAll(opvList);
+
+        //TODO: реализовать асинхронную отправку уведомления || синхронное добавление в таблицу уведомлений для админов и модераторов
+        Services.emailService.sendOrderDetailsMime(createdOrder);
 
         return new SimpleTuple<>(createdOrder.getId(), createdOrder.getCode()) ;
     }
@@ -186,7 +261,7 @@ public class OrdersServiceImpl implements OrdersService {
     @Override
     public PaymentMethod createPaymentMethod(String methodName) {
 
-        PaymentMethod paymentMethod = getMethodByName(methodName);
+        PaymentMethod paymentMethod = getPaymentMethodByName(methodName);
 
         if (paymentMethod != null)
             throw new ApiException(
@@ -199,7 +274,7 @@ public class OrdersServiceImpl implements OrdersService {
         return paymentMethod;
     }
 
-    public PaymentMethod getMethodByName(String name){
+    public PaymentMethod getPaymentMethodByName(String name){
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<PaymentMethod> query = cb.createQuery(PaymentMethod.class);
@@ -419,6 +494,30 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     @Override
+    public void cancelOrder(Long orderCode) throws MessagingException {
+
+        if (orderCode == null)
+            throw new ApiException("Не удалось отменить заказ! Параметры заданы некорректно!");
+
+        Order orderToCancel = getByOrderCode(orderCode);
+
+        if (orderToCancel == null)
+            throw new OrderNotFound(null, orderCode).get();
+
+        OrderState orderState = ordersRepository.getOrderStateByName("отменён")
+                .orElseThrow(() -> new ApiException(String.format("Не найден статус для отмены заказа %d", orderToCancel.getCode())));
+
+        orderToCancel.setOrderState(orderState);
+
+        ordersRepository.saveAndFlush(orderToCancel);
+
+        // Асинхронно отправить сообщение об отмене заказа
+        Services.emailService.sendOrderCancelNotification(orderToCancel);
+    }
+
+    // Деактивировать заказы, которые были созданы >= 2 дней назад и при этом их статус так и оста
+
+    @Override
     public Page<Order> getAll(int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
 
         return ordersRepository.findAll(PageRequest.of(pageNum-1, dataOnPage, SortingUtils.createSortForOrders(sortEnum, sortType)));
@@ -446,7 +545,6 @@ public class OrdersServiceImpl implements OrdersService {
 
     @Override
     public Order getByOrderCode(long code) {
-
 
         return ordersRepository.findOrderByCode(code)
                 .orElseThrow(() -> new ApiException(String.format("Товар с кодом %d не найден!", code)));
@@ -506,6 +604,20 @@ public class OrdersServiceImpl implements OrdersService {
         return new PageImpl<>(orders, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
 
+    @Override
+    public Page<Order> getOrdersByUser(Long userId, int pageNum, int dataOnPage, OrdersSortEnum sortEnum, GeneralSortEnum sortType) {
+
+        if (userId == null)
+            throw new ApiException("Не удалось найти товары для покупателя. Id пользователя задан некорректно!");
+
+        User user = Services.usersService.getById(userId);
+
+        if (user.getCustomer() == null)
+            return null;
+
+        return getOrdersByCustomerEmail(user.getCustomer().getEmail(), null, pageNum, dataOnPage, sortEnum, sortType);
+    }
+
     // Получение всех заказов для определённого варианта товара
     @Override
     public Page<OrderAndProductVariant> getOrdersByProductVariant(long pvId, int pageNum, int dataOnPage) {
@@ -548,7 +660,7 @@ public class OrdersServiceImpl implements OrdersService {
 
         List<Order> opvList = typedQuery.getResultList();
 
-        long elementsCount =  ServicesUtils.countProductsOrVariantsOrders(entityManager, productId, Product.class);
+        long elementsCount =  PaginationUtils.countProductsOrVariantsOrders(entityManager, productId, Product.class);
 
         return new PageImpl<>(opvList, PageRequest.of(pageNum, dataOnPage), elementsCount);
     }
@@ -789,7 +901,6 @@ public class OrdersServiceImpl implements OrdersService {
         return entityManager.createQuery(query).getResultList();
     }
 
-
     public List<Order> findOrdersByPvIdAndStateIdIsNot(List<Long> pvIdList, long statusId) {
         if (pvIdList == null)
             return null;
@@ -825,4 +936,6 @@ public class OrdersServiceImpl implements OrdersService {
 
         return entityManager.createQuery(query).getResultList();
     }
+
+
 }

@@ -1054,6 +1054,59 @@ order by (select distinct MAX(d.percentage) from discounts d join (variants_prod
 -- order by (select rs.amount from ratings_statistics rs where rs.product_id = vp.id)desc ;
 
 select
-    count(o.id)
-from orders o join customers c on c.id = o.customer_id
-where c.email like '%mikhail@gmail.com%'
+    c.id,
+    c.email,
+    CONCAT_WS('.', c.surname, SUBSTR(c.name, 1,1), substr(c.patronymic, 1,1)) as snp,
+    c.phone_number,
+    u.id is null as registered,
+    c.created_at,
+    count(orders.id) as orders_count,
+    sum(orders.general_products_amount) as ordered_units_count,
+    avg(orders.sum/orders.general_products_amount) as avg_order_price
+from customers c join orders on c.id = orders.customer_id
+                 left join users u on c.user_id = u.id
+group by c.id, c.email, concat(c.surname, substr(c.name, 0,1), substr(c.patronymic, 0,1)), c.phone_number, registered, c.created_at;
+
+select
+    c.id,
+    c.email,
+    CONCAT_WS('.', c.surname, SUBSTR(c.name, 1,1), substr(c.patronymic, 1,1)) as snp,
+    c.phone_number,
+    u.id is null as registered,
+    c.created_at,
+    count(orders.id) as orders_count,
+    sum(orders.general_products_amount) as ordered_units_count,
+    avg(orders.sum/orders.general_products_amount) as avg_order_price
+from customers c join orders on c.id = orders.customer_id
+                 left join users u on c.user_id = u.id
+group by c.id, c.email, concat(c.surname, substr(c.name, 0,1), substr(c.patronymic, 0,1)), c.phone_number, registered, c.created_at;
+
+-- Пограничные значения для фильтра покупателей
+with customers_preselection as (
+    select
+        c.created_at,
+        count(orders.id) as orders_count,
+        sum(orders.general_products_amount) as ordered_units_count,
+        avg(orders.sum/orders.general_products_amount) as avg_order_price,
+        sum(orders.sum) as orders_sum
+    from customers c join orders on c.id = orders.customer_id
+    where c.id in (1,2,3,4,5,6,7)
+    group by c.id
+)
+
+select
+    MIN(cps.created_at) as min_created_at,
+    MAX(cps.created_at) as max_created_at,
+
+    MIN(cps.orders_count) as min_orders_count,
+    MAX(cps.orders_count) as max_orders_count,
+
+    MIN(cps.ordered_units_count) as min_ordered_units_count,
+    MAX(cps.ordered_units_count) as max_ordered_units_count,
+
+    MIN(cps.avg_order_price) as min_avg_order_price,
+    MAX(cps.avg_order_price) as max_avg_order_price,
+
+    MIN(cps.orders_sum) as min_orders_sum,
+    MAX(cps.orders_sum) as max_orders_sum
+from customers_preselection cps

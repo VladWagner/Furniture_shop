@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 @RequestMapping(value = "/api/statistic/products_views")
 public class ProductViewsController {
 
-    //Выборка всех производителей
+    // Получение всех просмотров товаров
     //TODO: попробовать реализовать получение списка id категорий для выборки (на фронте выбирать чек-боксами)
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public PageDto<ProductViewRespDto> getAllProductsViews(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
@@ -55,7 +55,7 @@ public class ProductViewsController {
             Map<Long, ProductViewRespDto> productMap = foundProducts.stream()
                     .collect(Collectors.toMap(ProductViewRespDto::getId, dto -> dto));
 
-            // Для сохранения порядка сортировки создать в худшем случае сложность O(n^2)
+            // Для сохранения порядка сортировки создать список dto просмотров
             return prodViewsPaged.getContent()
                     .stream()
                     .map(t -> {

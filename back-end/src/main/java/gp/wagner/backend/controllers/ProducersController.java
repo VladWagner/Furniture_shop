@@ -6,6 +6,9 @@ import gp.wagner.backend.domain.dto.response.ProducerRespDto;
 import gp.wagner.backend.domain.entites.products.Producer;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Utils;
+import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ProducersSortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.ReviewsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.validation.producer_request_dto.exceptions.ProducerDisclosureException;
 import jakarta.validation.Valid;
@@ -28,10 +31,13 @@ public class ProducersController {
 
     //Выборка всех производителей
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public PageDto<ProducerRespDto> getAllOrders(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
-                                                 @Valid @RequestParam(value = "limit") @Max(80) int limit) {
+    public PageDto<ProducerRespDto> getAllProducers(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                    @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                    @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                    @RequestParam(value = "sort_type", defaultValue = "asc") String sortType) {
 
-        Page<Producer> producersPages = Services.producersService.getAll(pageNum, limit);
+        Page<Producer> producersPages = Services.producersService.getAll(pageNum, limit,
+                ProducersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
 
         return new PageDto<>(
                 producersPages, () -> producersPages.getContent().stream().map(ProducerRespDto::new).toList()
@@ -147,5 +153,17 @@ public class ProducersController {
     }// deleteProducer
 
     // Вывести всех удалённых производителей
+    @GetMapping(value = "/all_deleted", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PageDto<ProducerRespDto> getAllDeleted(@Valid @RequestParam(value = "offset") @Max(100) int pageNum,
+                                                  @Valid @RequestParam(value = "limit") @Max(80) int limit,
+                                                  @RequestParam(value = "sort_by", defaultValue = "id")  String sortBy,
+                                                  @RequestParam(value = "sort_type", defaultValue = "asc") String sortType) {
 
+        Page<Producer> producersPages = Services.producersService.getAllDeleted(pageNum, limit,
+                ProducersSortEnum.getSortType(sortBy), GeneralSortEnum.getSortType(sortType));
+
+        return new PageDto<>(
+                producersPages, () -> producersPages.getContent().stream().map(ProducerRespDto::new).toList()
+        );
+    }
 }

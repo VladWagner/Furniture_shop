@@ -29,8 +29,8 @@ import java.util.*;
 @RequestMapping(value = "/api/product_variants")
 public class ProductVariantsController {
 
-    //Выборка варианта для конкретного товара
-    //Возвращаем список DTO вариантов товаров
+    // Выборка варианта для конкретного товара.
+    // Возвращаем список DTO вариантов товаров
     @GetMapping(value = "/by_product/preview/{product_id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ProductVariantPreviewRespDto> getProductVariants(@PathVariable @Min(1) long product_id) {
 
@@ -43,7 +43,7 @@ public class ProductVariantsController {
         return productVariants.stream().map(ProductVariantPreviewRespDto::new).toList();
     }
 
-    // Выборка варианта для конкретного товара
+    // Выборка варианта для конкретного товара.
     // Возвращаем список DTO вариантов товаров
     @GetMapping(value = "/by_product/detailed/{product_id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ProductVariantDetailsRespDto> getProductVariantsDetailed(@PathVariable @Min(1) long product_id) {

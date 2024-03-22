@@ -122,7 +122,6 @@ public class UsersController {
 
 
     // Редактирование профиля
-    // TODO: нужно будет ещё добавить возможность удаления атаватара с заменой его на сгенерированный из инициалов (если он не был сгенерирован)
     @PutMapping(value = "/update")
     public ResponseEntity<UserRespDto> updateUser(@Valid @RequestPart(value = "user") UserRequestDto userDto,
                                                   @RequestPart(value = "profile_photo", required = false) MultipartFile file
@@ -222,7 +221,7 @@ public class UsersController {
         return ResponseEntity.ok(String.format("На '%s' отправлено письмо с ссылкой для восстановления!", email));
     }
 
-    // Замена пароля по отправленному на почту
+    // Замена пароля по отправленному на почту (на фронте отдельная страница с формой )
     @PostMapping(value = "/reset_password_by_token", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> saveResetPassword(@Valid @RequestBody PasswordResetRequestDto passwordResetRequestDto) throws Exception {
 

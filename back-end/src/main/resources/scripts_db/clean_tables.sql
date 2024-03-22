@@ -49,7 +49,6 @@ ALTER TABLE users AUTO_INCREMENT = 11;
 ALTER TABLE users AUTO_INCREMENT = 7;
 ALTER TABLE users_passwords AUTO_INCREMENT = 7;
 
-
 delete from products_images where products_images.id > 69;
 ALTER TABLE products_images AUTO_INCREMENT = 69;
 
@@ -68,13 +67,13 @@ ALTER TABLE products AUTO_INCREMENT = 55;
 delete from categories_views where categories_views.id > 7;
 ALTER TABLE categories_views AUTO_INCREMENT = 7;
 
--- Очистка таблицы корзин
-delete from baskets where baskets.id > 0;
-ALTER TABLE baskets AUTO_INCREMENT = 1;
-
 -- Очистка таблицы с корзинами и вариантами товаров
-delete from baskets_products_variants where baskets_products_variants.id > 0;
-ALTER TABLE baskets_products_variants AUTO_INCREMENT = 1;
+delete from baskets_products_variants where baskets_products_variants.id > 12;
+ALTER TABLE baskets_products_variants AUTO_INCREMENT = 12;
+
+-- Очистка таблицы корзин
+delete from baskets where baskets.id > 6;
+ALTER TABLE baskets AUTO_INCREMENT = 6;
 
 -- Очистка таблицы с корзинами и вариантами товаров
 delete from orders_products_variants where orders_products_variants.id > 0;
@@ -115,3 +114,9 @@ ALTER TABLE reviews AUTO_INCREMENT = 1;
 
 delete from payment_methods where payment_methods.id > 0;
 ALTER TABLE payment_methods AUTO_INCREMENT = 2;
+
+delete from orders_products_variants where orders_products_variants.id > 73;
+ALTER TABLE orders_products_variants AUTO_INCREMENT = 73;
+
+delete from orders where orders.id > 26;
+ALTER TABLE orders AUTO_INCREMENT = 26;

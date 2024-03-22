@@ -1,19 +1,13 @@
 package gp.wagner.backend.domain.dto.response.users;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.users.UserRole;
-import gp.wagner.backend.domain.entites.visits.Visitor;
-import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
-import java.util.Date;
 
 //Объект передачи и вывода товара в списке товаров в виде карточки
 @Getter
@@ -41,6 +35,10 @@ public class UserRespDto {
     @JsonProperty("profile_photo")
     private String profilePhoto;
 
+    // id покупателя (если пользователь совершал заказы)
+    @JsonProperty("customer_id")
+    private Long customerId;
+
     private RoleRespDto role;
 
     private Instant createdAt = null;
@@ -55,6 +53,7 @@ public class UserRespDto {
         this.email = user.getEmail();
         this.isConfirmed = user.getIsConfirmed();
         this.profilePhoto = user.getProfilePhoto();
+        this.customerId = user.getCustomer() != null ? user.getCustomer().getId() : null;
         this.role = new RoleRespDto(user.getUserRole());
         this.createdAt = user.getCreatedAt();
         this.updatedAt = user.getUpdatedAt();

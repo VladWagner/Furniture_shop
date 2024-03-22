@@ -2,6 +2,7 @@ package gp.wagner.backend.domain.dto.response.filters;
 
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,9 +17,11 @@ import lombok.Setter;
 public class FilterValuesDto<Val_type> {
 
     //Id характеристики
+    @JsonProperty("attribute_id")
     private Integer attributeId;
 
     //Название характеристики
+    @JsonIgnore
     private String attributeName;
 
     //Значение атрибута
@@ -32,7 +35,6 @@ public class FilterValuesDto<Val_type> {
     private Val_type max;
 
     // Поле для внутренней сортировки перед отправкой на фронтенд
-    //@JsonIgnore
     private Float priority = 0f;
 
     // CTOR, игнорирующий приоритет фильтра

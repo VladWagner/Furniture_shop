@@ -59,12 +59,14 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
     }
 
     @Override
-    public void createOrUpdate(String fingerPrint, long categoryId) {
+    public void createOrUpdate(String fingerPrint, String ip, long categoryId) {
         if (categoryId <= 0 || fingerPrint.isBlank())
             return;
 
         //Найти с заданным отпечатком браузера
-        Visitor visitor = Services.visitorsService.getByFingerPrint(fingerPrint);
+        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint, ip);
+        visitor.setLastVisit(new Date());
+        Services.visitorsService.update(visitor);
 
         //Найти категорию по заданному id
         Category category = Services.categoriesService.getById(categoryId);
@@ -73,24 +75,11 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         if (category == null)
             throw new ApiException(String.format("Category with id: %d doesn't exist!", categoryId));
 
-        long createdVisitorId = 0;
-
-        //Если такого посетителя нет, тогда создать его
-        if (visitor == null) {
-
-            Visitor v = new Visitor(null, "", fingerPrint, new Date());
-            createdVisitorId = Services.visitorsService.create(v);
-        }
-
-        //Проверить наличие записи просмотра категории для конкретного посетителя
-        CategoryViews categoryViews = getByVisitorAndCategoryId(visitor != null ?
-                visitor.getId() :
-                createdVisitorId, categoryId);
-
+        CategoryViews categoryViews = getByVisitorAndCategoryId(visitor.getId(), categoryId);
 
         //Если запись не существует, тогда создаём, если запись имеется, тогда увеличить счетчик
         if (categoryViews == null)
-            repository.insertCategoryView(visitor == null ? createdVisitorId : visitor.getId(), categoryId, 1);
+            repository.insertCategoryView(visitor.getId(), categoryId, 1);
         else{
 
             // Если за эти сутки уже был просмотр - не учитываем его
@@ -108,7 +97,7 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
     }
 
     @Override
-    public void createOrUpdateRepeatingCategory(String fingerPrint, long categoryId) {
+    public void createOrUpdateRepeatingCategory(String fingerPrint, String ip, long categoryId) {
         if (categoryId >= 0 || fingerPrint.isBlank())
             return;
 
@@ -117,7 +106,9 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
         Services.categoriesService.getRepeatingCategoryById(categoryId);
 
         //Найти с заданным отпечатком браузера
-        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint);
+        Visitor visitor = Services.visitorsService.saveIfNotExists(fingerPrint, ip);
+        visitor.setLastVisit(new Date());
+        Services.visitorsService.update(visitor);
 
         //Найти категорию по заданному id
         List<Long> categoriesIdsList = Services.categoriesService.getRepeatingCategoryChildren(categoryId);
@@ -134,7 +125,7 @@ public class CategoryViewsServiceImpl implements CategoryViewsService {
                         HashMap::new
                 ));
 
-        // Пройти по всем найденным категориям
+        // Пройти по всем найденным категориям и создать/изменить записи об их просмотрах
         for (Category category : categories) {
 
             long existingCategoryId = category.getId();

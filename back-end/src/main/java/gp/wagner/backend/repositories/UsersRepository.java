@@ -115,4 +115,5 @@ public interface UsersRepository extends JpaRepository<User,Long> {
     Optional<User> getUsersByNameLike(String name);
 
     Optional<User> getUsersByUserLoginLike(String login);
+    Optional<User> getUsersByUserLoginEquals(String login);
 }

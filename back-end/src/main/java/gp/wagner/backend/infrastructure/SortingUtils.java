@@ -1,5 +1,6 @@
 package gp.wagner.backend.infrastructure;
 
+import gp.wagner.backend.domain.entites.orders.Customer;
 import gp.wagner.backend.domain.entites.orders.PaymentMethod;
 import gp.wagner.backend.domain.entites.products.Discount;
 import gp.wagner.backend.domain.entites.products.Product;
@@ -155,7 +156,7 @@ public class SortingUtils {
         Sort sort = switch (sortEnum) {
             case SUM -> Sort.by("orders_sum");
             case AMOUNT -> Sort.by("orders_count");
-            default-> Sort.by("order_date");
+            default-> Sort.by("order_date_alias");
         };
 
         return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
@@ -290,5 +291,53 @@ public class SortingUtils {
         };
 
         return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
+
+    // Сформировать объект сортировки при выборке производителей
+    public static Sort createSortForProducersSelection(ProducersSortEnum sortEnum, GeneralSortEnum sortType){
+
+        Sort sort = switch (sortEnum) {
+            case PRODUCER_NAME -> Sort.by("producerName");
+            //case DELETED_AT -> Sort.by("deletedAt");
+            case IS_SHOWN -> Sort.by("isShown");
+            default-> Sort.by("id");
+        };
+
+        return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
+
+    // Сформировать объект сортировки при выборке посещений магазина за определённый период
+    public static Sort createSortForDailyVisits(DailyVisitsSortEnum sortEnum, GeneralSortEnum sortType){
+
+        Sort sort = switch (sortEnum) {
+            case DATE -> Sort.by("date");
+            default-> Sort.by("visits_amount");
+        };
+
+        return sortType == GeneralSortEnum.ASC ? sort.ascending() : sort.descending();
+    }
+
+    // Сформировать условие сортировки для товаров
+    public static void createSortQueryForCustomers(CriteriaBuilder cb, CriteriaQuery<?> query, Root<Customer> root, CustomersSortEnum sortEnum, GeneralSortEnum sortType,
+                                                   Expression<String> customersSnp, Expression<Long> ordersCountExp, Expression<Integer> ordersUnitsCountExp,
+                                                   Expression<Integer> ordersSumsExp, Expression<Double> avgUnitPrice){
+
+
+        // Сформировать запрос с агрегатной функцией подсчёта суммы
+        Expression<?> expression = switch (sortEnum) {
+            case ID -> root.get("id");
+            case SNP -> customersSnp;
+            case EMAIL -> root.get("email");
+            case PHONE -> root.get("phoneNumber");
+            case CREATED -> root.get("createdAt");
+            case ORDERS_COUNT -> ordersCountExp;
+            case UNITS_COUNT -> ordersUnitsCountExp;
+            case AVG_UNIT_PRICE -> avgUnitPrice;
+            case ORDERS_SUM -> ordersSumsExp;
+        };
+
+
+        query.orderBy(sortType == GeneralSortEnum.ASC ? cb.asc(expression) : cb.desc(expression));
+
     }
 }

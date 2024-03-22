@@ -1,5 +1,6 @@
 package gp.wagner.backend.services.implementations.admin_panel;
 
+import gp.wagner.backend.domain.dto.request.admin_panel.CustomerStatRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeAndValRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
@@ -15,14 +16,12 @@ import gp.wagner.backend.domain.entites.visits.DailyVisits;
 import gp.wagner.backend.domain.entites.visits.ProductViews;
 import gp.wagner.backend.domain.entites.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.BasketsStatisticsSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.ProductsOrVariantsCountSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.ViewsFrequencySortEnum;
+import gp.wagner.backend.infrastructure.enums.sorting.*;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.admin_panel.AdminPanelStatisticsRepository;
@@ -59,7 +58,8 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
 
     // Получение кол-ва визитов по дням. Повторяет метод из DailyVisitsController
     @Override
-    public Page<SimpleTuple<Date, Long>> getDailyVisitsByDatesRange(DatesRangeRequestDto datesDto, int pageNum, int dataOnPage) throws ApiException {
+    public Page<SimpleTuple<Date, Long>> getDailyVisitsByDatesRange(DatesRangeRequestDto datesDto, int pageNum, int dataOnPage,
+                                                                    DailyVisitsSortEnum sortEnum, GeneralSortEnum sortType) throws ApiException {
 
         if(datesDto == null || !datesDto.isCorrect())
             throw new ApiException("Переданный DTO с диапазоном дат некорректен или дата min > max!");
@@ -67,7 +67,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
         if (pageNum > 0)
             pageNum -= 1;
 
-        Pageable pageable =  PageRequest.of(pageNum, dataOnPage);
+        Pageable pageable =  PageRequest.of(pageNum, dataOnPage, SortingUtils.createSortForDailyVisits(sortEnum, sortType));
 
         Page<Object[]> rawPage = adminPanelRepository.getDailyVisitsBetweenDates(datesDto.getMin(), datesDto.getMax(), pageable);
 
@@ -495,7 +495,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
     }
 
     // Выборка товаров просмотренных определённым покупателем
-    @Override
+    /*@Override
     public Page<ProductViews> getProductsViewsForCustomer(CustomerRequestDto customerDto, int pageNum, int dataOnPage) {
 
         if (customerDto == null || customerDto.getFingerPrint() == null && customerDto.getId() == null && customerDto.getEmail() == null)
@@ -513,6 +513,7 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
         Path<Customer> customerPath = visitorPath.get("customers");
 
         // Сформировать предикаты
+        // Todo: убрать отсюда всю работу с fingerprint'ом посетителя и оставить только проверку по email/id покупателя (Visitor имеет коллекцию customers в любом случае)
         Predicate predicate;
         if (customerDto.getId() != null && customerDto.getFingerPrint() != null && customerDto.getEmail() != null)
             predicate = cb.or(
@@ -532,6 +533,51 @@ public class AdminPanelStatisticsServiceImpl implements AdminPanelStatisticsServ
         TypedQuery<ProductViews> typedQuery = entityManager.createQuery(query);
 
         long elementCount = ServicesUtils.countCustomerProductsViews(entityManager, customerDto);
+
+        // Для пагинации
+        typedQuery.setFirstResult(pageNum*dataOnPage);
+        typedQuery.setMaxResults(dataOnPage);
+
+        List<ProductViews> viewsList = typedQuery.getResultList();
+
+        return new PageImpl<>(viewsList, PageRequest.of(pageNum, dataOnPage), elementCount);
+    }*/
+
+    // Выборка товаров просмотренных определённым покупателем
+    @Override
+    public Page<ProductViews> getProductsViewsForCustomer(CustomerStatRequestDto customerDto, int pageNum, int dataOnPage) {
+
+        if (customerDto == null || customerDto.getId() == null && customerDto.getEmail() == null)
+            throw new ApiException("Найти товары просмотренные покупателем не удалось. Dto задан некорректно!");
+
+        if (pageNum > 0)
+            pageNum -= 1;
+
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+        // Запрос идёт от таблицы просмотров товаров
+        CriteriaQuery<ProductViews> query = cb.createQuery(ProductViews.class);
+        Root<ProductViews> root = query.from(ProductViews.class);
+        Path<Visitor> visitorPath = root.get("visitor");
+        Path<Customer> customerPath = visitorPath.get("customers");
+
+        // Сформировать предикаты
+        Predicate predicate;
+        if (customerDto.getId() != null && customerDto.getEmail() != null)
+            predicate = cb.or(
+                cb.equal(customerPath.get("id"), customerDto.getId()),
+                cb.equal(customerPath.get("email"), customerDto.getEmail())
+            );
+        else if(customerDto.getEmail() != null)
+            predicate = cb.equal(customerPath.get("email"), customerDto.getEmail());
+        else
+            predicate = cb.equal(customerPath.get("id"), customerDto.getId());
+
+        query.where(predicate);
+
+        TypedQuery<ProductViews> typedQuery = entityManager.createQuery(query);
+
+        long elementCount = PaginationUtils.countCustomerProductsViews(entityManager, customerDto);
 
         // Для пагинации
         typedQuery.setFirstResult(pageNum*dataOnPage);
