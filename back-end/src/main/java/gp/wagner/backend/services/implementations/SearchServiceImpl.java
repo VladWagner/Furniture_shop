@@ -1,12 +1,11 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.domain.specifications.ProductSpecifications;
 import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
@@ -21,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 

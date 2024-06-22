@@ -11,6 +11,7 @@ target/
 **/src/main/resources/scripts_db/postman_objects.json
 **/src/main/resources/WEB-INF
 **/src/main/resources/application_t.yaml
+**/src/main/resources/app.yaml
 
 ### STS ###
 .apt_generated

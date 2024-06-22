@@ -1,11 +1,10 @@
 package gp.wagner.backend.infrastructure;
 
-import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.orders.PaymentMethod;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.ratings.RatingStatistics;
+import gp.wagner.backend.domain.entities.orders.Customer;
+import gp.wagner.backend.domain.entities.products.Discount;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.ratings.RatingStatistics;
 import gp.wagner.backend.infrastructure.enums.sorting.*;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;

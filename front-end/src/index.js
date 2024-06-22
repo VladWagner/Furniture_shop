@@ -1,17 +1,22 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './app';
-import NavBar from "./components/Navigation";
+import App from './App';
 import "./styles/styles.css"
+import {Provider} from "react-redux";
+import store from "./store/createStore"
+import {BrowserRouter} from "react-router-dom";
+import 'typeface-roboto';
+import {AutoAuthComponent} from "./components/AutoAuthComponent";
+import ToastContainerMy from "./components/ToastNotifications/ToastContainerMy";
 
 
 /*Создать объект reactDOMRoot*/
 const root = ReactDOM.createRoot(document.getElementById('app'));
 root.render(
-    <div>
-        <NavBar/>
-        <h3>Hello world from react app!</h3>
+    <Provider store={store}>
+        <ToastContainerMy/>
         <App/>
-    </div>
+    </Provider>
 );
+
 

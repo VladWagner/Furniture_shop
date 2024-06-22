@@ -1,8 +1,8 @@
 package gp.wagner.backend.services.implementations.products;
 
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.middleware.Services;
@@ -62,7 +62,7 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         ProductVariant pv = new ProductVariant(null ,dto.getTitle(),
                 Services.productsService.getById(dto.getProductId()),
                 dto.getPrice(),
-                previewImg.isEmpty() ? Constants.EMPTY_IMAGE.toString() : previewImg,
+                previewImg.isEmpty() ? /*Constants.EMPTY_IMAGE.toString()*/ Services.fileManageService.getFilesPaths().emptyImagePath().toString() : previewImg,
                 dto.getShowPv() != null ? dto.getShowPv() : true, null);
 
         return productVariantsRepository.saveAndFlush(pv).getId();
@@ -95,7 +95,7 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
         ProductVariant pv = new ProductVariant(dto.getId(), dto.getTitle(),
                 Services.productsService.getById(dto.getProductId()),
                 dto.getPrice(),
-                previewImg.isEmpty() ? Constants.EMPTY_IMAGE.toString() : previewImg,
+                previewImg.isEmpty() ? /*Constants.EMPTY_IMAGE.toString()*/ Services.fileManageService.getFilesPaths().emptyImagePath().toString() : previewImg,
                 dto.getShowPv() != null ? dto.getShowPv() : true, null);
 
         int oldPrice = oldProductVariant.getPrice();
@@ -201,6 +201,15 @@ public class ProductVariantsServiceImpl implements ProductVariantsService {
     @Override
     public ProductVariant getById(Long id) {
         return productVariantsRepository.findById(id).orElse(null);
+    }
+
+    @Override
+    public List<ProductVariant> getByIdsList(List<Long> idsList) {
+
+        if (idsList == null || idsList.isEmpty())
+            throw new ApiException("Список id вариантов задан неверно!");
+
+        return productVariantsRepository.findProductVariantsByIdList(idsList);
     }
 
     @Override

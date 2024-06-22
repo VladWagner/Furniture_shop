@@ -1,10 +1,11 @@
 package gp.wagner.backend.services.implementations.categories;
 
 import gp.wagner.backend.domain.dto.request.crud.CategoryRequestDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.suppliers.ParentlessCategoryAlreadyExists;
+import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.categories.CategoriesRepository;
 import gp.wagner.backend.repositories.categories.SubCategoriesRepository;
@@ -17,9 +18,14 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -53,7 +59,7 @@ public class CategoriesServiceImpl implements CategoriesService {
 
 
     @Override
-    public long createAndCheckRepeating(String categoryName, Long parentCategoryId) {
+    public long createAndCheckRepeating(String categoryName, Long parentCategoryId, MultipartFile file) throws Exception {
 
         // Найти существующую, повторяющуюся категорию по имени
         Optional<RepeatingCategory> repeatingCategory = subCategoriesRepository.findRepeatingCategoryByName(categoryName);
@@ -63,16 +69,16 @@ public class CategoriesServiceImpl implements CategoriesService {
 
         // Имеется ли заданная родительская категория в БД, если нет, то заданная категория будет родительской
         if (parentCategory == null)
-           return handleParentlessCategory(categoryName, repeatingCategory).getId();
+           return handleParentlessCategory(categoryName, repeatingCategory, file).getId();
 
         // Обработка создаваемой категории с заданным родителем
-        return handleCategoryWithParent(categoryName, parentCategory, repeatingCategory).getId();
+        return handleCategoryWithParent(categoryName, parentCategory, repeatingCategory, file).getId();
 
     }
 
     // Изменение категории с проверками на повторения
     @Override
-    public Category updateAndCheckRepeating(CategoryRequestDto dto) {
+    public Category updateAndCheckRepeating(CategoryRequestDto dto, MultipartFile file) throws Exception {
 
         if (dto == null || dto.getId() == null)
             throw new ApiException("Не получилось изменить объект Category. Задан некорректный DTO!");
@@ -81,6 +87,7 @@ public class CategoriesServiceImpl implements CategoriesService {
                 .orElseThrow(() -> new ApiException(String.format("Категория с Id: %d не найдена!",dto.getId())));
 
         Long oldCategoryParentId = oldCategory.getParentCategory() != null ? oldCategory.getParentCategory().getId() : null;
+
         // Был ли изменён родитель категории
         boolean parentChanged = (oldCategoryParentId != null && dto.getParentId() != null
                 && !oldCategoryParentId.equals(dto.getParentId())) ||
@@ -89,7 +96,10 @@ public class CategoriesServiceImpl implements CategoriesService {
 
         // Если задано новое имя категорий или изменён родитель для того же имени
         if (dto.getCategoryName() != null && !oldCategory.getName().equals(dto.getCategoryName()) || parentChanged)
-            changeNameOfUpdatingCategory(dto, oldCategory);
+            changeNameOrParentOfUpdatingCategory(dto, oldCategory, file);
+        // Если имя и родитель не изменились, но при этом задано изображение
+        else if (file != null && !file.isEmpty())
+            changeImgOfUpdatingCategory(oldCategory, file);
 
         boolean oldShowValue = oldCategory.getIsShown();
 
@@ -109,7 +119,7 @@ public class CategoriesServiceImpl implements CategoriesService {
     }
 
     // Вспомогательный метод обработки создания категории без родителя
-    private Category handleParentlessCategory(String categoryName, Optional<RepeatingCategory> repeatingCategory){
+    private Category handleParentlessCategory(String categoryName, Optional<RepeatingCategory> repeatingCategory, MultipartFile img) throws Exception{
 
         // Проверить, существует ли повторяющаяся категория
         if (repeatingCategory.isPresent()) {
@@ -132,6 +142,38 @@ public class CategoriesServiceImpl implements CategoriesService {
                 RepeatingCategory newRepeatingCategory = repeatingCategory
                         .orElseGet(() -> subCategoriesRepository.saveAndFlush(new RepeatingCategory(null, categoryName)));
 
+
+                // Сохранить изображение для существующей/созданной повторяющейся категории
+                saveThumbForRepeatingCategory(newRepeatingCategory, existingCategory, img);
+
+                // Если задано изображение, тогда оно становится изображением обобщенной категории
+                /*if (img != null*//* && existingCategory.getImage() == null*//*){
+                    String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+                    // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+                    if (newRepeatingCategory.getImage() != null)
+                        Services.fileManageService.deleteFile(new URI(newRepeatingCategory.getImage()));
+
+                    // Загрузить изображение общей категории в каталог
+                    fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, newRepeatingCategory.getId(), true).toString());
+                    newRepeatingCategory.setImage(fileName);
+
+                    subCategoriesRepository.saveAndFlush(newRepeatingCategory);
+                }
+                // Если изображение не загружено и при этом его нет в повторяющейся категории, но есть в найденной категории c таким же именем
+                else if (newRepeatingCategory.getImage() == null && existingCategory.getImage() != null) {
+
+                    // Переименовать изображение
+                    String newPath = Services.fileManageService
+                            .renameFile(existingCategory.getImage(), String.format("category_r-%d", newRepeatingCategory.getId()));
+                    newRepeatingCategory.setImage(newPath);
+
+                    // Сохранить категорию с новым изображением
+                    subCategoriesRepository.saveAndFlush(newRepeatingCategory);
+                }*/
+
+                // Убрать из существующей категории
+                existingCategory.setImage(null);
                 existingCategory.setRepeatingCategory(newRepeatingCategory);
                 existingCategory.setName(null);
 
@@ -146,14 +188,48 @@ public class CategoriesServiceImpl implements CategoriesService {
             else if (existingCategory != null)
                 throw new ParentlessCategoryAlreadyExists(existingCategory.getId(), categoryName).get();
 
-        }//
+        }// else
+
+        // Если изображение задано, то загрузить его либо для повторяющейся категории, либо для основной
+        if (repeatingCategory.isPresent() && img != null && !img.isEmpty()){
+
+            RepeatingCategory rc = repeatingCategory.get();
+
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+            // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+            if (rc.getImage() != null && !rc.getImage().isBlank())
+                Services.fileManageService.deleteFile(new URI(rc.getImage()));
+
+            // Загрузить изображение общей категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, rc.getId(), true).toString());
+
+            rc.setImage(fileName);
+
+            subCategoriesRepository.saveAndFlush(rc);
+
+            return categoriesRepository.saveAndFlush(new Category(null, null, rc, null));
+        } else if (img != null && !img.isEmpty()) {
+
+            Category createdCategory = categoriesRepository.saveAndFlush(
+                    new Category(null, categoryName, null, null));
+
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+            // Загрузить изображение категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, createdCategory.getId(), false).toString());
+
+            createdCategory.setImage(fileName);
+
+            return categoriesRepository.saveAndFlush(createdCategory);
+        }
 
         return categoriesRepository.saveAndFlush(new Category(null, repeatingCategory.isEmpty() ? categoryName : null,
                 repeatingCategory.orElse(null), null));
     }
 
     // Вспомогательный метод обработки создания категории с родителем
-    private Category handleCategoryWithParent(String categoryName, Category parentCategory, Optional<RepeatingCategory> repeatingCategory){
+    private Category handleCategoryWithParent(String categoryName, Category parentCategory, Optional<RepeatingCategory> repeatingCategory, MultipartFile img) throws Exception {
 
         if (parentCategory == null)
             throw new ApiException(String.format("Родительская категория для создаваемой категории '%s'не может быть == null!", categoryName));
@@ -166,7 +242,7 @@ public class CategoriesServiceImpl implements CategoriesService {
 
         long parentCategoryId = parentCategory.getId();
 
-        // Если категория повторяется по имени, но они принадлежат разным родительским категориям и при этом заданная родительская категория != существующей категории
+        // Если категория повторяется по имени, но они принадлежат разным родительским категориям и при этом заданная родительская категория != родительской существующей категории
         boolean parentsAreNotEqual = existingCategory != null &&
                 (existingCategory.getParentCategory() == null || !existingCategory.getParentCategory().getId().equals(parentCategoryId));
 
@@ -176,10 +252,14 @@ public class CategoriesServiceImpl implements CategoriesService {
             RepeatingCategory newRepeatingCategory = repeatingCategory
                     .orElseGet(() -> subCategoriesRepository.saveAndFlush(new RepeatingCategory(null, categoryName)));
 
+            // Сохранить изображение для существующей/созданной повторяющейся категории
+            saveThumbForRepeatingCategory(newRepeatingCategory, existingCategory, img);
+
             // Изменить существующую категорию, имя которой совпадает с создаваемой, но родитель отличается
             // Данной категории в любом случае нужно заменить поле name, поскольку оно совпадает с создаваемой категорией (даже если повторяющаяся категория найдена)
             existingCategory.setRepeatingCategory(newRepeatingCategory);
             existingCategory.setName(null);
+            existingCategory.setImage(null);
 
             // Сохранить изменённую категорию
             categoriesRepository.saveAndFlush(existingCategory);
@@ -197,13 +277,78 @@ public class CategoriesServiceImpl implements CategoriesService {
                     Уже существует категория '%1$s' и её id: %d
                     """, categoryName, parentCategoryId, existingCategory.getId()));
 
+
+        // Если изображение задано, то загрузить его либо для повторяющейся категории, либо для основной
+        if (repeatingCategory.isPresent() && img != null && !img.isEmpty()){
+
+            RepeatingCategory rc = repeatingCategory.get();
+
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+            // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+            if (rc.getImage() != null && !rc.getImage().isBlank())
+                Services.fileManageService.deleteFile(new URI(rc.getImage()));
+
+            // Загрузить изображение общей категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, rc.getId(), true).toString());
+
+            rc.setImage(fileName);
+
+            subCategoriesRepository.saveAndFlush(rc);
+
+            return categoriesRepository.saveAndFlush(new Category(null, null, rc, null));
+        } else if (img != null && !img.isEmpty()) {
+
+            Category createdCategory = categoriesRepository.saveAndFlush(
+                    new Category(null, categoryName, null, null));
+
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+            // Загрузить изображение категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, createdCategory.getId(), false).toString());
+
+            createdCategory.setImage(fileName);
+
+            return createdCategory;
+        }
+
         // Если есть родительская категория и повторяющихся категорий в основной таблице нет
         return categoriesRepository.saveAndFlush(new Category(null, repeatingCategory.isEmpty() ? categoryName : null,
                 repeatingCategory.orElse(null), parentCategory)
         );
     }
 
-    private void changeNameOfUpdatingCategory(CategoryRequestDto dto, Category prevCategory){
+    // Сохранить изображение для повторяющейся категории
+    private void saveThumbForRepeatingCategory(RepeatingCategory repeatingCategory, Category existingCategory, MultipartFile imgFile) throws Exception{
+        // Если задано изображение, тогда оно становится изображением обобщенной категории
+        if (imgFile != null && !imgFile.isEmpty()/* && existingCategory.getImage() == null*/){
+            String fileName = StringUtils.cleanPath(Objects.requireNonNull(imgFile.getOriginalFilename()));
+
+            // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+            if (repeatingCategory.getImage() != null)
+                Services.fileManageService.deleteFile(new URI(repeatingCategory.getImage()));
+
+            // Загрузить изображение общей категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, imgFile, repeatingCategory.getId(), true).toString());
+            repeatingCategory.setImage(fileName);
+
+            subCategoriesRepository.saveAndFlush(repeatingCategory);
+        }
+        // Если изображение не загружено и при этом его нет в повторяющейся категории, но есть в найденной категории с таким же именем
+        else if (repeatingCategory.getImage() == null && existingCategory.getImage() != null) {
+
+            // Переименовать изображение
+            String newPath = Services.fileManageService
+                    .renameFile(existingCategory.getImage(), String.format("category_r-%d", repeatingCategory.getId()));
+            repeatingCategory.setImage(newPath);
+
+            // Сохранить категорию с новым изображением
+            subCategoriesRepository.saveAndFlush(repeatingCategory);
+        }
+    }
+
+    // Вспомогательный метод изменения категории
+    private void changeNameOrParentOfUpdatingCategory(CategoryRequestDto dto, Category prevCategory, MultipartFile img) throws Exception{
 
         Category parentCategory = dto.getParentId() != null ?
                 categoriesRepository.findById(dto.getParentId()).orElse(null) : null;
@@ -225,16 +370,22 @@ public class CategoriesServiceImpl implements CategoriesService {
             if (existingCategory != null)
                 throw new ParentlessCategoryAlreadyExists(existingCategory.getId(), dto.getCategoryName()).get();
         }
+
+        // Если родительская не задана в редактируемой категории
         else if (parentCategory == null) {
 
             // Найти существующую категорию с задаваемым именем
             Category existingCategory = categoriesRepository.findCategoryByName(dto.getCategoryName()).orElse(null);
 
-            // Если существует категория с таким же именем и при этом у неё задан родитель
+            // Если существует категория с таким же именем и при этом у неё задан родитель, а у новой категории родитель не задан
             if (existingCategory != null && existingCategory.getParentCategory() != null) {
                 prevCategory.setName(null);
-                prevCategory.setRepeatingCategory(createAndSetRepeatingCategory(existingCategory));
+                prevCategory.setRepeatingCategory(createAndSetRepeatingCategory(existingCategory, img));
                 prevCategory.setParentCategory(null);
+
+                if (img != null && !img.isEmpty())
+                    prevCategory.setImage(null);
+
                 nameChanged = true;
             }
             else if (existingCategory != null)
@@ -247,9 +398,9 @@ public class CategoriesServiceImpl implements CategoriesService {
             long parentCategoryId = parentCategory.getId();
 
             // Найти существующую категорию по названию/по повторяющейся категории
-            Category existingCategory = categoriesRepository.findCategoryByName(dto.getCategoryName())
-                    .orElse(repeatingCategory.flatMap(category -> categoriesRepository.findCategoryByRepeatingCategoryAndParent(category,
-                            parentCategory)).orElse(null));
+            Category existingCategory = categoriesRepository.findCategoryByName(dto.getCategoryName() != null ? dto.getCategoryName() : "")
+                    .orElse(repeatingCategory.flatMap(rc -> categoriesRepository.findCategoryByRepeatingCategoryAndParent(rc, parentCategory))
+                            .orElse(null));
 
             // Проверить не совпадают ли родительские категории
             boolean parentsAreNotEqual = existingCategory != null &&
@@ -259,8 +410,12 @@ public class CategoriesServiceImpl implements CategoriesService {
             if (existingCategory != null && !existingCategory.getId().equals(parentCategoryId) && parentsAreNotEqual) {
 
                 prevCategory.setName(null);
-                prevCategory.setRepeatingCategory(createAndSetRepeatingCategory(existingCategory));
+                prevCategory.setRepeatingCategory(createAndSetRepeatingCategory(existingCategory, img));
                 prevCategory.setParentCategory(parentCategory);
+
+                if (img != null && !img.isEmpty())
+                    prevCategory.setImage(null);
+
                 nameChanged = true;
             }
             // Если нашли существующую категорию с таким же названием и она принадлежат к той же родительской категории, что и добавляемая
@@ -273,7 +428,37 @@ public class CategoriesServiceImpl implements CategoriesService {
 
         // Если никакие из вышеописанных условий не сработали, тогда просто установить имя в categoryName
         if (!nameChanged){
-            prevCategory.setName(repeatingCategory.isEmpty() ? dto.getCategoryName() : null);
+
+            // Если изображение задано, то загрузить его либо для повторяющейся категории, либо для основной
+            if (repeatingCategory.isPresent() && img != null && !img.isEmpty()){
+
+                RepeatingCategory rc = repeatingCategory.get();
+
+                String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+                // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+                if (rc.getImage() != null && !rc.getImage().isBlank())
+                    Services.fileManageService.deleteFile(new URI(rc.getImage()));
+
+                // Загрузить изображение общей категории в каталог
+                fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, rc.getId(), true).toString());
+
+                rc.setImage(fileName);
+
+                subCategoriesRepository.saveAndFlush(rc);
+
+            } else if (img != null && !img.isEmpty()) {
+
+                String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+                // Загрузить изображение категории в каталог
+                fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, prevCategory.getId(), false).toString());
+
+                prevCategory.setImage(fileName);
+            }
+
+            prevCategory.setName(repeatingCategory.isEmpty() ? (dto.getCategoryName() != null ? dto.getCategoryName() : prevCategory.getName())
+                    : null);
             prevCategory.setRepeatingCategory(repeatingCategory.orElse(null));
             prevCategory.setParentCategory(parentCategory);
         }
@@ -281,12 +466,15 @@ public class CategoriesServiceImpl implements CategoriesService {
     }
 
     // Создать повторяющуюся категорию
-    private RepeatingCategory createAndSetRepeatingCategory(Category category){
+    private RepeatingCategory createAndSetRepeatingCategory(Category category, MultipartFile img) throws Exception {
 
         if (category.getName() == null && category.getRepeatingCategory() != null)
             return category.getRepeatingCategory();
 
        RepeatingCategory newRepeatingCategory = subCategoriesRepository.saveAndFlush(new RepeatingCategory(null, category.getName()));
+
+       // Загружаем изображение здесь, поскольку картинка может быть не загружена, но иметься у 1-й найденной категории, тогда она будет взята оттуда
+       saveThumbForRepeatingCategory(newRepeatingCategory, category, img);
 
        category.setRepeatingCategory(newRepeatingCategory);
        category.setName(null);
@@ -294,6 +482,43 @@ public class CategoriesServiceImpl implements CategoriesService {
        categoriesRepository.saveAndFlush(category);
 
        return newRepeatingCategory;
+    }
+
+    // Загрузить измененную картинку при редактировании категории
+    public void changeImgOfUpdatingCategory(Category updatingCategory, MultipartFile img) throws Exception {
+        if (updatingCategory == null || img == null || img.isEmpty())
+            return;
+
+        String fileName = StringUtils.cleanPath(Objects.requireNonNull(img.getOriginalFilename()));
+
+        // Если категория не повторяется, тогда изображение задаём в основную запись
+        if (updatingCategory.getRepeatingCategory() == null){
+
+            // Загрузить изображение основной категории в каталог
+            fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, updatingCategory.getId(), false).toString());
+
+            updatingCategory.setImage(fileName);
+
+            return;
+        }
+
+        // Если в редактируемой категории задана повторяющаяся категория, тогда поменять изображение предосмотра у повторяющейся категории
+        RepeatingCategory rc = updatingCategory.getRepeatingCategory();
+
+        // Если у повторяющейся категории уже есть загруженное изображение - удалить его
+        if (rc.getImage() != null && !rc.getImage().isBlank())
+            Services.fileManageService.deleteFile(new URI(rc.getImage()));
+
+        // Загрузить изображение общей категории в каталог
+        fileName = Utils.cleanUrl(Services.fileManageService.saveCategoryThumb(fileName, img, rc.getId(), true).toString());
+
+        rc.setImage(fileName);
+
+        // Задать обновленную повторяющуюся категорию в текущий объект сущности Category
+        updatingCategory.setRepeatingCategory(subCategoriesRepository.saveAndFlush(rc));
+
+        if (updatingCategory.getImage() != null)
+            updatingCategory.setImage(null);
     }
 
     @Override

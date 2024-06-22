@@ -1,8 +1,9 @@
 package gp.wagner.backend.services.interfaces.categories;
 
 import gp.wagner.backend.domain.dto.request.crud.CategoryRequestDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -13,10 +14,10 @@ public interface CategoriesService {
     void create(Category category);
 
     //Изменение записи
-    Category updateAndCheckRepeating(CategoryRequestDto dto);
+    Category updateAndCheckRepeating(CategoryRequestDto dto, MultipartFile file)  throws Exception;
 
     //Добавление записи с проверкой на наличие повторяющейся категории
-    long createAndCheckRepeating(String categoryName, Long parentCategoryId);
+    long createAndCheckRepeating(String categoryName, Long parentCategoryId, MultipartFile file) throws Exception;
 
     //Изменение записи
     void update(Category category);

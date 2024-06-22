@@ -1,10 +1,10 @@
 package gp.wagner.backend.services.implementations.ratings;
 
 import gp.wagner.backend.domain.dto.request.crud.ratings.RatingRequestDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.ratings.Rating;
-import gp.wagner.backend.domain.entites.ratings.RatingStatistics;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.ratings.Rating;
+import gp.wagner.backend.domain.entities.ratings.RatingStatistics;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;

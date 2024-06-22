@@ -1,26 +1,21 @@
 package gp.wagner.backend.infrastructure;
 
-import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
 import gp.wagner.backend.domain.dto.request.admin_panel.OrdersAndBasketsCountFiltersRequestDto;
-import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.CustomersFilterRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.visits.DailyVisits;
-import gp.wagner.backend.domain.entites.visits.ProductViews;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.baskets.Basket;
+import gp.wagner.backend.domain.entities.baskets.BasketAndProductVariant;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.orders.Customer;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entities.products.Discount;
+import gp.wagner.backend.domain.entities.products.Producer;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.entities.visits.ProductViews;
 import gp.wagner.backend.infrastructure.enums.AggregateOperationsEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.ProductsOrVariantsEnum;
@@ -30,7 +25,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 
@@ -415,7 +409,7 @@ public class ServicesUtils {
     }
 
     // Метод для поиска корзин - частично обобщённый (возвращает либо единичную корзину, либо коллекцию корзин)
-    public static <R> R findByProdVariantIdAndUserIdGeneric(Long pvId, List<Long> pvIdList, Integer userId, EntityManager entityManager, /*Class<Q> queriesType,*/ Class<R> returnType){
+    public static <R> R findBasketByProdVariantIdAndUserIdGeneric(Long pvId, List<Long> pvIdList, Integer userId, EntityManager entityManager, /*Class<Q> queriesType,*/ Class<R> returnType){
 
         if (pvId == null && userId == null && pvIdList == null)
             return null;
@@ -492,6 +486,18 @@ public class ServicesUtils {
             basket.setSum(newSum);
 
         }
+    }
+    public static void countSumInBasket(Basket basket){
+
+        if (basket == null || basket.getBasketAndPVList().isEmpty())
+            return;
+
+        // Пересчитать сумму по заданным вариантам товаров и их кол-ву
+        int newSum = basket.getBasketAndPVList().stream()
+                .map(bpv -> bpv.getProductVariant().getPriceWithDiscount() * bpv.getProductsAmount())
+                .reduce(0, Integer::sum);
+
+        basket.setSum(newSum);
     }
 
     // Пересчёт суммы в заказах

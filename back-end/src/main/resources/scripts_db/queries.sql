@@ -1109,4 +1109,9 @@ select
 
     MIN(cps.orders_sum) as min_orders_sum,
     MAX(cps.orders_sum) as max_orders_sum
-from customers_preselection cps
+from customers_preselection cps;
+
+select
+    bpv.id
+from baskets_products_variants bpv join baskets basket on basket.id = bpv.basket_id
+where bpv.product_variant_id = 81 and basket.user_id = 11;

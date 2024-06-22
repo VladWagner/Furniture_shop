@@ -1,8 +1,8 @@
 package gp.wagner.backend.repositories.orders;
 
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderState;
-import gp.wagner.backend.domain.entites.orders.PaymentMethod;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.orders.OrderState;
+import gp.wagner.backend.domain.entities.orders.PaymentMethod;
 import jakarta.persistence.Tuple;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

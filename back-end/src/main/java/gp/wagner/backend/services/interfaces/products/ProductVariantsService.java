@@ -1,8 +1,8 @@
 package gp.wagner.backend.services.interfaces.products;
 
 import gp.wagner.backend.domain.dto.request.crud.ProductVariantDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 
 import java.util.List;
 
@@ -38,6 +38,9 @@ public interface ProductVariantsService {
 
     //Выборка записи под id
     ProductVariant getById(Long id);
+
+    //Выборка записи под id
+    List<ProductVariant> getByIdsList(List<Long> idsList);
 
     //Выборка записи под id товара
     List<ProductVariant> getByProductId(Long productId);

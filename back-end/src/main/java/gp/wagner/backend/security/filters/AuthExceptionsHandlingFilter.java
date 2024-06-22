@@ -1,6 +1,7 @@
 package gp.wagner.backend.security.filters;
 
 
+import gp.wagner.backend.infrastructure.Constants;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -11,6 +12,7 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpRequest;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.util.ThrowableAnalyzer;
@@ -45,8 +47,19 @@ public class AuthExceptionsHandlingFilter extends GenericFilterBean {
             // Exception resolver позволит отработать обработке ошибок в controllerAdvice в едином формате с остальными исключениями
             if (authenticationException != null)
                 exceptionResolver.resolveException((HttpServletRequest) request, (HttpServletResponse) response, null, authenticationException);
-            else if (accessDeniedException != null)
-                exceptionResolver.resolveException((HttpServletRequest) request, (HttpServletResponse) response, null, accessDeniedException);
+            else if (accessDeniedException != null) {
+
+                // Получить запрос, который вызвал исключение
+                HttpServletRequest httpServletRequest = (HttpServletRequest) request;
+
+                String authorizationHeader = httpServletRequest.getHeader(Constants.AUTHORIZATION_HEADER);
+
+                // Если заголовок с jwt задано и возникло данное исключение, тогда исключение было выброшено из-за отсутствия прав доступа
+                boolean notEnoughPermissions = authorizationHeader != null && authorizationHeader.startsWith("Bearer ");
+
+                exceptionResolver.resolveException(httpServletRequest, (HttpServletResponse) response, null,
+                        notEnoughPermissions ? new AccessDeniedException("Not enough permissions") : accessDeniedException);
+            }
             else
                 throw e;
 

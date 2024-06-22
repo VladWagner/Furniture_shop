@@ -1,7 +1,7 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.categories;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.categories.Category;
+import gp.wagner.backend.domain.entities.categories.Category;
 import gp.wagner.backend.middleware.Services;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,19 +19,23 @@ public class CategoryDto {
     @JsonProperty("category_name")
     private String categoryName;
 
-    //Id родительской категории, если такая имеется
+    // Id родительской категории, если такая имеется
     @JsonProperty("parent_category_id")
     private int parentCategoryId;
 
-    //Количество товаров в данной категории
+    // Количество товаров в данной категории
     @JsonProperty("products_amount")
     private int productsAmount;
+
+    // Изображение предосмотра категории
+    private String image;
 
     public CategoryDto(Category category, int productsAmount) {
         this.id = category.getId();
         this.categoryName = category.getName();
         this.parentCategoryId = category.getParentCategory() != null ? category.getParentCategory().getId().intValue() : 0;
         this.productsAmount = productsAmount;
+        this.image = category.getImage();
     }
 
     //Фабричный метод

@@ -1,7 +1,7 @@
 package gp.wagner.backend.repositories.categories;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

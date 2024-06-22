@@ -6,12 +6,12 @@ ALTER TABLE producers AUTO_INCREMENT = 1;
 delete from categories where categories.id > 0;
 ALTER TABLE categories AUTO_INCREMENT = 1;
 
-delete from categories where categories.id > 32;
-ALTER TABLE categories AUTO_INCREMENT = 32;
+delete from categories where categories.id > 50;
+ALTER TABLE categories AUTO_INCREMENT = 50;
 
 -- таблица шаблонных категорий
-delete from subcategories where subcategories.id > 7;
-ALTER TABLE subcategories AUTO_INCREMENT = 7;
+delete from subcategories where subcategories.id > 9;
+ALTER TABLE subcategories AUTO_INCREMENT = 9;
 
 -- таблица атрибутов товаров по категориям
 delete from attributes_categories where attributes_categories.id > 0;
@@ -37,11 +37,21 @@ ALTER TABLE products AUTO_INCREMENT = 1;
 delete from verification_tokens where verification_tokens.id > 0;
 ALTER TABLE verification_tokens AUTO_INCREMENT = 0;
 
-delete from users_passwords where users_passwords.id > 11;
-ALTER TABLE users_passwords AUTO_INCREMENT = 11;
+delete from baskets_products_variants where baskets_products_variants.id > 35;
+ALTER TABLE baskets_products_variants AUTO_INCREMENT = 35;
 
-delete from users where users.id > 11;
-ALTER TABLE users AUTO_INCREMENT = 11;
+delete from baskets where baskets.id > 9;
+ALTER TABLE baskets AUTO_INCREMENT = 9;
+
+delete from refresh_tokens where refresh_tokens.id > 14;
+ALTER TABLE refresh_tokens AUTO_INCREMENT = 14;
+
+delete from users_passwords where users_passwords.id > 14;
+ALTER TABLE users_passwords AUTO_INCREMENT = 14;
+
+delete from users where users.id > 14;
+ALTER TABLE users AUTO_INCREMENT = 14;
+
 
 
 --
@@ -68,12 +78,12 @@ delete from categories_views where categories_views.id > 7;
 ALTER TABLE categories_views AUTO_INCREMENT = 7;
 
 -- Очистка таблицы с корзинами и вариантами товаров
-delete from baskets_products_variants where baskets_products_variants.id > 12;
-ALTER TABLE baskets_products_variants AUTO_INCREMENT = 12;
+delete from baskets_products_variants where baskets_products_variants.id > 28;
+ALTER TABLE baskets_products_variants AUTO_INCREMENT = 28;
 
 -- Очистка таблицы корзин
-delete from baskets where baskets.id > 6;
-ALTER TABLE baskets AUTO_INCREMENT = 6;
+delete from baskets where baskets.id > 7;
+ALTER TABLE baskets AUTO_INCREMENT = 7;
 
 -- Очистка таблицы с корзинами и вариантами товаров
 delete from orders_products_variants where orders_products_variants.id > 0;

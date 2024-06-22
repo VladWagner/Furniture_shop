@@ -1,8 +1,7 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.domain.entities.products.Product;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import org.springframework.data.domain.Page;

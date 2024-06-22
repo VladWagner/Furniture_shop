@@ -7,11 +7,11 @@ import gp.wagner.backend.domain.dto.response.categories.CategoryBreadcrumbsDto;
 import gp.wagner.backend.domain.dto.response.categories.CategoryDtoWithChildren;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
 import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.visits.CategoryViews;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductImage;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.visits.CategoryViews;
 import gp.wagner.backend.middleware.Services;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -74,7 +74,7 @@ public class ControllerUtils {
             return;
 
         //Загрузить новый файл thumb и убрать все приставки "URL=" из адреса -
-        String fileUri = Utils.cleanUrl(Services.fileManageService.saveFile(loadFileName, multipartFile, ids.categoryId(), ids.productId()).toString());
+        String fileUri = Utils.cleanUrl(Services.fileManageService.saveProductImgFile(loadFileName, multipartFile, ids.categoryId(), ids.productId()).toString());
 
         if (productImages.size() > 0) {
 

@@ -1,0 +1,122 @@
+
+.modal-overlay{
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    /*display: grid;
+    place-items: center;*/
+    z-index: 1000;
+
+    opacity: 0;
+    transition: 0.4s all;
+    pointer-events: none;
+    overflow-y: auto;
+    padding: 60px 15px;
+}
+
+.modal-overlay.active{
+    opacity: 1;
+    pointer-events: all;
+}
+
+.modal-container{
+    padding: 20px 0;
+    background: white;
+    border-radius: 2px;
+    /*display: inline-block;*/
+    position: relative;
+    text-transform: initial;
+    width: 60vw;
+
+    margin: 0 auto;
+
+    z-index: 1;
+
+}
+
+@media (max-width: 700px){
+    /*.modal-container{
+        width: 80%!important;
+    }*/
+    .modal-container{
+        width: 90vw;
+    }
+}
+
+@media (min-width: 1024px) and (max-width: 1350px){
+    .modal-container{
+        width: 50vw;
+    }
+}
+@media (min-width: 1351px){
+    .modal-container{
+        width: 40vw;
+    }
+}
+
+/*@media (max-height: 750px) {
+    .modal-container{
+        top: -2rem!important;
+    }
+}*/
+.modal-close-btn-container{
+    right: -42px;
+    position: absolute;
+    top: -1px;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-close-btn{
+
+    font-size: 17px;
+
+    cursor: pointer;
+    padding: 5px;
+
+    height: 32px;
+    width: 32px;
+
+    background: rgba(128, 128, 128, 0.61);
+    border-radius: 3px;
+    color: white;
+}
+
+.modal-close-btn:hover{
+    background: rgb(105, 105, 105);
+}
+
+.modal-close-btn-container > span{
+    font-size: 10px;
+    margin-top: 5px;
+    color: #aba9a9;
+    text-align: center;
+    text-transform: initial;
+}
+
+/*Для телефонов отключить надпись esc*/
+@media only screen and (hover: none) and (pointer: coarse){
+    .modal-close-btn-container > span{
+        display: none;
+    }
+
+    .modal-close-btn-container {
+        right: 0;
+        position: absolute;
+        top: -39px;
+    }
+
+}
+
+.modal-header{
+    padding: 20px 30px 12px;
+    margin: 0 0 20px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}

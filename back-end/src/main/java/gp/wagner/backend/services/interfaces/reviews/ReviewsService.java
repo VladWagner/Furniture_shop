@@ -1,10 +1,8 @@
 package gp.wagner.backend.services.interfaces.reviews;
 
 import gp.wagner.backend.domain.dto.request.crud.reviews.ReviewRequestDto;
-import gp.wagner.backend.domain.entites.ratings.Rating;
-import gp.wagner.backend.domain.entites.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.Review;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.RatingsSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ReviewsSortEnum;
 import org.springframework.data.domain.Page;
 

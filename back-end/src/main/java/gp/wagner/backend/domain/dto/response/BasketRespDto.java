@@ -1,8 +1,8 @@
 package gp.wagner.backend.domain.dto.response;
 
 import gp.wagner.backend.domain.dto.response.product_variants.ProductVariantPreviewRespDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
+import gp.wagner.backend.domain.entities.baskets.Basket;
+import gp.wagner.backend.domain.entities.baskets.BasketAndProductVariant;
 import gp.wagner.backend.infrastructure.Utils;
 import lombok.AllArgsConstructor;
 import lombok.Data;

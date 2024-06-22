@@ -1,0 +1,43 @@
+.btn-submit-auth-form.registration-form {
+  font-size: 15px;
+  text-transform: initial;
+}
+
+.btn-submit-auth-form:hover{
+  background: #f5db3a;
+}
+
+.btn-submit-auth-form:active{
+  webkit-transform: scale(0.9);
+  transform: scale(0.9);
+}
+
+.forgot-password{
+  margin-left: auto;
+  text-decoration: underline;
+  color: #7b92ce;
+}
+
+
+
+.form-response-await-animation svg{
+  width: 70px;
+}
+
+.form-response-await-animation svg > circle{
+  r: 25px;
+  stroke: #F6D300;
+  fill: #F6D300;
+}
+
+/*.modal-container{
+  margin-top: 20%;
+}
+
+@media (min-width: 751px) and (max-width: 900px){
+  .modal-container{
+    margin-top: auto;
+  }
+
+}*/
+

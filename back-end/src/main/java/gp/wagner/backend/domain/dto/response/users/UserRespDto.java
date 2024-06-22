@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.users;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,7 +23,7 @@ public class UserRespDto {
     private String userLogin;
 
     // Имя пользователя
-    private String name = "";
+    private String name;
 
     private String email;
 

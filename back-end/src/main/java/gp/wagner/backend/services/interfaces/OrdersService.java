@@ -2,10 +2,10 @@ package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.entites.orders.PaymentMethod;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entities.orders.PaymentMethod;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersSortEnum;

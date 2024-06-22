@@ -1,11 +1,8 @@
 package gp.wagner.backend.repositories.products;
 
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.infrastructure.SimpleTuple;
+import gp.wagner.backend.domain.entities.products.Product;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;

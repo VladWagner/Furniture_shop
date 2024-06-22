@@ -1,19 +1,15 @@
 package gp.wagner.backend.domain.dto.response.product_attributes;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
 import jakarta.annotation.Nullable;
 import lombok.*;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 // DTO для возврата атрибута товара
 @Data

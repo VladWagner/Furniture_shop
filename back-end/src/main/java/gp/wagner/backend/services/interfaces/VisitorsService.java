@@ -1,11 +1,8 @@
 package gp.wagner.backend.services.interfaces;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import org.springframework.boot.context.properties.bind.DefaultValue;
-import org.springframework.boot.context.properties.bind.Name;
 
-import javax.xml.crypto.Data;
 import java.util.Date;
 import java.util.List;
 

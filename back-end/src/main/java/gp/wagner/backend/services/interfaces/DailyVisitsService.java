@@ -1,14 +1,11 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
-import gp.wagner.backend.domain.entites.visits.DailyVisits;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.visits.DailyVisits;
 import jakarta.persistence.Tuple;
-import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.data.domain.Page;
 
 import java.util.Date;
-import java.util.List;
 
 
 public interface DailyVisitsService {

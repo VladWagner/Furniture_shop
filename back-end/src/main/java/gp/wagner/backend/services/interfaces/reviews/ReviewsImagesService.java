@@ -1,7 +1,7 @@
 package gp.wagner.backend.services.interfaces.reviews;
 
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.reviews.ReviewImage;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.ReviewImage;
 
 import java.util.List;
 import java.util.Optional;

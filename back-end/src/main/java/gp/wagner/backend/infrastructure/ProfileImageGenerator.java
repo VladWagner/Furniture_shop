@@ -9,8 +9,8 @@ public class ProfileImageGenerator {
 
     static {
         colors = new Color[]{
-          Color.PINK,
           new Color(187,173,237,255),
+          Color.PINK,
           new Color(143,193,230,255)
         };
     }

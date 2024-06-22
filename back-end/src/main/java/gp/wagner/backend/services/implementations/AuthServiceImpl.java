@@ -2,11 +2,10 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.auth.AuthDto;
 import gp.wagner.backend.domain.dto.response.JwtRespDto;
-import gp.wagner.backend.domain.entites.tokens.RefreshToken;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.tokens.RefreshToken;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ServicesUtils;
-import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.tokens.RefreshTokensRepository;
@@ -20,8 +19,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class AuthServiceImpl implements AuthService {

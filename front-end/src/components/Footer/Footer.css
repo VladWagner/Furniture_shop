@@ -1,0 +1,16 @@
+.sticked_to_bottom {
+  margin: auto 0 0 0;
+  width: 100%;
+}
+
+.minVh10{
+  min-height: 10vh;
+}
+
+.bg_dark{
+  background-color: #ffffff;
+}
+
+.footer-text{
+  color: #333333;
+}

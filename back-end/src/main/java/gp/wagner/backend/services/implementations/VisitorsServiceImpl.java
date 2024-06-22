@@ -1,7 +1,6 @@
 package gp.wagner.backend.services.implementations;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.repositories.VisitorsRepository;
 import gp.wagner.backend.services.interfaces.VisitorsService;
@@ -10,7 +9,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.bind.DefaultValue;

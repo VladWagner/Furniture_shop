@@ -1,6 +1,6 @@
 package gp.wagner.backend.domain.dto.response.products;
 
-import gp.wagner.backend.domain.entites.products.ProductImage;
+import gp.wagner.backend.domain.entities.products.ProductImage;
 import jakarta.annotation.Nullable;
 import lombok.*;
 

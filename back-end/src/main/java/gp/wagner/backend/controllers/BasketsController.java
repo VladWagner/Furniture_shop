@@ -3,17 +3,16 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.crud.BasketRequestDto;
 import gp.wagner.backend.domain.dto.response.BasketRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
+import gp.wagner.backend.domain.entities.baskets.Basket;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -84,40 +83,48 @@ public class BasketsController {
 
     //Добавление корзины конкретному пользователю
     @PostMapping()
-    public ResponseEntity<String> createBasket(@Valid /*@RequestPart(value = "basket")*/@RequestBody BasketRequestDto basketRequestDto){
+    public ResponseEntity<BasketRespDto> createBasket(@Valid @RequestBody BasketRequestDto basketRequestDto){
 
-        long createdBasketId;
+        Basket createdBasket = Services.basketsService.create(basketRequestDto);
 
-        try {
+        if (createdBasket == null)
+            throw new ApiException("Не удалось создать корзину!");
 
-            createdBasketId = Services.basketsService.create(basketRequestDto);
+        //return new ResponseEntity<>(String.format("Корзина c id: %d успешно создана!", createdBasketId), HttpStatusCode.valueOf(200)) ;
+        return ResponseEntity.ok(new BasketRespDto(createdBasket)) ;
+    }
 
-         } catch (Exception e) {
-            throw new ApiException(e.getMessage());
-        }
+    // Обновление корзины конкретному пользователю
+    @PutMapping("/update")
+    public ResponseEntity<?> updateBasket(@Valid @RequestBody BasketRequestDto basketRequestDto,
+                                                      @RequestParam(value = "return_basket", required = false, defaultValue = "true") boolean returnBasket){
 
-        return new ResponseEntity<>(String.format("Корзина c id: %d успешно создана!", createdBasketId), HttpStatusCode.valueOf(200)) ;
+        Basket createdBasket = Services.basketsService.updateOrCreate(basketRequestDto);
+
+        if (createdBasket == null)
+            throw new ApiException("Не удалось создать корзину!");
+
+        return returnBasket ? ResponseEntity.ok(new BasketRespDto(createdBasket)) : ResponseEntity.ok("Basket successfully updatedd");
     }
 
     //Добавление ещё товаров в корзину
     @PutMapping(value = "/add_product_variants", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> addProductVariants(@Valid @RequestBody() BasketRequestDto basketRequestDto){
+    public ResponseEntity<BasketRespDto> addProductVariants(@Valid @RequestBody() BasketRequestDto basketRequestDto){
 
-        try {
+        // Изменить логику работы с пользователем - получать пользователя из SecurityContext
+        Basket updatedBasket = Services.basketsService.insertProductVariants(basketRequestDto);
 
-            // Изменить логику работы с пользователем - получать пользователя из SecurityContext
-            Services.basketsService.insertProductVariants(basketRequestDto);
+        if (updatedBasket == null)
+            throw new ApiException("Не удалось добавить варианты корзину!");
 
-         } catch (Exception e) {
-            throw new ApiException(e.getMessage());
-        }
 
-        return new ResponseEntity<>(String.format("Варианты товаров добавлены в корзину c id: %d!", basketRequestDto.getId()), HttpStatusCode.valueOf(200)) ;
+        //return new ResponseEntity<>(String.format("Варианты товаров добавлены в корзину c id: %d!", basketRequestDto.getId()), HttpStatusCode.valueOf(200)) ;
+        return ResponseEntity.ok(new BasketRespDto(updatedBasket)) ;
     }
 
-    //Удаление записей из корзины для определённого пользователя и варианта товара
-    @DeleteMapping(value = "/delete_pv")
-    public ResponseEntity<String> deleteProductVariantFromBasket(@RequestParam("user_id") int userId,
+    //Удаление записей из корзины для определённого пользователя и варианта товара (только админ/модератор)
+    @DeleteMapping(value = "/delete_pv_admin")
+    public ResponseEntity<String> deleteProductVariantFromBasketAdmin(@RequestParam("user_id") int userId,
                                                                  @RequestParam("product_variant_id") long productVariantId){
 
         long deletedId = Services.basketsService.deleteBasketByUserAndProdVariant(userId, productVariantId);
@@ -127,6 +134,35 @@ public class BasketsController {
         else
             return new ResponseEntity<>(String.format("Корзину для пользователя %d и товара %d найти не удалось! Basket not found!", userId, productVariantId), HttpStatusCode.valueOf(500));
 
+    }
+
+    // Удаление записей из корзины для определённого пользователя и варианта товара. Пользователь определяется по access_token
+    @DeleteMapping(value = "/delete_pv")
+    public ResponseEntity<BasketRespDto> deleteProductVariantFromBasket(@RequestParam("product_variant_id") long productVariantId){
+
+        Basket changedBasket = Services.basketsService.deleteBasketByAuthUserAndProdVariant(productVariantId);
+
+
+        if (changedBasket == null)
+            throw new ApiException(String.format("Удалить вариант товара с id: %d не удалось!", productVariantId));
+
+        return ResponseEntity.ok(new BasketRespDto(changedBasket));
+    }
+
+
+    // Изменить кол-во единиц определённого варианта товара
+    @PutMapping(value = "/change_counter", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BasketRespDto> updateProductVariantCounter(@RequestParam("product_variant_id") long pvId,
+                                                           @RequestParam("count") int count){
+
+        Basket basket = Services.basketsService.updateProductVariantCounter(pvId, count);
+
+        if (basket == null)
+            throw new ApiException(String.format("Изменить счётчик в корзине для варианта товара с id: %d не удалось!", pvId));
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(new BasketRespDto(basket));
     }
 
 }

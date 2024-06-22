@@ -3,11 +3,10 @@ package gp.wagner.backend.domain.dto.response.filters;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import gp.wagner.backend.domain.dto.response.users.RoleRespDto;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import jakarta.annotation.Nullable;
 import lombok.*;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;

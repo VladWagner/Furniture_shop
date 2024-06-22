@@ -1,18 +1,14 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.DiscountRequestDto;
-import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.products.Discount;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.infrastructure.enums.sorting.DiscountsSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.orders.OrdersStatisticsSortEnum;
 import org.springframework.data.domain.Page;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import java.util.List;
 

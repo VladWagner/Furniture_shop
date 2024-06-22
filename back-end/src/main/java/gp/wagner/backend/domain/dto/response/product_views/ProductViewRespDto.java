@@ -1,19 +1,15 @@
 package gp.wagner.backend.domain.dto.response.product_views;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
-import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.visits.ProductViews;
-import jakarta.annotation.Nullable;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.products.Producer;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.visits.ProductViews;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.List;
 
 //Объект передачи и вывода товара в списке товаров в виде карточки
 @Getter

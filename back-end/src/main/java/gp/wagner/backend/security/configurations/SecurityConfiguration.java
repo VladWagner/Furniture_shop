@@ -32,6 +32,9 @@ public class SecurityConfiguration {
     @Qualifier("handlerExceptionResolver")
     private HandlerExceptionResolver exceptionResolver;
 
+    @Autowired
+    private CorsConfig corsConfig;
+
     // Список маршрутов, для которых авторизация не нужна
     private static final String[] WHITE_LIST = new String[]{
             "/api/auth/*",
@@ -50,13 +53,15 @@ public class SecurityConfiguration {
             "/api/products_reviews/by_product",
             "/api/product_variants/**",
 
-            "/api/categories/**",
+            "/api/categories/",
+            "/api/categories/get_all_with_repeating",
+            "/api/categories/get_tree",
+            "/api/categories/breadcrumbs/**",
 
             "/api/producers",
             "/api/producers/all",
             "/api/products_ratings/**",
-            "/api/filter/**",
-            ""
+            "/api/filter/**"
     };
 
     @Bean
@@ -70,11 +75,11 @@ public class SecurityConfiguration {
         return new UserDetailsServiceImpl();
     }
 
-    // Для разработки временно отключить требование авторизации для всех запросов
+    // Задать ограничения доступа на маршруты
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        http.cors(Customizer.withDefaults())
+        http.cors(cors -> cors.configurationSource(corsConfig.corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
@@ -104,6 +109,7 @@ public class SecurityConfiguration {
 
                                         .requestMatchers("/api/discounts/**").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
 
+                                        .requestMatchers(POST,"/api/categories").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
                                         .requestMatchers(POST,"/api/categories/**").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
                                         .requestMatchers(PUT,"/api/categories/**").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
                                         .requestMatchers(DELETE,"/api/categories/**").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
@@ -119,8 +125,8 @@ public class SecurityConfiguration {
 
                                         .requestMatchers("/api/products_ratings/all").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
 
-                                        .requestMatchers("/api/stat/daily_visits/**", "/api/stat/daily_visits").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
                                         .requestMatchers("/api/stat/daily_visits/increase_counter").permitAll()
+                                        .requestMatchers("/api/stat/daily_visits/**", "/api/stat/daily_visits").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
 
                                         .requestMatchers("/api/orders").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())
                                         .requestMatchers("/api/orders/create_payment_method", "/api/orders/get_all_customers").hasAnyAuthority(ADMIN.getRoleName(), EDITOR.getRoleName())

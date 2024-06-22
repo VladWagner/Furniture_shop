@@ -1,14 +1,14 @@
 package gp.wagner.backend.domain.exceptions.classes;
 
 import gp.wagner.backend.infrastructure.Utils;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 
 import java.nio.charset.StandardCharsets;
 
 public class JwtValidationException extends RuntimeException {
 
     private final int errorType;
+
+    private final static int tokenNotValidStatus = 442;
 
     public JwtValidationException(String message) {
 
@@ -17,7 +17,8 @@ public class JwtValidationException extends RuntimeException {
                 message :
                 new String(message.getBytes(StandardCharsets.UTF_8)));
 
-        errorType = 444;
+        // Если токен просрочен, тогда 444, в остальных случая - 442
+        errorType = message.contains("JWT expired") ? 444 : tokenNotValidStatus;
     }
 
     /*public HttpStatusCode getErrorType() {
@@ -25,5 +26,9 @@ public class JwtValidationException extends RuntimeException {
     }*/
     public int getErrorType() {
         return errorType;
+    }
+
+    public static int getTokenNotValidStatus() {
+        return tokenNotValidStatus;
     }
 }

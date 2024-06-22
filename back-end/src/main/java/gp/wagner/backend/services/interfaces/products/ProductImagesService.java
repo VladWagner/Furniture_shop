@@ -1,8 +1,6 @@
 package gp.wagner.backend.services.interfaces.products;
 
-import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import org.springframework.data.jpa.repository.Query;
+import gp.wagner.backend.domain.entities.products.ProductImage;
 
 import java.util.List;
 

@@ -1,11 +1,8 @@
 package gp.wagner.backend.domain.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.orders.PaymentMethod;
-import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.domain.entities.orders.PaymentMethod;
 import lombok.*;
-
-import java.util.Date;
 
 //Объект для добавления производителя
 @Data

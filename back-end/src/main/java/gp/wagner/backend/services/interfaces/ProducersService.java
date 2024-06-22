@@ -1,10 +1,9 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
-import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.domain.entities.products.Producer;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ProducersSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.ProductsSortEnum;
 import org.springframework.data.domain.Page;
 
 import java.util.List;

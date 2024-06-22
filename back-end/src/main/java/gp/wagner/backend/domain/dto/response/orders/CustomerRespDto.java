@@ -2,7 +2,7 @@ package gp.wagner.backend.domain.dto.response.orders;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.orders.Customer;
+import gp.wagner.backend.domain.entities.orders.Customer;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Tuple;
 import lombok.AllArgsConstructor;

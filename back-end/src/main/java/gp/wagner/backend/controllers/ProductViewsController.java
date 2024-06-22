@@ -1,10 +1,9 @@
 package gp.wagner.backend.controllers;
 
 import gp.wagner.backend.domain.dto.response.PageDto;
-import gp.wagner.backend.domain.dto.response.VisitorRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
 import gp.wagner.backend.domain.dto.response.product_views.VisitorAndProductViewRespDto;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.SimpleTuple;

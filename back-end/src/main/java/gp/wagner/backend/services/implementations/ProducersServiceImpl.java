@@ -1,7 +1,7 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
-import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.domain.entities.products.Producer;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.SortingUtils;
@@ -46,7 +46,7 @@ public class ProducersServiceImpl implements ProducersService {
             throw new ApiException("Не получилось создать объект Producer. Dto задан некорректно!");
 
         Producer producer = new Producer(null, dto.getProducerName(), null, null, dto.getIsShown(),
-                imageUri.isEmpty() ? Constants.EMPTY_IMAGE.toString() : imageUri);
+                imageUri.isEmpty() ? /*Constants.EMPTY_IMAGE.toString()*/Services.fileManageService.getFilesPaths().emptyImagePath().toString() : imageUri);
 
         return producersRepository.saveAndFlush(producer);
 
@@ -93,7 +93,7 @@ public class ProducersServiceImpl implements ProducersService {
         foundProducer.setProducerName(dto.getProducerName());
         foundProducer.setIsShown(dto.getIsShown());
         foundProducer.setDeletedAt(dto.getDeleted() ? new Date() : foundProducer.getDeletedAt());
-        foundProducer.setProducerLogo(imageUri.isEmpty() ? foundProducer.getProducerLogo() : imageUri);
+        foundProducer.setProducerLogo(imageUri == null || imageUri.isBlank() ? foundProducer.getProducerLogo() : imageUri);
 
         producersRepository.saveAndFlush(foundProducer);
 

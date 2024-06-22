@@ -1,6 +1,6 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
 import jakarta.persistence.Tuple;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

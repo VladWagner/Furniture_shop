@@ -4,9 +4,12 @@ import gp.wagner.backend.domain.dto.request.auth.AuthDto;
 import gp.wagner.backend.domain.dto.request.auth.JwtRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.response.JwtRespDto;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.exceptions.classes.JwtValidationException;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
+import io.jsonwebtoken.Jwt;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -17,7 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Objects;
+import java.util.*;
 
 @RestController
 @RequestMapping(value = "/api/auth")
@@ -59,7 +62,8 @@ public class AuthController {
     @GetMapping(value = "/get_access_token")
     public ResponseEntity<?> getAccessToken(HttpServletRequest request) {
 
-        JwtRespDto respDto = Services.authService.getAccessToken(Utils.readCookie(request, "refresh_token"));
+        //JwtRespDto respDto = Services.authService.getAccessToken(Utils.readCookie(request, "refresh_token"));
+        JwtRespDto respDto = Services.authService.getAccessToken(Utils.readHeader(request, "refresh_token"));
 
         return ResponseEntity.ok(respDto);
     }
@@ -97,6 +101,24 @@ public class AuthController {
         return ResponseEntity
                 .status(isLoggedOut ? HttpStatus.OK : HttpStatus.NOT_MODIFIED)
                 .body(String.format("Выход произошел %s", isLoggedOut ? "успешно" : "неудачно"));
+    }
+
+    // Валидация refresh-токена
+    @GetMapping(value = "/validate_refresh_token")
+    public ResponseEntity<?> validateRefreshToken(HttpServletRequest request) {
+
+        String token = Utils.readHeader(request, "refresh_token");
+
+        // Корректен ли переданный токен
+        if (token == null || token.isBlank())
+            return ResponseEntity
+                    .status(JwtValidationException.getTokenNotValidStatus())
+                    .body("Переданный токен не корректен");
+
+        boolean tokenIsValid = Services.jwtService.validateRefreshToken(token);
+
+        return tokenIsValid ? ResponseEntity.ok("Refresh token is valid") :
+                ResponseEntity.status(JwtValidationException.getTokenNotValidStatus()).body("");
     }
 
 }

@@ -3,12 +3,11 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.crud.ProducerRequestDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.ProducerRespDto;
-import gp.wagner.backend.domain.entites.products.Producer;
+import gp.wagner.backend.domain.entities.products.Producer;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ProducersSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.ReviewsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.validation.producer_request_dto.exceptions.ProducerDisclosureException;
 import jakarta.validation.Valid;
@@ -54,7 +53,7 @@ public class ProducersController {
         if (file != null && !file.isEmpty()) {
             String logoFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 
-            logoFileName = Utils.cleanUrl(Services.fileManageService.saveProducerOrCategoryThumb(logoFileName, file, null, createdProducer.getId()).toString());
+            logoFileName = Utils.cleanUrl(Services.fileManageService.saveProducerThumb(logoFileName, file, createdProducer.getId()).toString());
 
 
             createdProducer.setProducerLogo(logoFileName);
@@ -64,12 +63,12 @@ public class ProducersController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(createdProducer.getId());
+                .body(new ProducerRespDto(createdProducer));
     }
 
     // Изменение производителя
     @PutMapping(value = "/update_producer")
-    public ResponseEntity<?> updateProducer(@Valid @RequestPart(value = "producer") ProducerRequestDto dto,
+    public ResponseEntity<ProducerRespDto> updateProducer(@Valid @RequestPart(value = "producer") ProducerRequestDto dto,
                                             @RequestPart(value = "logo", required = false) MultipartFile file) throws IOException {
 
         Producer foundProduct = Services.producersService.getById(dto.getId());
@@ -80,7 +79,7 @@ public class ProducersController {
             String logoFileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
 
             logoFileUri = Utils
-                    .cleanUrl(Services.fileManageService.saveProducerOrCategoryThumb(logoFileName, file, null, foundProduct.getId()).toString());
+                    .cleanUrl(Services.fileManageService.saveProducerThumb(logoFileName, file, foundProduct.getId()).toString());
 
         }
 
@@ -88,7 +87,7 @@ public class ProducersController {
 
         return ResponseEntity
                 .status(HttpStatus.OK)
-                .body(foundProduct.getId());
+                .body(new ProducerRespDto(foundProduct));
 
     }
 

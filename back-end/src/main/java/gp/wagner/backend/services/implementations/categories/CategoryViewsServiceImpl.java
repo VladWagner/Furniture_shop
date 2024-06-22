@@ -1,8 +1,8 @@
 package gp.wagner.backend.services.implementations.categories;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.visits.CategoryViews;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.visits.CategoryViews;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;

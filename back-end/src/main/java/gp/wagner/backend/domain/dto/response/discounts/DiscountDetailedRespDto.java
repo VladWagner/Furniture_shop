@@ -1,8 +1,8 @@
 package gp.wagner.backend.domain.dto.response.discounts;
 
 import gp.wagner.backend.domain.dto.response.products.SimpleProductRespDto;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Discount;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import jakarta.persistence.Column;
 import lombok.*;
 

@@ -1,7 +1,6 @@
 package gp.wagner.backend.services.implementations;
 
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.exceptions.classes.ApiException;
+import gp.wagner.backend.domain.entities.orders.Order;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.services.interfaces.EmailService;
 import jakarta.mail.MessagingException;
@@ -74,9 +73,9 @@ public class EmailServiceImpl implements EmailService {
         helper.setSubject(String.format("Подтверждение почты для пользователя %s", userLogin));
         String content = String.format("""
                 <p>Для подтверждение перейдите по ссылке ниже ↓:</p>
-                <a href='http://localhost:8080/confirm?token=%1$s'>Подтвердить аккаунт</a>
+                <a href='%2$s/confirm?token=%1$s'>Подтвердить аккаунт</a>
                 <p>Токен: <b>%1$s</b></p>
-                """, token);
+                """, token, env.getProperty("spring.frontend-domain"));
         helper.setText(content, true);
 
         mailSender.send(passwordResetMail);

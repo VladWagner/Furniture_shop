@@ -5,9 +5,9 @@ import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDto;
 import gp.wagner.backend.domain.dto.request.crud.product.ProductImageDtoContainer;
 import gp.wagner.backend.domain.dto.response.product_variants.ProductVariantDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.product_variants.ProductVariantPreviewRespDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductImage;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.Utils;
@@ -74,6 +74,21 @@ public class ProductVariantsController {
         return new ProductVariantDetailsRespDto(productVariant);
     }
 
+
+    //Получить варианты по списку id
+
+    @GetMapping(value = "/variant_by_ids_list", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Collection<ProductVariantPreviewRespDto> getProductVariantsByIdsList(@RequestParam("ids_list") List<Long> productVariantIds) {
+
+        if (productVariantIds == null)
+            throw new ApiException("Id варианта товара задан некорректно!");
+
+        List<ProductVariant> productVariants = Services.productVariantsService.getByIdsList(productVariantIds);
+
+        return productVariants.stream()
+                .map(ProductVariantPreviewRespDto::new).toList();
+    }
+
     //Добавить вариант товара
     @PostMapping()
     public String createProductVariant(@Valid @RequestPart(value = "product_variant") ProductVariantDto productVariantDto,
@@ -98,7 +113,7 @@ public class ProductVariantsController {
                 //Добавить путь файла в список uri, который будет писаться в БД
                 filesUris.add(
                         Utils.cleanUrl(
-                                Services.fileManageService.saveFile(fileName, file, product.getCategory().getId(), productVariantDto.getProductId()).toString())
+                                Services.fileManageService.saveProductImgFile(fileName, file, product.getCategory().getId(), productVariantDto.getProductId()).toString())
                 );
             }
 
@@ -196,7 +211,7 @@ public class ProductVariantsController {
                 continue;
             }
 
-            //Найти изображение с заданным порядковым номером (если такового нет, то добавляем)
+            //Найти изображение с заданным порядковым номером (если такового нет, то добавляем).
             //То есть порядковый номер в данном случае выступает в роли идентификатора изображения
             Optional<ProductImage> productImageOptional = productImages.size() > 0 ? productImages.stream()
                     .filter(pi -> pi.getImgOrder() == imageDto.getImgOrder())
@@ -204,7 +219,7 @@ public class ProductVariantsController {
             ProductImage productImage = productImageOptional.orElse(null);
 
             //Загрузить изображение в папку, получив URL загруженного изображения
-            String fileUri = Utils.cleanUrl(Services.fileManageService.saveFile(fileName,
+            String fileUri = Utils.cleanUrl(Services.fileManageService.saveProductImgFile(fileName,
                     file, product.getCategory().getId(),
                     pvDto.getProductId()).toString()
             );

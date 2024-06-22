@@ -3,7 +3,7 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.crud.ProductAttributeRequestDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.product_attributes.ProductAttributeRespDto;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;

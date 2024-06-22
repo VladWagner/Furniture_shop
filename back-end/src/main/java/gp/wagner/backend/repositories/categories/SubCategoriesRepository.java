@@ -1,7 +1,6 @@
 package gp.wagner.backend.repositories.categories;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -34,7 +33,7 @@ public interface SubCategoriesRepository extends JpaRepository<RepeatingCategory
     @Query(nativeQuery = true,
             value = """
         update subcategories set
-                            sub_name = :name,
+                            sub_name = :name
         where id = :id
     """)
     void updateCategory(@Param("id") String categoryId, @Param("name") String categoryName);

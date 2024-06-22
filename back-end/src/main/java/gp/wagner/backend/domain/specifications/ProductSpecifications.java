@@ -3,13 +3,13 @@ package gp.wagner.backend.domain.specifications;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterBlock;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDto;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
+import gp.wagner.backend.domain.entities.products.Product;
 import gp.wagner.backend.infrastructure.enums.FilterOperationsEnum;
 import gp.wagner.backend.infrastructure.Utils;
 import jakarta.persistence.criteria.*;
 import org.springframework.data.jpa.domain.Specification;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import gp.wagner.backend.domain.entities.eav.AttributeValue;
 
 import java.util.ArrayList;
 import java.util.List;

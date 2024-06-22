@@ -1,7 +1,8 @@
 package gp.wagner.backend.services.implementations;
 
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.configurations.FileUploadProperties;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ProfileImageGenerator;
@@ -10,6 +11,7 @@ import gp.wagner.backend.services.interfaces.FileManageService;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.URI;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,14 +32,33 @@ import java.util.Date;
 @Service
 public class FileManageServiceImpl implements FileManageService {
 
+    private FileUploadProperties filesPaths;
+
+    @Autowired
+    public void setFilesPaths(FileUploadProperties filesPaths) {
+
+        this.filesPaths = filesPaths;
+
+        if (filesPaths.getUploadsPath() == null || filesPaths.getUploadsPath().isBlank())
+            this.filesPaths.setUploadsPath(Constants.UPLOAD_URI);
+
+    }
+
+    @Override
+    public FileUploadProperties getFilesPaths() {
+        return filesPaths;
+    }
+
     //Загрузка файла изображения товара в папку
     @Override
-    public Resource saveFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId, Long productVariantId) throws IOException {
+    public Resource savePvImgFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId, Long productVariantId) throws IOException {
 
         //Стандартный путь
         //Path newPath = Constants.UPLOAD_PATH_IMG;
 
-        StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_IMG.toString());
+        //StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_IMG.toString());
+        StringBuilder sb = new StringBuilder(filesPaths.uploadImgPath().toString());
+
         //Если задана категория, тогда добавить её в путь файла
         if (categoryId != null)
             sb.append(String.format("/%d", categoryId));
@@ -73,24 +95,24 @@ public class FileManageServiceImpl implements FileManageService {
         //Задать водяной знак
         Thumbnails.of(filePath.toFile())
                 .scale(1)
-                .watermark(Positions.CENTER_RIGHT, ImageIO.read(Constants.WATERMARK_PATH.toFile()), 0.1f) //0.3 - водяной знак будет занимать 30% картинки
+                .watermark(Positions.CENTER_RIGHT, ImageIO.read(/*Constants.WATERMARK_PATH.toFile()*/ filesPaths.watermarkPath().toFile()), 0.1f) //0.3 - водяной знак будет занимать 30% картинки
                 .toFile(filePath.toFile());
 
         return new UrlResource(filePath.toUri());
     }
 
     @Override
-    public Resource saveFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId) throws IOException {
-        return saveFile(fileName, multipartFile, categoryId, productId, null);
+    public Resource saveProductImgFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId) throws IOException {
+        return savePvImgFile(fileName, multipartFile, categoryId, productId, null);
     }
 
-    @Override
-    public Resource saveProducerOrCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, Long producerId) throws IOException {
+    public Resource saveProducerOrCategoryThumb(String fileName, MultipartFile multipartFile, Long producerId, Long categoryId, boolean isRepeatingCategory) throws IOException {
 
         if (categoryId != null && producerId != null)
             throw new ApiException("Невозможно сохранить файл для производителя и категории одновременно!");
 
-        StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_UTIL.toString());
+        //StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_UTIL.toString());
+        StringBuilder sb = new StringBuilder(filesPaths.uploadUtilsPath().toString());
 
         //Если задана категория, тогда добавить ещё один каталог
         if (categoryId != null)
@@ -111,7 +133,7 @@ public class FileManageServiceImpl implements FileManageService {
         fileName = fileName.substring(0, fileName.lastIndexOf("."));
 
         // Сформировать описание сохраняемого файла (для категории/производителя)
-        String newFileName = categoryId != null ? "category" :
+        String newFileName = categoryId != null ? (!isRepeatingCategory ? "category_m" : "category_r") :
                 producerId != null ? "producer" : "some_file";
 
         // Добавить уникальный идентификатор
@@ -130,6 +152,16 @@ public class FileManageServiceImpl implements FileManageService {
         return new UrlResource(filePath.toUri());
     }
 
+    @Override
+    public Resource saveProducerThumb(String fileName, MultipartFile multipartFile, Long producerId) throws IOException {
+        return saveProducerOrCategoryThumb(fileName, multipartFile, producerId, null, false);
+    }
+
+    @Override
+    public Resource saveCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, boolean isRepeating) throws IOException {
+        return saveProducerOrCategoryThumb(fileName, multipartFile, null, categoryId, isRepeating);
+    }
+
     //Загрузка изображения для предосмотра товара
     @Override
     public Resource saveThumbnail(String fileUri, Long categoryId, Long productId) throws IOException {
@@ -137,11 +169,13 @@ public class FileManageServiceImpl implements FileManageService {
         File file = ResourceUtils.getFile(fileUri);
 
         //Сформировать путь для записи файла
-        Path newPath = Constants.UPLOAD_PATH_THUMB;
+        //Path newPath = Constants.UPLOAD_PATH_THUMB;
+        Path newPath = filesPaths.uploadThumbsPath();
 
         //Если задана категория, тогда добавить название директивы с категорией
         if (categoryId != null)
-            newPath = Paths.get(Constants.UPLOAD_PATH_THUMB.toString(), String.format("/%s", categoryId));
+            newPath = Paths.get(filesPaths.uploadThumbsPath().toString(), String.format("/%s", categoryId));
+        //newPath = Paths.get(Constants.UPLOAD_PATH_THUMB.toString(), String.format("/%s", categoryId));
 
         //Если задан id товара, тогда добавить директиву с id товара
         if (productId != null)
@@ -177,7 +211,8 @@ public class FileManageServiceImpl implements FileManageService {
         if (userId <= 0)
             throw new ApiException("Невозможно сохранить файл для несуществующего пользователя!");
 
-        String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), userId);
+        //String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), userId);
+        String stringPath = String.format("%s/user_%d",filesPaths.uploadUsersPhotosPath(), userId);
 
         Path newPath = Paths.get(stringPath);
 
@@ -210,7 +245,8 @@ public class FileManageServiceImpl implements FileManageService {
         if (review == null)
             throw new ApiException("Невозможно сохранить файл для несуществующего отзыва!");
 
-        StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_REVIEWS.toString());
+        //StringBuilder sb = new StringBuilder(Constants.UPLOAD_PATH_REVIEWS.toString());
+        StringBuilder sb = new StringBuilder(filesPaths.uploadReviewsPath().toString());
 
         // Если в товаре задана категория, тогда добавить её в путь файла
         if (review.getProduct() != null && review.getProduct().getCategory() != null)
@@ -266,7 +302,8 @@ public class FileManageServiceImpl implements FileManageService {
 
         BufferedImage createdImg = ProfileImageGenerator.createImgWithChars(symbols);
 
-        String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), user.getId());
+        //String stringPath = String.format("%s/user_%d",Constants.UPLOAD_PATH_USERS.toString(), user.getId());
+        String stringPath = String.format("%s/user_%d",filesPaths.uploadUsersPhotosPath(), user.getId());
 
         Path path = Paths.get(stringPath);
 
@@ -274,11 +311,11 @@ public class FileManageServiceImpl implements FileManageService {
             Files.createDirectories(path);
 
 
-        String fileName = String.format("%d-%s-%d.jpeg", new Date().getTime()/*Utils.getRandom(1000, 1_000_000)*/, Constants.GENERATED_USER_IMG_CODE, user.getId());
+        String fileName = String.format("%d-%s-%d.jpeg", new Date().getTime(), Constants.GENERATED_USER_IMG_CODE, user.getId());
 
         path = path.resolve(fileName);
 
-        ImageIO.write(createdImg, "png", path.toFile());
+        ImageIO.write(createdImg, "jpeg", path.toFile());
 
         return new UrlResource(path.toUri());
     }
@@ -297,6 +334,27 @@ public class FileManageServiceImpl implements FileManageService {
 
         Files.delete(path);
 
+    }
+    @Override
+    public String renameFile(String filePath, String newName) {
+
+        if (filePath == null)
+            return null;
+
+        File file = new File(filePath);
+
+        String cleanPath = filePath.substring(filePath.lastIndexOf('/'));
+        String extension = filePath.substring(filePath.lastIndexOf('.'));
+
+        if (cleanPath.isBlank() || extension.isBlank())
+            return null;
+
+        if (newName.indexOf('/') == 0)
+            newName = newName.substring(0, 1);
+
+        String newFilePath = String.format("%s/%s.%s", cleanPath, newName, extension);
+
+        return file.renameTo(new File(newFilePath)) ? newFilePath : null;
     }
 
     @Override

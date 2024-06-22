@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.users;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import lombok.*;
 
 //Объект для добавления производителя

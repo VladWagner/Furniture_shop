@@ -46,7 +46,6 @@ public class ExceptionsHandler {
                 .build();
 
         return ResponseEntity
-                //.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .status(e.getErrorType())
                 .body(exceptionDto);
     }
@@ -59,7 +58,7 @@ public class ExceptionsHandler {
         ExceptionDto exceptionDto = ExceptionDto.getBuilder()
                 .exceptionType(JwtValidationException.class)
                 .message(e.getMessage())
-                .stackTrace(Arrays.toString(e.getStackTrace()))
+                //.stackTrace(Arrays.toString(e.getStackTrace()))
                 .build();
 
         return ResponseEntity
@@ -71,14 +70,16 @@ public class ExceptionsHandler {
     @ExceptionHandler(value = {AccessDeniedException.class})
     public ResponseEntity<ExceptionDto> handleAccessDeniedException(AccessDeniedException e){
 
+        boolean permissionsException = e.getMessage().contains("permissions");
+
         ExceptionDto exceptionDto = ExceptionDto.getBuilder()
                 .exceptionType(AccessDeniedException.class)
-                .message(String.format("У вас недостаточно прав или вы не вошли в аккаунт. %s", e.getMessage()))
-                .stackTrace(Arrays.toString(e.getStackTrace()))
+                .message(String.format("%s: %s", permissionsException ? "У вас недостаточно прав" : "Вы не вошли в аккаунт", e.getMessage()))
+                //.stackTrace(Arrays.toString(e.getStackTrace()))
                 .build();
 
         return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
+                .status(permissionsException ? 443 : HttpStatus.FORBIDDEN.value())
                 .body(exceptionDto);
     }
 
@@ -89,7 +90,7 @@ public class ExceptionsHandler {
         ExceptionDto exceptionDto = ExceptionDto.getBuilder()
                 .exceptionType(UserNotConfirmedException.class)
                 .message(e.getMessage())
-                .stackTrace(Arrays.toString(e.getStackTrace()))
+                //.stackTrace(Arrays.toString(e.getStackTrace()))
                 .build();
 
         return ResponseEntity
@@ -123,22 +124,6 @@ public class ExceptionsHandler {
                 .body(exceptionDto);
     }
 
-    /*@ExceptionHandler(value = {MethodArgumentNotValidException.class})
-    public ResponseEntity<ValidationExceptionDto> handleMethodArgumentNotValidException(MethodArgumentNotValidException e){
-
-        // Получить сообщения из результатов привязки
-        BindingResult bindingResult = e.getBindingResult();
-
-        List<Violation> violations = bindingResult.getFieldErrors()
-                .stream()
-                .map(error -> new Violation(error.getField(), error.getDefaultMessage()))
-                .toList();
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ValidationExceptionDto(violations));
-    }*/
-
     // Обработка constraint исключения связанного с валидацией
     @ExceptionHandler(value = {ConstraintViolationException.class})
     public ResponseEntity<ExceptionDto> handleConstraintViolationException(ConstraintViolationException e){
@@ -155,18 +140,5 @@ public class ExceptionsHandler {
                 .status(HttpStatus.BAD_REQUEST)
                 .body(exceptionDto);
     }
-
-    /*@ExceptionHandler(value = {ConstraintViolationException.class})
-    public ResponseEntity<?> handleConstraintViolationExceptionViolationsDto(ConstraintViolationException e){
-
-        List<Violation> violations = e.getConstraintViolations()
-                .stream()
-                .map(cv -> new Violation(cv.getPropertyPath().toString(), cv.getMessage()))
-                .toList();
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new ValidationExceptionDto(violations));
-    }*/
 
 }

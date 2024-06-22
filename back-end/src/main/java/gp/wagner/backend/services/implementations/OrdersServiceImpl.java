@@ -2,12 +2,12 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.OrderRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.OrderReportDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.*;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.orders.*;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.suppliers.OrderNotFound;
 import gp.wagner.backend.infrastructure.*;

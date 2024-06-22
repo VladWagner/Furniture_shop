@@ -1,8 +1,6 @@
 package gp.wagner.backend.repositories.tokens;
 
-import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.tokens.PasswordResetToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +9,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 
 @Repository

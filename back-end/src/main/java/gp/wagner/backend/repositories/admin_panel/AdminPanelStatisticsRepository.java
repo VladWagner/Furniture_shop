@@ -1,7 +1,6 @@
 package gp.wagner.backend.repositories.admin_panel;
 
-import gp.wagner.backend.domain.entites.visits.Visitor;
-import jakarta.annotation.Nullable;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,6 +1,6 @@
 package gp.wagner.backend.services.implementations.products;
 
-import gp.wagner.backend.domain.entites.products.ProductImage;
+import gp.wagner.backend.domain.entities.products.ProductImage;
 import gp.wagner.backend.repositories.products.ProductImagesRepository;
 import gp.wagner.backend.services.interfaces.products.ProductImagesService;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,6 +1,6 @@
 package gp.wagner.backend.security.services;
 
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.classes.JwtValidationException;
 import gp.wagner.backend.infrastructure.Utils;
@@ -12,21 +12,16 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
-import jakarta.validation.constraints.Past;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.security.Key;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class JwtService {
@@ -77,7 +72,7 @@ public class JwtService {
         // Задать роли здесь, чтобы при каждом запросе не обращаться в БД
         claims.put("roles", userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).toArray());
 
-        // Задать дату истечения срока дейстсвия токена
+        // Задать дату истечения срока действия токена
         Date now = new Date();
         Date expirationDate = new Date(now.getTime() + accessTokenLifeTimeMs);
 
@@ -150,7 +145,10 @@ public class JwtService {
 
         Claims claims = getRefreshTokenClaims(token);
 
+        // Дата истечения срока дейстия токена
         boolean isNotExpired = claims.getExpiration().after(new Date());
+
+
         boolean tokenExitsInTable = refreshTokensRepository.findByTokenAndUser(token, claims.get("user_id", Long.class)).orElse(null) != null;
 
         return isNotExpired && tokenExitsInTable;

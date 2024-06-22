@@ -1,11 +1,7 @@
 package gp.wagner.backend.services.interfaces;
 
-import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.request.crud.ProductAttributeRequestDto;
-import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import org.apache.commons.collections4.set.ListOrderedSet;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 

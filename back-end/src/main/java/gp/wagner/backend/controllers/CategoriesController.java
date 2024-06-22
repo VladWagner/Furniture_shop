@@ -6,10 +6,10 @@ import gp.wagner.backend.domain.dto.response.categories.CategoryDto;
 import gp.wagner.backend.domain.dto.response.categories.CategoryDtoWithChildren;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsDtoContainer;
 import gp.wagner.backend.domain.dto.response.category_views.CategoriesViewsWithChildrenDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.visits.CategoryViews;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.visits.CategoryViews;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
@@ -18,9 +18,11 @@ import gp.wagner.backend.middleware.Services;
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -81,7 +83,9 @@ public class CategoriesController {
     //Добавление категории
     @PostMapping()
     public ResponseEntity<Long> createCategory(@RequestPart(value = "category_name") String categoryName,
-                                               @RequestPart(value = "parent_id") @Nullable Long parentId) {
+                                               @RequestPart(value = "parent_id") @Nullable Long parentId,
+                                               @RequestPart(value = "category_img", required = false) MultipartFile file
+    ) throws Exception {
 
         if (categoryName.isEmpty() || categoryName.isBlank())
             throw new ApiException("Название категории не может быть пустым!");
@@ -90,7 +94,7 @@ public class CategoriesController {
             categoryName = new String(categoryName.getBytes(StandardCharsets.UTF_8));
 
         //long createdCategoryId = Services.categoriesService.createAndCheckRepeating(categoryName, parentId);
-        long createdCategoryId = Services.categoriesService.createAndCheckRepeating(categoryName, parentId);
+        long createdCategoryId = Services.categoriesService.createAndCheckRepeating(categoryName, parentId, file);
 
         return ResponseEntity.ok(createdCategoryId);
     }
@@ -98,9 +102,11 @@ public class CategoriesController {
 
     //Изменение категории
     @PutMapping(value = "/update")
-    public ResponseEntity<CategoryDto> updateCategory(@Valid @RequestBody CategoryRequestDto dto) {
+    public ResponseEntity<CategoryDto> updateCategory(@Valid /*@RequestBody*/ @RequestPart(value = "category") CategoryRequestDto dto,
+                                                      @RequestPart(value = "category_img", required = false) MultipartFile file
+    ) throws Exception {
 
-        Category upatedCategory = Services.categoriesService.updateAndCheckRepeating(dto);
+        Category upatedCategory = Services.categoriesService.updateAndCheckRepeating(dto, file);
 
         return ResponseEntity.ok(CategoryDto.factory(upatedCategory));
     }

@@ -1,10 +1,9 @@
 package gp.wagner.backend.services.implementations.reviews;
 
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.reviews.ReviewImage;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.ReviewImage;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.repositories.reviews.ReviewsImagesRepository;
-import gp.wagner.backend.repositories.reviews.ReviewsRepository;
 import gp.wagner.backend.services.interfaces.reviews.ReviewsImagesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

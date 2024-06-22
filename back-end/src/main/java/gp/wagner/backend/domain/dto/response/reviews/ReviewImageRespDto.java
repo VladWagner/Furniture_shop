@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.reviews;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.reviews.ReviewImage;
+import gp.wagner.backend.domain.entities.reviews.ReviewImage;
 import jakarta.annotation.Nullable;
 import lombok.*;
 

@@ -1,7 +1,7 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
-import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entities.eav.AttributeValue;
+import gp.wagner.backend.domain.entities.products.Product;
 import jakarta.annotation.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

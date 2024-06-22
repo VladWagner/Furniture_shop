@@ -1,10 +1,10 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.BasketRequestDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.baskets.Basket;
+import gp.wagner.backend.domain.entities.baskets.BasketAndProductVariant;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.ServicesUtils;
@@ -21,11 +21,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class BasketsServiceImpl implements BasketsService {
@@ -61,7 +62,7 @@ public class BasketsServiceImpl implements BasketsService {
     private UsersRepository usersRepository;
 
     @Autowired
-    public void setBasketsRepository(UsersRepository usersRepository) {
+    public void setUsersRepository(UsersRepository usersRepository) {
         this.usersRepository = usersRepository;
     }
 
@@ -81,7 +82,7 @@ public class BasketsServiceImpl implements BasketsService {
     public long create(long productVariantId, int userId, int products_count, Date addingDate) {
 
         //Basket existingBasket = findByProdVariantIdAndUserId(productVariantId, userId);
-        Basket existingBasket = ServicesUtils.findByProdVariantIdAndUserIdGeneric(productVariantId, null, userId, entityManager, Basket.class);
+        Basket existingBasket = ServicesUtils.findBasketByProdVariantIdAndUserIdGeneric(productVariantId, null, userId, entityManager, Basket.class);
 
         if (existingBasket != null)
         {
@@ -97,17 +98,17 @@ public class BasketsServiceImpl implements BasketsService {
     }
 
     @Override
-    public long create(BasketRequestDto dto) {
+    public Basket create(BasketRequestDto dto) {
 
         if (dto == null || /*dto.getUserId() == null ||*/ dto.getProductVariantIdAndCount() == null)
-            return 0;
+            return null;
 
         // Найти пользователя, для которого создаётся корзина
         //User user = dto.getUserId() != null ? usersRepository.findById(dto.getUserId()).orElse(null) : ServicesUtils.getUserFromSecurityContext(securityContext);
         User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
 
         if (user == null)
-            return 0;
+            return null;
 
         Basket basket = getByUserId(user.getId());
 
@@ -128,19 +129,20 @@ public class BasketsServiceImpl implements BasketsService {
         // Сформировать список товаров в корзине пользователя + подсчитать общую сумму в корзине
         List<BasketAndProductVariant> bpvList = addProductVariants(dto.getProductVariantIdAndCount().entrySet(), basket);
 
-        bpvRepository.saveAll(bpvList);
+        basket.setBasketAndPVList(bpvRepository.saveAll(bpvList));
 
-        return basket.getId();
+        return basket;
     }
 
     @Override
-    public void insertProductVariants(BasketRequestDto basketDto) {
+    public Basket insertProductVariants(BasketRequestDto basketDto) {
         if (basketDto.getProductVariantIdAndCount() == null)
             throw new ApiException("Варианты товаров для добавления в корзину не заданы!");
 
         // Получить id пользователя, чтобы лишний раз к БД не обращаться
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Long userId = User.class.isAssignableFrom(principal.getClass()) ? ((User) principal).getId() : ((UserDetailsImpl) principal).getUserId();
+
 
         Basket foundBasket = basketDto.getId() != null ?
                 basketsRepository.findById(basketDto.getId()).orElseThrow() :
@@ -162,19 +164,32 @@ public class BasketsServiceImpl implements BasketsService {
 
         bpvRepository.saveAll(basketAndProductVariants);
 
+        return basketsRepository.findById(foundBasket.getId()).orElse(foundBasket);
+    }
+
+    private Map<Long, ProductVariant> getProductsVariantsMapFromEntrySet(Set<Map.Entry<Long, Integer>> pvEntrySet){
+        // Получить варианты товаров
+        List<Long> pvIdsList = pvEntrySet.stream().map(Map.Entry::getKey).toList();
+        List<ProductVariant> productVariants = productVariantsRepository.findProductVariantsByIdList(pvIdsList);
+
+        // Сформировать ассоциативную коллекцию вариантов
+        return productVariants.stream().collect(Collectors.toMap(ProductVariant::getId, pv -> pv));
     }
 
     // Добавление вариантов товаров для корзины
-    private List<BasketAndProductVariant> addProductVariants(Set<Map.Entry<Integer, Integer>> pvEntry, Basket basket){
+    private List<BasketAndProductVariant> addProductVariants(Set<Map.Entry<Long, Integer>> pvEntrySet, Basket basket){
         // Сформировать список товаров в корзине пользователя + подсчитать общую сумму в корзине
         List<BasketAndProductVariant> bpvList = new LinkedList<>();
 
         int totalSum = 0;
 
+        // Сформировать ассоциативную коллекцию вариантов
+        Map<Long, ProductVariant> pvMap = getProductsVariantsMapFromEntrySet(pvEntrySet);
+
         ProductVariant productVariant;
 
-        for (Map.Entry<Integer, Integer> entry: pvEntry) {
-            productVariant = productVariantsRepository.findById(entry.getKey().longValue()).orElse(null);
+        for (Map.Entry<Long, Integer> entry: pvEntrySet) {
+            productVariant = pvMap.get(entry.getKey());
 
             if(productVariant == null)
                 continue;
@@ -186,49 +201,100 @@ public class BasketsServiceImpl implements BasketsService {
         }
 
         basket.setSum(totalSum);
-        //basket.setBasketAndPVList(bpvList);
 
         update(basket);
 
         return bpvList;
     }
 
+    // Изменение кол-ва вариантов товаров для корзины
+    @Override
+    public Basket updateProductVariantCounter(Long pvId, int pvCount){
+
+        Basket basket = getForAuthenticatedUser();
+
+        if (basket == null)
+            throw new ApiException("Корзина для пользователя не найдена!");
+
+        BasketAndProductVariant bpv = null; /*basket.getBasketAndPVList()
+                .stream()
+                .filter(e -> e.getProductVariant().getId().equals(pvId))
+                .findFirst()
+                .orElse(null);*/
+
+        int foundBpvIdx = -1;
+
+        for (int i = 0; i < basket.getBasketAndPVList().size() ; i++) {
+            if (!basket.getBasketAndPVList().get(i).getProductVariant().getId().equals(pvId))
+                continue;
+
+            foundBpvIdx = i;
+            bpv = basket.getBasketAndPVList().get(i);
+        }
+
+        if (bpv != null )
+            bpv.setProductsAmount(pvCount);
+        else if (pvCount <= 0)
+            basket.getBasketAndPVList().remove(foundBpvIdx);
+        // Если не нашли запись для нужного варианта товара, тогда добавить вариант товара в корзину и увеличить счётчик
+        else {
+
+            ProductVariant pv = productVariantsRepository.findById(pvId).orElse(null);
+
+            // Если варианта товара с таким id нет
+            if (pv == null)
+                return basket;
+
+            // Добавить запись о варианте в корзину
+            bpv = bpvRepository.saveAndFlush(new BasketAndProductVariant(null ,pv, pvCount, basket));
+            basket.getBasketAndPVList().add(bpv);
+
+        }
+
+        // Пересчитать сумму корзины
+        ServicesUtils.countSumInBasket(basket);
+
+        return basketsRepository.saveAndFlush(basket);
+    }
+
     // Добавление и редактирование вариантов товаров для корзины
-    private List<BasketAndProductVariant> addAndUpdateProductVariants(Set<Map.Entry<Integer, Integer>> pvEntry, Basket basket){
+    private List<BasketAndProductVariant> addAndUpdateProductVariants(Set<Map.Entry<Long, Integer>> pvEntrySet, Basket basket){
 
         // Если id корзины не задано, тогда это добавление вариантов товаров в новую корзину
         if (basket.getId() == null)
-            return addProductVariants(pvEntry, basket);
+            return addProductVariants(pvEntrySet, basket);
 
-        // Сформировать список товаров в корзине пользователя + подсчитать общую сумму в корзине
-        List<BasketAndProductVariant> newBpvList = new LinkedList<>();
+        // Новый список товаров в корзин
+        List<BasketAndProductVariant> newBpvList = new ArrayList<>();
 
-        // Получить список вариантов товаров для заданной корзины
-        List<BasketAndProductVariant> oldBpvList = bpvRepository.findBasketAndProductVariantsByBasketId(basket.getId());
+        // Получить список вариантов товаров для заданной корзины и сформировать из него ассоцитивную коллекцию
+        //List<BasketAndProductVariant> oldBpvList = bpvRepository.findBasketAndProductVariantsByBasketId(basket.getId());
+        Map<Long, BasketAndProductVariant> oldBpvMap = bpvRepository.findBasketAndProductVariantsByBasketId(basket.getId())
+                .stream().
+                collect(Collectors.toMap(bpv -> bpv.getProductVariant().getId(), bpv -> bpv));
+
+
+        // Сформировать ассоциативную коллекцию вариантов
+        Map<Long, ProductVariant> pvMap = getProductsVariantsMapFromEntrySet(pvEntrySet);
 
         int totalSum = basket.getSum();
 
         ProductVariant productVariant;
         BasketAndProductVariant oldBpv;
 
-        for (Map.Entry<Integer, Integer> entry: pvEntry) {
-            productVariant = productVariantsRepository.findById(entry.getKey().longValue()).orElse(null);
+        // Сформировать список товаров в корзине пользователя + подсчитать общую сумму в корзине
+        for (Map.Entry<Long, Integer> entry: pvEntrySet) {
+            productVariant = pvMap.get(entry.getKey());
 
             if(productVariant == null)
                 continue;
 
-            ProductVariant finalProductVariant = productVariant;
-
-            // Найти существующую запись таблицы м к м для варианта товара
-            oldBpv = oldBpvList.stream()
-                    .filter(bpv -> bpv.getProductVariant().getId().equals(finalProductVariant.getId()))
-                    .findFirst()
-                    .orElse(null);
+            oldBpv = oldBpvMap.get(productVariant.getId());
 
             // Сохранить/добавить вариант товара и пересчитать общую сумму
             if (oldBpv != null) {
 
-                // Используем цену со скидкой, поскольку если эта самая скидка была утс
+                // Используем цену со скидкой, поскольку если эта самая скидка была установлена, то сумма должна быть корректной
                 int oldSumPart = oldBpv.getProductsAmount() * productVariant.getPriceWithDiscount();
 
                 // Вычесть часть старой суммы для конкретного варианта товара и его количества
@@ -299,7 +365,6 @@ public class BasketsServiceImpl implements BasketsService {
 
     }
 
-
     @Override
     public void update(Basket basket) {
 
@@ -308,6 +373,93 @@ public class BasketsServiceImpl implements BasketsService {
 
         basketsRepository.saveAndFlush(basket);
 
+    }
+
+    @Override
+    @Transactional
+    public Basket updateOrCreate(BasketRequestDto basketDto) {
+
+        if (basketDto == null || basketDto.getProductVariantIdAndCount().isEmpty())
+            throw new ApiException("Не удалось изменить корзину. Dto задано некорректно!");
+
+        User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
+
+        if (user == null)
+            throw new ApiException("Не удалось изменить корзину. Пользователь не аутентифицирован");
+
+        Basket basket = getByUserId(user.getId());
+
+        if (basket == null)
+            basket = new Basket(null, user, 0);
+            //throw new ApiException("Не удалось изменить корзину. Корзина для пользователя не найдена");
+
+        // Ассоциативная hash коллекция с ключами по id bpv
+        Map<Long, BasketAndProductVariant> bpvMap = basket.getBasketAndPVList() != null ? basket.getBasketAndPVList().stream().collect(Collectors.toMap(
+                bpv -> bpv.getProductVariant().getId(),
+                bpv -> bpv,
+                (oldValue, newValue) -> oldValue,
+                HashMap::new
+        )) : new HashMap<>();
+
+        List<BasketAndProductVariant> bpvToAddOrChange = new ArrayList<>();
+        Map<Long, Integer> pvAndCountMap = new HashMap<>();
+
+        for (Map.Entry<Long, Integer> entry: basketDto.getProductVariantIdAndCount().entrySet()){
+
+            // Если у корзины уже есть такой вариант
+            if (bpvMap.containsKey(entry.getKey())){
+
+                BasketAndProductVariant foundBpv = bpvMap.get(entry.getKey());
+
+                // Если заданный вариант и его кол-во совпадают с таковыми в таблице
+                if (foundBpv.getProductsAmount() == entry.getValue() || entry.getValue() <= 0)
+                    continue;
+
+                foundBpv.setProductsAmount(entry.getValue());
+                bpvToAddOrChange.add(foundBpv);
+
+            }
+            // Если у корзины такого варианта нет, тогда добавить его
+            else {
+                /*ProductVariant pv = productVariantsRepository.findById(entry.getKey()).orElse(null);
+
+                if (pv != null)
+                    bpvToAddOrChange.add(new BasketAndProductVariant(null, pv, entry.getValue(), basket));*/
+                pvAndCountMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // Добавить объекты BasketAndPv для тех вариантов товаров, которых нет в текущей корзине
+        if (!pvAndCountMap.isEmpty()){
+            List<ProductVariant> productVariants = productVariantsRepository.findProductVariantsByIdList(pvAndCountMap.keySet().stream().toList());
+
+            if (!productVariants.isEmpty()) {
+                for (ProductVariant pv : productVariants) {
+                    bpvToAddOrChange.add(new BasketAndProductVariant(null, pv, pvAndCountMap.get(pv.getId()), basket));
+                }
+            }
+        }
+
+        // Удалить из основной map объектов BasketAndPV, все значения в map полученной из DTO, те что останутся в DTO
+        // не заданы, следовательно, были удалены на фронте
+        bpvMap.keySet().removeAll(basketDto.getProductVariantIdAndCount().keySet());
+
+        if (!bpvMap.isEmpty())
+            bpvRepository.deleteAll(bpvMap.values());
+
+        if (!bpvToAddOrChange.isEmpty())
+            bpvRepository.saveAllAndFlush(bpvToAddOrChange);
+
+        // Получить обновленную корзину
+        basket = basket.getId() != null ? basketsRepository.findById(basket.getId()).orElse(null) : basketsRepository.saveAndFlush(basket);
+
+        if (basket != null && basket.getId() != null) {
+            entityManager.refresh(basket);
+        }
+
+        ServicesUtils.countSumInBasket(basket);
+
+        return basket;
     }
 
     @Override
@@ -321,7 +473,7 @@ public class BasketsServiceImpl implements BasketsService {
     public void updateBasketsOnPvPriceChanged(ProductVariant changedPv) {
 
         // Найти корзины с текущим вариантом для изменения суммы
-        List<Basket> basketsToChange = ServicesUtils.findByProdVariantIdAndUserIdGeneric(changedPv.getId(), null, null, entityManager ,List.class);
+        List<Basket> basketsToChange = ServicesUtils.findBasketByProdVariantIdAndUserIdGeneric(changedPv.getId(), null, null, entityManager ,List.class);
 
         if (basketsToChange == null)
             return;
@@ -349,7 +501,7 @@ public class BasketsServiceImpl implements BasketsService {
         Long singlePvId = pv != null ? pv.getId() : null;
 
         // Найти корзины с текущим вариантом для пересчёта суммы
-        List<Basket> basketsToChange = ServicesUtils.findByProdVariantIdAndUserIdGeneric(singlePvId, changedPvIdsList,
+        List<Basket> basketsToChange = ServicesUtils.findBasketByProdVariantIdAndUserIdGeneric(singlePvId, changedPvIdsList,
                 null, entityManager ,List.class);
 
         if (basketsToChange == null)
@@ -379,7 +531,7 @@ public class BasketsServiceImpl implements BasketsService {
         Long singlePvId = pv != null ? pv.getId() : null;
 
         // Найти корзины с текущим вариантом для пересчёта суммы
-        List<Basket> basketsToChange = ServicesUtils.findByProdVariantIdAndUserIdGeneric(singlePvId, deletededPvIdsList,
+        List<Basket> basketsToChange = ServicesUtils.findBasketByProdVariantIdAndUserIdGeneric(singlePvId, deletededPvIdsList,
                 null, entityManager ,List.class);
 
         if (basketsToChange == null)
@@ -422,7 +574,7 @@ public class BasketsServiceImpl implements BasketsService {
     @Override
     public void recountSumsForVariants(Long pvId, List<Long> pvIdList) {
         // Найти корзины с текущим вариантом для изменения суммы
-        List<Basket> basketsToChange = ServicesUtils.findByProdVariantIdAndUserIdGeneric(pvId, pvIdList, null, entityManager , List.class);
+        List<Basket> basketsToChange = ServicesUtils.findBasketByProdVariantIdAndUserIdGeneric(pvId, pvIdList, null, entityManager , List.class);
 
         if (basketsToChange == null)
             return;
@@ -552,29 +704,40 @@ public class BasketsServiceImpl implements BasketsService {
 
         query.where(predicate);
 
-        BasketAndProductVariant bpv = entityManager.createQuery(query).getResultList().get(0);
+        List<BasketAndProductVariant> bpvList = entityManager.createQuery(query).getResultList();
 
-        //Проверить, существует ли запись для
+        BasketAndProductVariant bpv = bpvList != null && bpvList.size() > 0 ? bpvList.get(0) : null;
+
+        //Проверить, существует ли запись варианта товара
         if (bpv != null){
 
+            bpvRepository.delete(bpv);
+
+            Basket editingBasket = getByUserId(userId);
+
             // Если вариант удаляется и при этом он скрыт, тогда пересчитывать сумму не нужно, поскольку она уже была пересчитана при скрытии варианта,
-            // т.е. пользователь прост мог удалить скрытый вариант товара
             if (bpv.getProductVariant().getShowVariant()) {
-                Basket editingBasket = getByUserId(userId);
 
-                // Вычесть часть суммы корзин в виде стоимости варианта товара * кол-во товаров
-                int newSum = editingBasket.getSum() - (bpv.getProductVariant().getPrice() * bpv.getProductsAmount());
-
-                editingBasket.setSum(newSum);
+                ServicesUtils.countSumInBasket(editingBasket);
 
                 update(editingBasket);
             }
-
-            bpvRepository.delete(bpv);
 
             return bpv.getId();
         }
 
         return 0;
+    }
+
+    // Удалить определённые товары из корзины
+    @Override
+    public Basket deleteBasketByAuthUserAndProdVariant(long pvId) {
+
+        User user = ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
+
+        if (user == null)
+            throw new ApiException("Не удалось найти корзину! Пользователь не аутентифицирован.");
+
+        return deleteBasketByUserAndProdVariant(user.getId(), pvId) > 0 ? getByUserId(user.getId()) : null;
     }
 }

@@ -2,7 +2,7 @@ package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.response.filters.FilterValuesDto;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import gp.wagner.backend.domain.entities.eav.AttributeValue;
 import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.repositories.AttributeValuesRepository;

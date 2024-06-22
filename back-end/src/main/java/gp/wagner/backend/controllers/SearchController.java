@@ -3,7 +3,7 @@ package gp.wagner.backend.controllers;
 import gp.wagner.backend.domain.dto.request.filters.products.ProductFilterDtoContainer;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
-import gp.wagner.backend.domain.entites.products.Product;
+import gp.wagner.backend.domain.entities.products.Product;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;

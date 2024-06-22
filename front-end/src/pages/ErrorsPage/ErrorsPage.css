@@ -1,0 +1,25 @@
+.errors-container{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    text-transform: initial;
+}
+
+.error-message-item{
+    border-radius: 4px;
+    padding: 15px 16px 15px 16px;
+    margin-top: 10px;
+}
+.error-message-item:last-child{
+    margin-bottom: 10px;
+}
+
+.error-a{
+    background-color: rgba(235, 87, 87, 0.22);
+    color: #EB5757;
+}
+.error-b{
+    background-color: rgba(235, 183, 87, 0.1);
+    color: #ebc157;
+}

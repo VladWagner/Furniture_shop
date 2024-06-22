@@ -1,18 +1,13 @@
 package gp.wagner.backend.services.implementations;
 
-import gp.wagner.backend.domain.dto.request.crud.AttributeValueDto;
 import gp.wagner.backend.domain.dto.request.crud.ProductAttributeRequestDto;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
-import gp.wagner.backend.domain.entites.eav.ProductAttribute;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.eav.ProductAttribute;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.suppliers.ProductAttributeNotFound;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.PaginationUtils;
-import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.DailyVisitsRepository;
 import gp.wagner.backend.repositories.ProductAttributesRepository;
 import gp.wagner.backend.services.interfaces.ProductAttributesService;
 import jakarta.persistence.EntityManager;
@@ -30,7 +25,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class ProductAttributesServiceImpl implements ProductAttributesService {

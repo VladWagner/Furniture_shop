@@ -1,6 +1,6 @@
 package gp.wagner.backend.repositories.tokens;
 
-import gp.wagner.backend.domain.entites.tokens.RefreshToken;
+import gp.wagner.backend.domain.entities.tokens.RefreshToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

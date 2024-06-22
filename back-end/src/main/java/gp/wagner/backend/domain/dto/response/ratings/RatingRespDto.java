@@ -1,8 +1,8 @@
 package gp.wagner.backend.domain.dto.response.ratings;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.ratings.Rating;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.ratings.Rating;
 import gp.wagner.backend.validation.user_request_dto.annotations.ValidUserRequestDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

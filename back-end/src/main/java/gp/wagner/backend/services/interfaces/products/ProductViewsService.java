@@ -1,8 +1,6 @@
 package gp.wagner.backend.services.interfaces.products;
 
-import gp.wagner.backend.domain.dto.response.VisitorRespDto;
-import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
-import gp.wagner.backend.domain.entites.visits.ProductViews;
+import gp.wagner.backend.domain.entities.visits.ProductViews;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.enums.sorting.VisitorAndViewsSortEnum;

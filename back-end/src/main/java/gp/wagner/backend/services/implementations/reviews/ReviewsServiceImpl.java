@@ -1,19 +1,16 @@
 package gp.wagner.backend.services.implementations.reviews;
 
 import gp.wagner.backend.domain.dto.request.crud.reviews.ReviewRequestDto;
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.ratings.Rating;
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.suppliers.ReviewNotFound;
 import gp.wagner.backend.infrastructure.SortingUtils;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ReviewsSortEnum;
 import gp.wagner.backend.middleware.Services;
-import gp.wagner.backend.repositories.ratings.RatingsRepository;
 import gp.wagner.backend.repositories.reviews.ReviewsRepository;
 import gp.wagner.backend.services.interfaces.reviews.ReviewsService;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -5,12 +5,12 @@ import gp.wagner.backend.domain.dto.request.crud.user.PasswordUpdateRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
-import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
-import gp.wagner.backend.domain.entites.tokens.VerificationToken;
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.users.UserPassword;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.orders.Customer;
+import gp.wagner.backend.domain.entities.tokens.PasswordResetToken;
+import gp.wagner.backend.domain.entities.tokens.VerificationToken;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.entities.users.UserPassword;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.domain.exceptions.classes.UserNotConfirmedException;
 import gp.wagner.backend.domain.exceptions.suppliers.TokenExpired;
@@ -37,6 +37,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -197,7 +199,7 @@ public class UsersServiceImpl implements UsersService {
     public void generateAndSendVerificationToken(User user) throws MessagingException {
 
         // Сформировать токен
-        String token = Utils.generateVerificationToken();
+        String token = Utils.generateVerificationToken(user.getEmail());
 
         VerificationToken vft = vfRepository.findByUserId(user.getId()).orElse(null);
 
@@ -487,6 +489,11 @@ public class UsersServiceImpl implements UsersService {
             throw new ApiException("Не удалось найти пользователя по username, параметр задан некорректно!");
 
         return usersRepository.getUsersByUserLoginEquals(userLogin);
+    }
+
+    @Override
+    public User getAuthedUser() {
+        return ServicesUtils.getUserFromSecurityContext(SecurityContextHolder.getContext());
     }
 
 }

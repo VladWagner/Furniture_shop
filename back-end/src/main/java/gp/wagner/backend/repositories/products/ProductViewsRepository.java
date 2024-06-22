@@ -1,9 +1,6 @@
 package gp.wagner.backend.repositories.products;
 
-import gp.wagner.backend.domain.entites.visits.ProductViews;
-import gp.wagner.backend.domain.entites.visits.Visitor;
-import jakarta.annotation.Nullable;
-import org.springframework.boot.context.properties.bind.DefaultValue;
+import gp.wagner.backend.domain.entities.visits.ProductViews;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

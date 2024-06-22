@@ -1,6 +1,6 @@
 package gp.wagner.backend.security.models;
 
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.enums.UsersRolesEnum;
 import jakarta.validation.constraints.NotNull;

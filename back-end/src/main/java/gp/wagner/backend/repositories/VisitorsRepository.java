@@ -1,10 +1,7 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.visits.Visitor;
-import jakarta.annotation.Nullable;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import org.springframework.boot.context.properties.bind.DefaultValue;
-import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

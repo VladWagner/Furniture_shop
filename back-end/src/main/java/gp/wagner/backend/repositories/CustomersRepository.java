@@ -1,7 +1,6 @@
 package gp.wagner.backend.repositories;
 
-import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.orders.Customer;
 import jakarta.persistence.Tuple;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

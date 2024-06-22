@@ -1,7 +1,6 @@
 package gp.wagner.backend.repositories.baskets;
 
-import gp.wagner.backend.domain.entites.baskets.BasketAndProductVariant;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entities.baskets.BasketAndProductVariant;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,7 +25,7 @@ public interface BasketsAndProductVariantsRepository extends JpaRepository<Baske
     """)
     void insertBasketAndProductVariant(@Param("product_variant") int productVariantId, @Param("basket") long orderId, @Param("count") int productsCount);
 
-    //Изменение справочника заказа
+    //Изменение справочника корзины
     @Transactional
     @Query(nativeQuery = true,
     value = """

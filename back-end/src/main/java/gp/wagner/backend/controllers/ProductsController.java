@@ -8,9 +8,9 @@ import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.products.ProductDetailsRespDto;
 import gp.wagner.backend.domain.dto.response.products.ProductPreviewRespDto;
 import gp.wagner.backend.domain.dto.response.product_attributes.AttributeValueRespDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.products.ProductImage;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.ControllerUtils;
 import gp.wagner.backend.infrastructure.SimpleTuple;
@@ -25,7 +25,6 @@ import jakarta.validation.constraints.Max;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -210,7 +209,7 @@ public class ProductsController {
                 //Добавить путь файла в список uri, который будет писаться в БД
                 filesUris.add(
                         Utils.cleanUrl(
-                                Services.fileManageService.saveFile(fileName, file, productDto.getCategoryId(), productDto.getId()).toString())
+                                Services.fileManageService.saveProductImgFile(fileName, file, productDto.getCategoryId(), productDto.getId()).toString())
                 );
             }
 
@@ -328,7 +327,7 @@ public class ProductsController {
                 ProductImage productImage = productImageOptional.orElse(null);
 
                 //Загрузить изображение в папку, получив URL загруженного изображения
-                String fileUri = Utils.cleanUrl(Services.fileManageService.saveFile(fileName,
+                String fileUri = Utils.cleanUrl(Services.fileManageService.saveProductImgFile(fileName,
                         file, productDto.getCategoryId(),
                         productDto.getId()).toString()
                 );

@@ -2,7 +2,7 @@ package gp.wagner.backend.domain.dto.response.product_attributes;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.eav.AttributeValue;
+import gp.wagner.backend.domain.entities.eav.AttributeValue;
 import jakarta.annotation.Nullable;
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,6 +1,6 @@
 package gp.wagner.backend.infrastructure;
 
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import gp.wagner.backend.middleware.Services;
 
 import java.nio.file.Path;

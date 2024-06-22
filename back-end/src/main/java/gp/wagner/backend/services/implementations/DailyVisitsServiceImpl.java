@@ -1,10 +1,9 @@
 package gp.wagner.backend.services.implementations;
 
 import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeRequestDto;
-import gp.wagner.backend.domain.entites.visits.DailyVisits;
+import gp.wagner.backend.domain.entities.visits.DailyVisits;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.PaginationUtils;
-import gp.wagner.backend.infrastructure.ServicesUtils;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.repositories.DailyVisitsRepository;
 import gp.wagner.backend.services.interfaces.DailyVisitsService;
@@ -22,7 +21,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.List;

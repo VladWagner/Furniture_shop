@@ -6,14 +6,13 @@ import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.users.UserRespDto;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.infrastructure.Constants;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
@@ -68,9 +67,7 @@ public class UsersController {
             @RequestPart(value = "profile_photo", required = false) MultipartFile file
     ) throws Exception {
 
-        User createdUser;
-
-        createdUser = Services.usersService.create(userDto);
+        User createdUser = Services.usersService.create(userDto);
 
         String fileName;
 
@@ -205,7 +202,7 @@ public class UsersController {
     @GetMapping(value = "/check_email")
     public ResponseEntity<Boolean> getEmailExists(@Valid @RequestParam(value = "val") String email)  {
 
-        if (Utils.emailIsValid(email))
+        if (!Utils.emailIsValid(email))
             throw new ConstraintViolationException("Email пользователя задан некорректно!", null);
 
         boolean result = Services.usersService.userWithEmailExists(email);
@@ -230,7 +227,14 @@ public class UsersController {
         return ResponseEntity.ok(String.format("Пароль для пользователя '%s' успешно сброшен!", user.getUserLogin()));
     }
 
-    // АТОРИЗАЦИЯ пользователя через Spring security
+    // Получить детальную информацию об аутентифицированном пользователе
+    @GetMapping(value = "/get_authed_detailed_info")
+    public ResponseEntity<UserRespDto> getAuthedUserDetailedInfo() {
+
+        User user = Services.usersService.getAuthedUser();
+
+        return ResponseEntity.ok(new UserRespDto(user));
+    }
 
 
 }

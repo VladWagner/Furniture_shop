@@ -2,9 +2,8 @@ package gp.wagner.backend.domain.dto.response.discounts;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import gp.wagner.backend.domain.entites.products.Discount;
+import gp.wagner.backend.domain.entities.products.Discount;
 import gp.wagner.backend.infrastructure.serializers.DateTimeJsonSerializer;
-import jakarta.persistence.Column;
 import lombok.*;
 
 import java.util.Date;

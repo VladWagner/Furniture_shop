@@ -1,7 +1,6 @@
 package gp.wagner.backend.repositories.tokens;
 
-import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
-import gp.wagner.backend.domain.entites.tokens.VerificationToken;
+import gp.wagner.backend.domain.entities.tokens.VerificationToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

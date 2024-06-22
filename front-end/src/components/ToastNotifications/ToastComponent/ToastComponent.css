@@ -1,0 +1,193 @@
+.toast{
+    display: flex;
+    width: 400px;
+    position: relative;
+    overflow: hidden;
+    list-style: none;
+
+    font-size: 14px;
+    border-radius: 4px;
+    padding: 1rem 1.1rem;
+
+    margin-bottom: 0.8rem;
+
+    background: rgb(129 129 129);
+    justify-content: space-between;
+
+    animation: show-toast 0.4s ease forwards;
+}
+
+@media screen and (min-width: 600px) and (max-width: 768px) {
+    .toast{
+        width: 300px;
+        position: relative;
+        font-size: 14px;
+
+        border-radius: 4px;
+        padding: 1rem 0.8rem;
+    }
+}
+@media screen and (min-width: 501px) and (max-width: 600px) {
+    .toast{
+        width: 250px;
+    }
+}
+
+@media screen and (max-width: 500px) {
+    .toast{
+        width: 200px;
+        font-size: 12px;
+    }
+    .toast-icon{
+        margin-right: 5px;
+    }
+
+    .toast-icon svg{
+        width: 1.2rem;
+        height: 1.2rem;
+    }
+}
+
+.toast-message{
+    color: white;
+}
+
+/*Анимация появления - */
+@keyframes show-toast {
+    0% {
+        transform: translateX(100%);
+    }
+    100% {
+        transform: translateX(0%);
+    }
+}
+/*Анимация появления*/
+@keyframes show-toast-2 {
+    0% {
+        opacity: 0;
+    }
+    60% {
+        opacity: 1.5;
+    }
+    100% {
+        opacity: 2.5;
+    }
+}
+
+/*Прогресс закрытия уведомления*/
+.toast-progress {
+    position: absolute;
+    content: "";
+    height: 3px;
+    /*width: 100%;*/
+    bottom: 0;
+    left: 0;
+    /*animation: progress 5000ms linear forwards;*/
+    transition: width ease-out 0.35s;
+
+    background: red;
+}
+@keyframes progress {
+    100% {
+        width: 0;
+    }
+}
+
+.toast-progress.success{
+    background: #0ABF30;
+}
+.toast-progress.error{
+    background: #ff3030;
+}
+.toast-progress.message{
+    background: #1976bb;
+}
+.toast-progress.warning{
+    background: #E9BD0C;
+}
+
+.toast-close-btn{
+
+    font-size: 17px;
+
+    cursor: pointer;
+
+    height: 18px;
+    width: 18px;
+
+    border-radius: 3px;
+    color: white;
+}
+
+.toast-close-btn-container{
+    display: flex;
+    height: 100%;
+    margin: auto 0 auto 5px;
+
+}
+
+.toast-close-btn:hover{
+    color: #f16464;
+}
+
+.toast-close-btn:active{
+    color: #f16464;
+    transform: scale(0.7);
+}
+
+.hide-toast {
+    animation: fade-toast 1.5s ease forwards;
+}
+.hide-toast-fast {
+    /*animation: fade-toast 0.6s ease forwards;*/
+    animation: fade-toast-move 0.6s ease forwards;
+}
+
+/*Анимация закрытия - затухание*/
+@keyframes fade-toast {
+    0% {
+        opacity: 2;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+@keyframes fade-toast-move {
+    0% {
+        transform: translateX(0);
+    }
+    20% {
+        transform: translateX(-10px);
+    }
+    100% {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+.toast-icon{
+    display: flex;
+    height: 100%;
+    margin: auto 5px auto 0;
+}
+
+.toast-icon svg{
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.toast-icon.success{
+    color: #0ABF30;
+}
+.toast-icon.error{
+    color: #ff3030;
+}
+.toast-icon.message{
+    color: #1976bb;
+}
+.toast-icon.warning{
+    color: #E9BD0C;
+}

@@ -31,7 +31,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-
         // Если маршрут входит в список игнорируемых
         if (isIgnoredRoute(request.getServletPath())) {
             filterChain.doFilter(request, response);

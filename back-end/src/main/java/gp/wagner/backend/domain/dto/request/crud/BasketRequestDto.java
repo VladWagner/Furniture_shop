@@ -20,7 +20,7 @@ public class BasketRequestDto {
 
     // Ассоциативная коллекция - id варианта товара + его количество
     @NotNull
-    private Map<Integer, Integer> productVariantIdAndCount;
+    private Map<Long, Integer> productVariantIdAndCount;
 
     @Nullable
     private Long userId;

@@ -3,6 +3,7 @@ const path = require("path");
 class WebpackConfig {
     mode = "development"
     entry = "./app/app.jsx"// входная точка - исходный файл
+    devtool = "source-map";
 
     //Место нахождения
     output = {

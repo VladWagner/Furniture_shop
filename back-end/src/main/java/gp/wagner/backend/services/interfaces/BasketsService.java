@@ -1,8 +1,8 @@
 package gp.wagner.backend.services.interfaces;
 
 import gp.wagner.backend.domain.dto.request.crud.BasketRequestDto;
-import gp.wagner.backend.domain.entites.baskets.Basket;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import gp.wagner.backend.domain.entities.baskets.Basket;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
 import org.springframework.data.domain.Page;
 
 import java.util.Date;
@@ -14,13 +14,19 @@ public interface BasketsService {
     //Добавление записи
     long create(Basket basket);
     long create(long productVariantId, int userId, int products_scout, Date addingDate);
-    long create(BasketRequestDto dto);
+    Basket create(BasketRequestDto dto);
 
     // Добавить ещё товаров в корзину
-    public void insertProductVariants(BasketRequestDto basketDto);
+    Basket insertProductVariants(BasketRequestDto basketDto);
+
+    // Изменить кол-во едениц варианта товара в корзине
+    Basket updateProductVariantCounter(Long pvId, int pvCount);
 
     //Изменение записи
     void update(Basket basket);
+
+
+    Basket updateOrCreate(BasketRequestDto basketDto);
     void update(long basketId, long productVariantId, int userId, int products_scout, Date addingDate);
 
     // Изменить сумму при изменении стоимости варианта товара
@@ -80,4 +86,7 @@ public interface BasketsService {
     void recountSumsForVariants(Long pvId, List<Long> pvIdList);
 
     Basket getForAuthenticatedUser();
+
+    // Удалить определённые товары из корзины
+    Basket deleteBasketByAuthUserAndProdVariant(long productId);
 }

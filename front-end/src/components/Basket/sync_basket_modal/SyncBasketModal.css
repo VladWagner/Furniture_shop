@@ -1,0 +1,80 @@
+.modal-title{
+    font-size: 17px;
+    font-weight: bold;
+    padding: 15px 20px 15px 20px;
+}
+
+.modal-message{
+    padding: 0 15px;
+}
+
+.basket-modal-buttons{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding: 0 20px;
+}
+
+
+
+.product-variant-basket-preview{
+    justify-content: start;
+}
+
+.product-variant-mini-basket-img{
+    margin-right: 2rem;
+}
+
+/*.modal-container{
+    top: -10rem;
+}
+!*Для телефонов отключить надпись esc*!
+@media only screen and (hover: none) and (pointer: coarse){
+
+    .modal-container{
+        top: 0!important;
+    }
+
+}
+
+@media (max-width: 969px) {
+    .modal-container{
+        !*max-width: 60%;*!
+        top: -2rem;
+    }
+    .btn.btn-local-modal{
+        padding: 0 25px;
+        width: 40%!important;
+    }
+}*/
+
+.btn.btn-local-modal{
+    /*padding: 0 30px;*/
+    width: 30%;
+    height: 40px;
+    background: #6d2ffe;
+    border-radius: 6px;
+    color: white;
+    border: 1px solid #d2d2d2;
+    font-weight: normal;
+}
+
+.btn-local-modal:hover{
+    background: #522ea4;
+}
+.btn-local-modal.reject:hover{
+    background: #969696;
+}
+
+.btn-local-modal.reject{
+    height: 40px;
+    background: #fdfdfe;
+    color: black;
+}
+
+.modal-basket-preview{
+    border-top: 1px solid rgb(176 175 175 / 40%);
+    border-bottom: 1px solid rgb(176 175 175 / 40%);
+    margin-bottom: 10px;
+}

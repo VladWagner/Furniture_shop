@@ -1,8 +1,7 @@
 package gp.wagner.backend.domain.dto.response.reviews;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.dto.request.crud.reviews.ReviewImageDto;
-import gp.wagner.backend.domain.entites.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.Review;
 import gp.wagner.backend.validation.review_request_dto.annotations.ValidReviewRequestDto;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;

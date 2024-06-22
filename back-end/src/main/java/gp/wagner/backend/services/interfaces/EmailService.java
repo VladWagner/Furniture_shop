@@ -1,7 +1,7 @@
 package gp.wagner.backend.services.interfaces;
 
 
-import gp.wagner.backend.domain.entites.orders.Order;
+import gp.wagner.backend.domain.entities.orders.Order;
 import jakarta.mail.MessagingException;
 import org.springframework.scheduling.annotation.Async;
 

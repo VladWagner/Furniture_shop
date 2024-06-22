@@ -16,9 +16,9 @@ public enum UsersRolesEnum {
 
     public String getRoleName() {return roleName;}
 
-    public static UsersRolesEnum getRoleEnum(String operationName) {
+    public static UsersRolesEnum getRoleEnum(String roleName) {
 
-        return switch (operationName.toLowerCase()) {
+        return switch (roleName.toLowerCase()) {
             case "администратор" -> ADMIN;
             case "редактор" -> EDITOR;
             default -> CUSTOMER;

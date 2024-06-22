@@ -1,6 +1,6 @@
 package gp.wagner.backend.repositories.reviews;
 
-import gp.wagner.backend.domain.entites.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

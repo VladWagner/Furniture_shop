@@ -1,8 +1,6 @@
 package gp.wagner.backend.domain.dto.response.category_views;
 
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.visits.CategoryViews;
-import jakarta.annotation.Nullable;
+import gp.wagner.backend.domain.entities.visits.CategoryViews;
 import jakarta.validation.constraints.Min;
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -1,9 +1,6 @@
 package gp.wagner.backend.repositories.orders;
 
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.infrastructure.SimpleTuple;
-import jakarta.persistence.criteria.CriteriaBuilder;
+import gp.wagner.backend.domain.entities.orders.OrderAndProductVariant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -1,8 +1,8 @@
 package gp.wagner.backend.domain.exceptions.suppliers;
 
-import gp.wagner.backend.domain.entites.tokens.PasswordResetToken;
-import gp.wagner.backend.domain.entites.tokens.VerificationToken;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.tokens.PasswordResetToken;
+import gp.wagner.backend.domain.entities.tokens.VerificationToken;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

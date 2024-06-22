@@ -1,7 +1,7 @@
 package gp.wagner.backend.security.services;
 
 
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.domain.entities.users.User;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.middleware.Services;
 import gp.wagner.backend.security.models.UserDetailsImpl;

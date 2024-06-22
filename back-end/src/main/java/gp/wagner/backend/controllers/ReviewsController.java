@@ -4,12 +4,10 @@ import gp.wagner.backend.domain.dto.request.crud.reviews.ReviewImageDtoContainer
 import gp.wagner.backend.domain.dto.request.crud.reviews.ReviewRequestDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.reviews.ReviewRespDto;
-import gp.wagner.backend.domain.entites.products.Discount;
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.reviews.ReviewImage;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.reviews.ReviewImage;
 import gp.wagner.backend.infrastructure.Utils;
 import gp.wagner.backend.infrastructure.enums.sorting.GeneralSortEnum;
-import gp.wagner.backend.infrastructure.enums.sorting.RatingsSortEnum;
 import gp.wagner.backend.infrastructure.enums.sorting.ReviewsSortEnum;
 import gp.wagner.backend.middleware.Services;
 import jakarta.validation.Valid;
@@ -69,7 +67,7 @@ public class ReviewsController {
     // Изменить отзыв на товар
     @PutMapping(value = "/update_review")
     public ResponseEntity<ReviewRespDto> updateReview(@Valid @RequestPart(value = "review") ReviewRequestDto reviewDto,
-                                                      @RequestPart(value = "images_container") ReviewImageDtoContainer container,
+                                                      @RequestPart(value = "images_container", required = false) ReviewImageDtoContainer container,
                                                       @RequestPart(value = "files", required = false) List<MultipartFile> files) throws Exception {
 
         Review updatedReview = Services.reviewsService.update(reviewDto);

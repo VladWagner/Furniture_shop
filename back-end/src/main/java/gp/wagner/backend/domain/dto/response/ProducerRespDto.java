@@ -1,10 +1,6 @@
 package gp.wagner.backend.domain.dto.response;
 
-import gp.wagner.backend.domain.entites.products.Producer;
-import gp.wagner.backend.validation.producer_request_dto.annotations.ValidProducerRequestDto;
-import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import gp.wagner.backend.domain.entities.products.Producer;
 import lombok.*;
 
 import java.util.Date;

@@ -1,0 +1,263 @@
+input {
+    width: 100%;
+    border: 1px solid #cbcbcd;
+    padding: 10px;
+    border-radius: 5px
+}
+
+.field-container{
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.field-container:last-child{
+    margin-bottom: 0;
+}
+
+.field-required{
+    color: #CE0101;
+    font-size: 80%;
+    margin-left: 2px;
+}
+
+/*region Классы стилизации разных типов сообщений*/
+.field-container.message-form-field>input{
+    border: 1.5px solid rgb(18, 95, 180);;
+}
+.field-container.error-form-field>input{
+    border: 1.5px solid #ff2600;
+    animation: error-input-bounce .82s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/*Анимация встряхивания поля*/
+@keyframes error-input-bounce {
+    10%, 90% {
+        transform: translate3d(-1px, 0, 0);
+    }
+    20%, 80% {
+        transform: translate3d(2px, 0, 0);
+    }
+    30%, 50%, 70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+    40%, 60% {
+        transform: translate3d(4px, 0, 0);
+    }
+}
+
+.field-container.valid-form-field>input{
+    border: 1.5px solid #009f03;
+}
+
+/*.message-auth-form-field>span:not(.form-field-validation-icon)*/
+.message-form-field>.form-under-input-msg{
+    margin: 5px 0 5px 0;
+    color:  rgb(18, 95, 180);
+}
+/*.error-auth-form-field>span:not(.form-field-validation-icon)*/
+.error-form-field>.form-under-input-msg{
+    margin: 5px 0 5px 0;
+    color:  #ff2600;
+}
+/*.valid-auth-form-field>span:not(.form-field-validation-icon)*/
+.valid-form-field>.form-under-input-msg{
+    margin: 5px 0 5px 0;
+    color:  #009f03;
+}
+/*endregion*/
+
+.field-container>.hide-password-icon{
+    position: absolute;
+
+    /*top: calc(36% - 20px);*/
+    top: 7.8px;
+    right: 10px;
+    /*right: 30px;*/
+    padding: 10px 0 10px 0;
+    background: white;
+}
+/*Изменить позицию, если сообщения под полем ввода нет*/
+.field-container>.hide-password-icon.no-form-field-text-message{
+    top: calc(50% - 20px);
+}
+
+
+.field-container>.hide-password-icon.has-info-icon{
+    right: 32px;
+}
+.hide-password-icon>svg:hover{
+    color: #0C6DE2;
+    transition: color 0.2s;
+}
+
+.error-form-field>.hide-password-icon.has-info-icon{
+    padding-right: 1px;
+}
+.hide-password-icon>svg{
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.field-container>.form-field-validation-icon{
+    display: none;
+    position: absolute;
+    /*top: calc(48% - 20px);*/
+    /*top: calc(36% - 20px);*/
+    top: 7.8px;
+    right: 10px;
+    padding: 10px 0 10px 0;
+    background: inherit;
+}
+
+/*.field-container>.form-field-validation-icon.no-form-field-text-message{
+    top: calc(50% - 20px);
+    right: 10px;
+}*/
+
+.field-container>.form-field-validation-icon.active{
+    display: block;
+}
+.form-field-validation-icon>svg{
+    width: 20px;
+    height: 20px;
+}
+
+
+.error-form-field>.form-field-validation-icon>svg{
+    color:  #ff2600;
+}
+.valid-form-field>.form-field-validation-icon>svg{
+    color:  #009f03;
+}
+
+.form-input{
+    padding-top: 27px;
+    padding-bottom: 12px;
+    padding-left: 25px;
+    -webkit-transition: all 0.2s;
+    transition: all 0.2s;
+}
+
+.form-input:focus+.form-label{
+    -webkit-transform: translateY(-12px) scale(0.9);
+    transform: translateY(-12px) scale(0.9);
+}
+.field-container.filled .form-label{
+    -webkit-transform: translateY(-12px) scale(0.9);
+    transform: translateY(-12px) scale(0.9);
+}
+
+.form-label{
+    font-size: 15px;
+    position: absolute;
+
+    left: 25px;
+    right: 20px;
+    top: 18px;
+
+    pointer-events: none;
+    -webkit-transition: all 0.2s;
+    transition: all 0.2s;
+    -webkit-transform-origin: left;
+    white-space: nowrap;
+    overflow: hidden;
+    color: #818489;
+}
+
+/*Стили для check box */
+/*.form-checkbox{
+    position: absolute;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+}*/
+.form-checkbox-input{
+    position: absolute;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+
+    width: 1px;
+    height: 1px;
+}
+
+.form-checkbox-select{
+    display: flex;
+
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+    justify-content: center;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    cursor: pointer;
+
+    align-items: center;
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    border: 1px solid #E3E8ED;
+    background: #FBFCFD;
+    width: 22px;
+    height: 22px;
+}
+
+.form-checkbox-tick{
+    opacity: 0;
+    width: 17px;
+    transition: opacity 0.19s;
+}
+
+.form-checkbox-input:checked ~ .form-checkbox-select .form-checkbox-tick{
+    opacity: 1;
+}
+
+.form-checkbox-label{
+    font-size: 14px;
+    padding-left: 28px;
+    padding-top: 0;
+    cursor: pointer;
+}
+.form-checkbox-label:active{
+    color: gray;
+}
+
+.form-error{
+    border-radius: 4px;
+    padding: 15px 16px 15px 16px;
+    margin-top: 10px;
+    background-color: rgba(235, 87, 87, 0.22);
+    color: #EB5757;
+}
+.form-message{
+    border-radius: 4px;
+    padding: 15px 16px 15px 16px;
+    margin-top: 10px;
+    background-color: rgba(80, 112, 225, 0.3);
+    color: #181818;
+}
+
+.form-response-await-animation{
+    border-radius: 4px;
+    padding-top: 5px;
+    margin-top: 10px;
+    background-color: rgba(80, 112, 225, 0.1);
+    text-align: center;
+}
+
+.btn-submit-auth-form {
+    /*padding: 0 30px;*/
+    width: 100%;
+    height: 40px;
+    background: #F6D300;
+    border-radius: 10px;
+    color: black;
+    border: 1px solid #F6D300;
+    font-weight: normal;
+    font-size: 13px;
+    cursor: pointer;
+}
+

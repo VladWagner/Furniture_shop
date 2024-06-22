@@ -1,8 +1,10 @@
 package gp.wagner.backend.infrastructure;
 
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.orders.OrderAndProductVariant;
-import gp.wagner.backend.domain.entites.products.ProductVariant;
+import com.ctc.wstx.shaded.msv_core.datatype.xsd.regex.RegExp;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.orders.OrderAndProductVariant;
+import gp.wagner.backend.domain.entities.products.ProductVariant;
+import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;
@@ -12,7 +14,6 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
 import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -32,6 +33,22 @@ public class Utils {
     //Формат вывода даты
     public static SimpleDateFormat sdf = new SimpleDateFormat("dd.MM.yyyy HH:mm");
     public static SimpleDateFormat sdf_date_only = new SimpleDateFormat("dd.MM.yyyy");
+
+    // Адреса, которым разрешено совершать запросы на сервер
+    public static List<String> corsAllowedOrigins = List.of(
+            "http://localhost:3000",
+            "http://192.168.0.100:3000/",
+            "http://192.168.0.101:3000/",
+            "http://192.168.0.102:3000/",
+            "http://192.168.0.103:3000/",
+            "http://192.168.0.104:3000/",
+            "http://192.168.0.105:3000/",
+            "http://192.168.0.106:3000/",
+            "http://192.168.0.107:3000/",
+            "http://192.168.0.108:3000/",
+            "http://192.168.0.109:3000/",
+            "http://192.168.0.110:3000/"
+    );
 
     //Убрать из url лишние префиксы и слэши - через регулярку
     public static String cleanUrl(String fileUri) {
@@ -110,6 +127,9 @@ public class Utils {
     // Получение нужного значения из cookie
     public static String readCookie(HttpServletRequest request, String cookieName){
         Cookie[] cookies = request.getCookies();
+
+        if(cookies == null)
+            return null;
 
         for (Cookie cookie : cookies) {
             if (cookie.getName().equalsIgnoreCase(cookieName))
@@ -197,28 +217,42 @@ public class Utils {
 
         String[] arr = str.replaceAll("[ .,;:\\-–—_]", " ").split("\\s+");
 
+        // Являются ли первые 2 знака символами латинского алфавита
+        //boolean fistSymbolsLatin = str.matches("^[a-zA-Z0-9. ]{2,}");
+
         if (arr.length > 1) {
 
             return arr[0].charAt(0) + String.valueOf(arr[1].charAt(0));
         }
-        else if(str.length() > 1)
-            return str.charAt(0) + String.valueOf(str.charAt(1));
+        /*else if(str.length() > 1 && fistSymbolsLatin)
+            return str.charAt(0) + String.valueOf(str.charAt(1));*/
         else
             // Получит просто первый символ строки
             return String.valueOf(str.charAt(0));
     }
 
     // Генерация случайного шестнадцатеричного числа для токена верификации
-    public static String generateVerificationToken(){
+    public static String generateVerificationToken(String email){
+
+        if (email == null || email.isBlank())
+            return null;
 
         SecureRandom random = new SecureRandom();
-        long mask = 0xffffffffffffffffL;
+        //long mask = 0xffffffffffffffffL;
+        long mask = 0xffffffffffffL;
 
         long part1 = random.nextLong() & mask;
         long part2 = random.nextLong() & mask;
-        long part3 = random.nextLong() & mask;
 
-        return Long.toHexString(part1) + Long.toHexString(part2) /*+ Long.toHexString(part3)*/;
+        String token = Long.toHexString(part1) + Long.toHexString(part2);
+
+        if (email.length() > 319)
+            return token;
+
+        // Задать во 2-ю часть токена закодированный email
+        String encodedEmail = Base64.getUrlEncoder().withoutPadding().encodeToString(email.getBytes());
+
+        return String.format("%s.%s", token, encodedEmail);
     }
 
     // Проверка валидности email

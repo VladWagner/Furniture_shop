@@ -1,14 +1,11 @@
 package gp.wagner.backend.domain.dto.response.categories;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.categories.Category;
-import gp.wagner.backend.domain.entites.categories.RepeatingCategory;
-import gp.wagner.backend.middleware.Services;
+import gp.wagner.backend.domain.entities.categories.Category;
+import gp.wagner.backend.domain.entities.categories.RepeatingCategory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 // DTO для выборки категорий с вложенным списком дочерних категорий
 @Data

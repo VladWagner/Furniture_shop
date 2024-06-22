@@ -1,7 +1,6 @@
 package gp.wagner.backend.security.models;
 
-import gp.wagner.backend.domain.entites.users.User;
-import lombok.Data;
+import gp.wagner.backend.domain.entities.users.User;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.core.Authentication;

@@ -5,8 +5,8 @@ import gp.wagner.backend.domain.dto.request.crud.user.PasswordUpdateRequestDto;
 import gp.wagner.backend.domain.dto.request.crud.user.UserRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.UsersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.UserFilterValuesDto;
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.users.UserRole;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.entities.users.UserRole;
 import gp.wagner.backend.infrastructure.SimpleTuple;
 import jakarta.mail.MessagingException;
 import org.springframework.data.domain.Page;
@@ -70,4 +70,6 @@ public interface UsersService {
 
     // Nullable означает, что при отсутствии записи о пользователе с заданным логином не будет выброшено исключение, а просто вернётся null
     Optional<User> getByLoginNullable(String userLogin);
+
+    User getAuthedUser();
 }

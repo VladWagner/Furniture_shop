@@ -1,7 +1,7 @@
 package gp.wagner.backend.domain.dto.response.ratings;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import gp.wagner.backend.domain.entites.ratings.RatingStatistics;
+import gp.wagner.backend.domain.entities.ratings.RatingStatistics;
 import gp.wagner.backend.validation.user_request_dto.annotations.ValidUserRequestDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

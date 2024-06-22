@@ -1,0 +1,236 @@
+.basket-preview-container {
+    display: block;
+    position: absolute;
+    width: 24rem;
+    font-family: 'Roboto', Aria, system-ui;
+    font-size: 14px;
+    text-transform: initial;
+    top:5.1rem;
+    right: 1%;
+    /*border: 0.01rem solid rgb(176 175 175 / 37%);
+    border-bottom-width: 0;*/
+    border-radius: 0 0 10px 10px;
+    z-index: 11;
+    background: white;
+
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.36);
+
+    opacity: 0;
+    transition: opacity 0.3s;
+
+    pointer-events: none;
+}
+
+@media (min-width: 1700px) {
+    .basket-preview-container {
+        right: 10%;
+    }
+}
+
+@media (max-width: 959px) {
+    .basket-preview-container {
+        top: 17%;
+        width: 20rem;
+    }
+}
+
+@media (min-width: 960px) {
+
+    @keyframes slide-basket-panel {
+        0% {
+            transform: translateX(-10%);
+        }
+        100% {
+            transform: translateX(0%);
+        }
+    }
+    .basket-container:hover .basket-preview-container {
+        /*display: block;*/
+        opacity: 1;
+        animation: slide-basket-panel 0.3s ease forwards;
+        pointer-events: initial;
+    }
+
+
+}
+
+.basket-preview-info-block {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 15px 12px 15px;
+}
+
+.basket-preview-info-block.header {
+    border-bottom: 1px solid rgb(176 175 175 / 40%);
+}
+
+.basket-preview-info-block.footer {
+    border-top: 1px solid rgb(176 175 175 / 40%);
+}
+
+.basket-preview-info-block.go-to-basket-button {
+    padding: 12px;
+    border-top: 1px solid rgb(176 175 175 / 40%);
+    border-radius: 0 0 10px 10px;
+
+    background: rgb(59, 118, 189);
+    color: white;
+
+    cursor: pointer;
+}
+
+.basket-preview-info-block.go-to-basket-button:hover {
+    background: rgb(18, 95, 180);
+}
+
+.arrow-forward-basket {
+    -webkit-box-align: center;
+    display: -webkit-box;
+    -webkit-box-pack: center;
+    padding: 3px 0 0 0;
+
+    border-radius: 50%;
+    background: white;
+    width: 34px;
+    height: 34px;
+    color: black !important;
+}
+
+.pv-list-basket-preview {
+    padding: 3px 0 10px 0;
+    overflow: auto;
+    max-height: 240px;
+}
+
+.pv-list-basket-preview::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+.pv-list-basket-preview::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pv-list-basket-preview::-webkit-scrollbar-thumb {
+    background: #a8a8a8;
+    border-radius: 10px;
+}
+
+.pv-list-basket-preview::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.product-variant-basket-preview {
+    /*padding: 20px 0 20px 7px;*/
+
+    -webkit-box-pack: justify;
+    justify-content: space-between;
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+    align-items: center;
+    display: flex;
+    -webkit-box-flex: 1;
+
+    position: relative;
+    padding: 0 5px 5px 5px;
+}
+
+.product-variant-mini-link{
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+}
+
+.product-variant-mini-basket-img{
+    flex-basis: 90px;
+}
+
+.product-variant-mini-basket-img > img{
+    /*height: 5.7rem;
+    width: 5.7rem;*/
+}
+
+.product-variant-mini-content{
+    width: 63%;
+}
+
+.pv-mini-basket-preview-title{
+    font-size: 13px;
+    font-weight: 400;
+    color: #262626;
+}
+
+.pv-mini-basket-preview-info{
+    margin-top: 4px;
+    -webkit-box-pack: justify;
+    justify-content: space-between;
+    -webkit-box-align: center;
+    align-items: center;
+    display: flex;
+}
+
+.basket-pv-quantity-buttons{
+    max-width: 35%;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+}
+
+.counter.btn{
+    display: flex;
+    /*position: absolute;*/
+
+    height: 20px;
+    width: 20px;
+
+    padding: 2px;
+    border-radius: 0;
+    border: 1px solid rgb(176 175 175 / 40%);
+}
+
+.counter.btn:hover{
+    border: 1px solid rgba(18, 95, 180, 70%);
+}
+.counter.btn:disabled {
+     background: #dcdada;
+ }
+
+.basket-pv-quantity-input{
+    text-align: center;
+    border-radius: 0;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgb(176 175 175 / 40%);
+    border-right: 0;
+    border-left: 0;
+    width: 100%;
+
+    outline: none;
+
+    font-family: 'Roboto', Aria, system-ui;
+    font-size: 13px;
+}
+
+.basket-pv-quantity-input::-webkit-outer-spin-button,
+.basket-pv-quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+}
+
+.pv-remove-from-basket{
+
+    cursor: pointer;
+
+    z-index: 5;
+    transition: color 0.3s ease-out;
+}
+
+.pv-remove-from-basket:hover{
+    color: #e14242;
+}
+
+.pv-basket-price{
+    font-weight: bold;
+    margin-top: 2px;
+}

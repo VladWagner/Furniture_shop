@@ -1,7 +1,7 @@
 package gp.wagner.backend.repositories.reviews;
 
-import gp.wagner.backend.domain.entites.products.ProductImage;
-import gp.wagner.backend.domain.entites.reviews.ReviewImage;
+import gp.wagner.backend.domain.entities.products.ProductImage;
+import gp.wagner.backend.domain.entities.reviews.ReviewImage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

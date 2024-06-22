@@ -1,6 +1,6 @@
 package gp.wagner.backend.repositories.ratings;
 
-import gp.wagner.backend.domain.entites.ratings.Rating;
+import gp.wagner.backend.domain.entities.ratings.Rating;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

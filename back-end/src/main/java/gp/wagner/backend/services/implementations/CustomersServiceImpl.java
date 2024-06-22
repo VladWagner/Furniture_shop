@@ -3,10 +3,10 @@ package gp.wagner.backend.services.implementations;
 import gp.wagner.backend.domain.dto.request.crud.CustomerRequestDto;
 import gp.wagner.backend.domain.dto.request.filters.CustomersFilterRequestDto;
 import gp.wagner.backend.domain.dto.response.filters.CustomersFilterValuesDto;
-import gp.wagner.backend.domain.entites.orders.Customer;
-import gp.wagner.backend.domain.entites.orders.Order;
-import gp.wagner.backend.domain.entites.users.User;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.orders.Customer;
+import gp.wagner.backend.domain.entities.orders.Order;
+import gp.wagner.backend.domain.entities.users.User;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.ServicesUtils;
@@ -22,9 +22,6 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
-import org.apache.commons.math3.analysis.function.Exp;
-import org.aspectj.weaver.ast.Expr;
-import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -32,7 +29,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class CustomersServiceImpl implements CustomersService {

@@ -1,10 +1,8 @@
 package gp.wagner.backend.services.implementations.products;
 
-import gp.wagner.backend.domain.dto.response.VisitorRespDto;
-import gp.wagner.backend.domain.dto.response.product_views.ProductViewRespDto;
-import gp.wagner.backend.domain.entites.products.Product;
-import gp.wagner.backend.domain.entites.visits.ProductViews;
-import gp.wagner.backend.domain.entites.visits.Visitor;
+import gp.wagner.backend.domain.entities.products.Product;
+import gp.wagner.backend.domain.entities.visits.ProductViews;
+import gp.wagner.backend.domain.entities.visits.Visitor;
 import gp.wagner.backend.domain.exceptions.classes.ApiException;
 import gp.wagner.backend.infrastructure.PaginationUtils;
 import gp.wagner.backend.infrastructure.SortingUtils;
@@ -26,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.*;

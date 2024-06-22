@@ -2,8 +2,55 @@
 body{
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
-    font-family: Arial, serif;
+    margin: 0 0.4rem 0 1rem;
+    line-height: 1.5;
+    text-transform: uppercase;
+    font-family: "Roboto", Arial, Helvetica, sans-serif;
+    font-size: 15px;
+    scroll-behavior: smooth;
+}
+
+body::-webkit-scrollbar {
+    width: 16px;
+}
+
+body::-webkit-scrollbar-track {
+    background: #ffffff; /* Цвет фона трека */
+    /*border-radius: 10px;*/ /* Скругление углов трека */
+}
+
+body::-webkit-scrollbar-thumb {
+    background: #888; /* Цвет ползунка */
+    margin-right: 5px;
+    border-radius: 10px;
+
+    /*Граница такого размера создаёт своеобразный padding*/
+    border: 5px solid #ffffff;
+}
+
+body::-webkit-scrollbar-button{
+    display: none;
+}
+
+.container{
+    /*padding: 0.5rem;*/
+    min-height: 90vh;
+}
+.app-container{
+    /*padding: 0.5rem;*/
+
+    max-width: 1500px;
+    margin: 0 auto;
+}
+/*Для телефонов изменить отступы контейнера */
+@media only screen and (hover: none) and (pointer: coarse){
+    .app-container{
+        margin: 0 0.7rem 0 0;
+    }
+}
+
+input, textarea, button, select, label, a {
+    outline: none;
 }
 
 .text-Big {
@@ -23,10 +70,9 @@ main {
 }
 
 /*Подвал*/
-footer {
+footer.basic {
     flex-shrink: 0;
-    padding: 1.2%;
-    padding-right: 0;
+    padding: 1.2% 0 1.2% 1.2%;
     margin-top: 10vh;
     color: rgb(149, 151, 152);
 }
@@ -138,76 +184,19 @@ details.task-details {
 
 
 /*region Toast сообщение*/
-.toast-container-my{
+.toast-container{
     position: fixed;
-    top: 5rem;
+    /*min-height: 30%;
+    top: 5rem;*/
     right: 1.5rem;
+    z-index: 1001;
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: height 0.35s ease-out;
+    text-transform: initial;
 }
 
-.toast-my{
-    width: 400px;
-    position: relative;
-    overflow: hidden;
-    list-style: none;
 
-    border-radius: 4px;
-    padding: 1rem 1.5rem;
-
-    margin-bottom: 0.8rem;
-
-    background: rgb(157, 157, 157);
-    justify-content: space-between;
-
-    animation: show-toast 0.6s ease forwards;
-    /*animation: show-toast-2 1.5s ease forwards;*/
-}
-
-.toast-message{
-    color: white;
-}
-
-/*Анимация появления - */
-@keyframes show-toast {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(0%);
-  }
-}
-/*Анимация появления*/
-@keyframes show-toast-2 {
-  0% {
-      opacity: 0;
-  }
-  60% {
-      opacity: 1.5;
-  }
-  100% {
-    opacity: 2.5;
-  }
-}
-
-.btn-close:hover{
-    opacity: 2;
-}
-
-.hide-toast {
-  animation: fade-toast 1.5s ease forwards;
-}
-
-/*Анимация закрытия - затухание*/
-@keyframes fade-toast {
-  0% {
-    opacity: 2;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
 /*endregion*/
 
 td.align-vertical, th.align-vertical{
@@ -217,4 +206,47 @@ td.align-vertical, th.align-vertical{
 /*Цвет фона*/
 .bg-light-blue{
     background-color: #0d6efc42;
+}
+
+/*Общий стиль кнопки*/
+.btn{
+    background: transparent;
+
+    display: -webkit-box;
+    display: -ms-flexbox;
+    display: flex;
+
+    -webkit-box-align: center;
+    -ms-flex-align: center;
+
+    align-items: center;
+
+    -webkit-box-pack: center;
+    -ms-flex-pack: center;
+
+    justify-content: center;
+
+    border: 2px solid transparent;
+
+    border-radius: 25px;
+
+    height: 50px;
+    padding: 0 15px;
+
+    margin: 0;
+
+    outline: none;
+    cursor: pointer;
+    color: #262626;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+
+    text-align: center;
+
+    line-height: 1;
+    letter-spacing: 0.5px;
 }

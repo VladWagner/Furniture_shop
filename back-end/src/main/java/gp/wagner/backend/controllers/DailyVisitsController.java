@@ -4,7 +4,7 @@ import gp.wagner.backend.domain.dto.request.admin_panel.DatesRangeAndValRequestD
 import gp.wagner.backend.domain.dto.response.DailyVisitsRespDto;
 import gp.wagner.backend.domain.dto.response.PageDto;
 import gp.wagner.backend.domain.dto.response.admin_panel.QuantityValuesRespDto;
-import gp.wagner.backend.domain.entites.visits.DailyVisits;
+import gp.wagner.backend.domain.entities.visits.DailyVisits;
 import gp.wagner.backend.middleware.Services;
 import jakarta.persistence.Tuple;
 import jakarta.validation.Valid;

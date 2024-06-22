@@ -1,7 +1,8 @@
 package gp.wagner.backend.services.interfaces;
 
-import gp.wagner.backend.domain.entites.reviews.Review;
-import gp.wagner.backend.domain.entites.users.User;
+import gp.wagner.backend.configurations.FileUploadProperties;
+import gp.wagner.backend.domain.entities.reviews.Review;
+import gp.wagner.backend.domain.entities.users.User;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -11,14 +12,18 @@ import java.net.URI;
 //Отдельный сервис для работы с изображениями
 public interface FileManageService {
 
+    FileUploadProperties getFilesPaths();
+
     //Загрузить файл варианта товара
-    Resource saveFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId, Long productVariantId) throws IOException;
+    Resource savePvImgFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId, Long productVariantId) throws IOException;
 
     //Загрузить файл для базового варианта товара
-    Resource saveFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId) throws IOException;
+    Resource saveProductImgFile(String fileName, MultipartFile multipartFile, Long categoryId, Long productId) throws IOException;
 
-    // Загрузить изображение категории или производителя
-    Resource saveProducerOrCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, Long producerId) throws IOException;
+    // Загрузить изображение только для производителя
+    Resource saveProducerThumb(String fileName, MultipartFile multipartFile, Long producerId) throws IOException;
+    // Загрузить изображение только для категории
+    Resource saveCategoryThumb(String fileName, MultipartFile multipartFile, Long categoryId, boolean isRepeating) throws IOException;
 
     //Сформировать файл предосмотра
     Resource saveThumbnail(String filePath, Long categoryId, Long productId) throws IOException ;
@@ -34,6 +39,8 @@ public interface FileManageService {
 
     //Удалить файл
     void deleteFile(URI filePath) throws IOException;
+
+    String renameFile(String filePath, String newName);
 
     //Проверить, существует ли файл
     boolean isExists(URI filePath);

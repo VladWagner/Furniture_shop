@@ -26,8 +26,8 @@ spring:
       access: ${JWT_ACCESS_SECRET_KEY}
       refresh: ${JWT_REFRESH_SECRET_KEY}
     life-time:
-      # Срок жизни = 1 день в миллисекундах
-      access: 86400000
+      # Срок жизни = 1 день в миллисекундах 86400000
+      access: ${JWT_LIFE_TIME}
       # Срок жизни = 60 дней в миллисекундах
       refresh: 5184000000
   mail:
@@ -44,12 +44,11 @@ spring:
           starttls.enable: true
           ssl.trust: smtp.yandex.ru
           timeout: 20000
-  cors:
-    allowed-origins: "*"
-    allowed-methods: "*"
-    allowed-headers: "*"
+  frontend-domain: ${FURNITURE_SHOP_FRONTED_DOMAIN}
   main:
     allow-bean-definition-overriding: true
+  files:
+    uploads-path: ${SHOP_FILES_UPLOADS_PATH}
   servlet:
     multipart:
       max-file-size: 100MB
